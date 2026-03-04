@@ -30,7 +30,7 @@ const ACTIONS = [
 export default function HomePage() {
   const {
     rate, rateLoading, rateError,
-    setScreen, toggleDevMode, devMode,
+    setScreen,
     selectedCurrency, setTransactionType,
     walletAddress
   } = usePaymentStore();
@@ -54,40 +54,39 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 animate-fade-in pb-32">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-32">
       {/* Premium Header */}
-      <header className="bg-mpesa-green px-6 pt-12 pb-20 rounded-b-[3rem] relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-2xl" />
+      <header className="bg-[var(--accent)] px-8 pt-16 pb-24 rounded-b-[4rem] relative overflow-hidden shadow-[0_20px_50px_var(--accent-glow)]">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/20 rounded-full -ml-16 -mb-16 blur-2xl" />
 
-        <div className="flex items-center justify-between mb-8 relative z-10">
+        <div className="flex items-center justify-between mb-10 relative z-10">
           <div className="flex flex-col">
-            <span className="text-white/60 text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
+            <span className="text-white/50 text-[10px] font-black tracking-[0.3em] uppercase mb-1">
               Global Fintech
             </span>
-            <h1 className="text-white text-2xl font-800 font-display">WLD2Mpesa</h1>
+            <h1 className="text-white text-3xl font-black font-display tracking-tight">WLD2Mpesa</h1>
           </div>
-          <button
-            onClick={toggleDevMode}
-            className="bg-white/10 hover:bg-white/20 text-white/80 text-[10px] px-3 py-1.5 rounded-full border border-white/20 transition-all font-bold"
-          >
-            {devMode ? '• SIMULATION ACTIVE' : 'DEV MODE'}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1.5 bg-white/10 rounded-full border border-white/20 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
+              Secure
+            </div>
+          </div>
         </div>
 
         {/* Balance Card (WLD + Selected Currency) */}
         <div className="relative z-10">
-          <p className="text-white/70 text-sm font-medium mb-1">Your Balance</p>
+          <p className="text-white/60 text-sm font-bold mb-2 uppercase tracking-wide">Combined Balance</p>
           <div className="flex items-baseline gap-2">
-            <h2 className="text-white text-4xl font-800 font-display tracking-tight">
+            <h2 className="text-white text-5xl font-black font-display tracking-tight">
               {rate && !rateLoading ? (
                 <span>{convertKesTo(1000, selectedCurrency).toFixed(2)}</span>
               ) : '0.00'}
             </h2>
-            <span className="text-white/80 font-bold text-lg">{selectedCurrency}</span>
+            <span className="text-white/80 font-black text-xl">{selectedCurrency}</span>
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="px-2 py-0.5 bg-white/20 rounded-full text-white text-[10px] font-bold">
+          <div className="mt-4 flex items-center gap-2">
+            <div className="px-3 py-1 bg-white/20 rounded-xl text-white text-[11px] font-black backdrop-blur-md border border-white/10">
               ≈ {rate ? (1000 / rate.wldPriceKes).toFixed(4) : '0.0000'} WLD
             </div>
           </div>
@@ -96,60 +95,60 @@ export default function HomePage() {
 
       {/* Action Grid */}
       <div className="px-6 -mt-12 relative z-20">
-        <div className="card glass grid grid-cols-2 gap-4 p-4 shadow-xl mb-6">
+        <div className="card grid grid-cols-2 gap-5 p-5 shadow-2xl mb-8 border-[var(--border-color)]">
           {ACTIONS.map((action) => (
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="group flex flex-col items-center p-4 rounded-2xl hover:bg-white transition-all duration-300 active:scale-95 border border-transparent hover:border-gray-100"
+              className="group flex flex-col items-center p-5 rounded-[2rem] bg-[var(--bg-secondary)] hover:bg-[var(--accent)] transition-all duration-500 active:scale-95 border border-[var(--border-color)] hover:border-transparent hover:shadow-[0_10px_20px_var(--accent-glow)]"
             >
               <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform text-white",
+                "w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500 text-white",
                 action.color
               )}>
-                <action.icon className="w-6 h-6" />
+                <action.icon className="w-7 h-7" />
               </div>
-              <span className="text-xs font-bold text-gray-800">{action.label}</span>
-              <span className="text-[10px] text-gray-400 mt-0.5">{action.sub}</span>
+              <span className="text-sm font-black text-[var(--text-primary)] group-hover:text-white transition-colors">{action.label}</span>
+              <span className="text-[10px] text-[var(--text-secondary)] mt-1 group-hover:text-white/70 transition-colors uppercase tracking-wider">{action.sub}</span>
             </button>
           ))}
         </div>
 
         {/* Currency & Rates Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-sm font-bold text-gray-800">Exchange Rates</h3>
-            <span className="text-[10px] font-bold text-mpesa-green bg-mpesa-green-light px-2 py-0.5 rounded-full">LIVE</span>
+          <div className="flex items-center justify-between px-3">
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">Market Rates</h3>
+            <span className="text-[10px] font-black text-[var(--accent)] bg-[var(--accent)]/10 px-3 py-1 rounded-full animate-pulse border border-[var(--accent)]/20">LIVE FEED</span>
           </div>
 
-          <div className="card space-y-4 shadow-sm border-gray-100">
+          <div className="card space-y-5 border-[var(--border-color)]">
             <CurrencySelector />
 
             {rateLoading ? (
-              <div className="flex items-center justify-center py-4 gap-2 text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-xs font-medium">Syncing with World Chain...</span>
+              <div className="flex items-center justify-center py-6 gap-3 text-[var(--text-secondary)]">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-xs font-bold uppercase tracking-widest">Syncing World Chain...</span>
               </div>
             ) : rateError ? (
-              <div className="p-3 bg-red-50 text-red-500 rounded-xl text-xs font-medium text-center">
+              <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-xs font-bold text-center">
                 {rateError}
               </div>
             ) : rate ? (
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-mpesa-green-soft rounded-full flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-mpesa-green" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center border border-[var(--accent)]/20">
+                    <TrendingUp className="w-6 h-6 text-[var(--accent)]" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 font-medium">Current WLD Price</p>
-                    <p className="text-sm font-bold text-gray-800">
+                    <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-wider">Spot Rate</p>
+                    <p className="text-lg font-black text-[var(--text-primary)] font-display">
                       1 WLD = {formatCurrency(rate.wldPriceKes, selectedCurrency)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Source</p>
-                  <p className="text-[10px] font-bold text-mpesa-green">{rate.source}</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-widest mb-1">Source</p>
+                  <p className="text-[10px] font-black text-[var(--accent)] uppercase">{rate.source}</p>
                 </div>
               </div>
             ) : null}
@@ -157,35 +156,36 @@ export default function HomePage() {
         </div>
 
         {/* Security & Speed Trust Markers */}
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm opacity-60">
-            <Shield className="w-6 h-6 text-mpesa-green" />
+        <div className="mt-10 grid grid-cols-2 gap-5">
+          <div className="flex items-center gap-4 p-5 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm group hover:border-[var(--accent)]/50 transition-colors">
+            <div className="p-2 bg-[var(--accent)]/10 rounded-xl">
+              <Shield className="w-6 h-6 text-[var(--accent)]" />
+            </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-800">Secure</p>
-              <p className="text-[8px] text-gray-400">World ID Verified</p>
+              <p className="text-xs font-black text-[var(--text-primary)] mb-0.5">Encrypted</p>
+              <p className="text-[10px] text-[var(--text-secondary)] font-bold">World ID 2.0</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm opacity-60">
-            <Zap className="w-6 h-6 text-orange-400" />
+          <div className="flex items-center gap-4 p-5 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm group hover:border-orange-500/50 transition-colors">
+            <div className="p-2 bg-orange-500/10 rounded-xl">
+              <Zap className="w-6 h-6 text-orange-500" />
+            </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-800">Instant</p>
-              <p className="text-[8px] text-gray-400">&lt; 3m Settlement</p>
+              <p className="text-xs font-black text-[var(--text-primary)] mb-0.5">Instant</p>
+              <p className="text-[10px] text-[var(--text-secondary)] font-bold">L2 Settlement</p>
             </div>
           </div>
         </div>
 
         {/* Transaction History Section */}
-        <div className="mt-10 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-gray-800">Transaction History</h3>
-            <div className="flex bg-gray-200/50 p-1 rounded-lg">
-              {['Day', 'Week', 'Month', 'Year'].map((f) => (
+        <div className="mt-12 mb-8">
+          <div className="flex items-center justify-between mb-6 px-3">
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">Recent Activity</h3>
+            <div className="flex bg-[var(--bg-secondary)] p-1 rounded-xl border border-[var(--border-color)]">
+              {['All'].map((f) => (
                 <button
                   key={f}
-                  className={cn(
-                    "text-[10px] px-2 py-1 rounded-md font-bold transition-all",
-                    f === 'Week' ? "bg-white text-gray-800 shadow-sm" : "text-gray-400"
-                  )}
+                  className="text-[10px] px-4 py-1.5 rounded-lg font-black transition-all bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm border border-[var(--border-color)]"
                 >
                   {f}
                 </button>
@@ -193,53 +193,50 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {historyLoading ? (
-              <div className="flex flex-col items-center justify-center py-10 opacity-30 gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-[10px] font-bold">Syncing Ledger...</span>
+              <div className="flex flex-col items-center justify-center py-16 opacity-30 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <span className="text-xs font-black uppercase tracking-[0.2em]">Syncing Explorer...</span>
               </div>
             ) : history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 opacity-30 gap-3 grayscale">
-                <History className="w-8 h-8" />
-                <p className="text-[10px] font-bold">No transactions found</p>
+              <div className="flex flex-col items-center justify-center py-16 opacity-20 gap-4">
+                <History className="w-12 h-12" />
+                <p className="text-xs font-black uppercase tracking-widest">No activity found</p>
               </div>
             ) : (
               history.map((tx) => (
                 <div
                   key={tx.transactionId}
-                  className="card flex items-center gap-4 hover:bg-white transition-colors cursor-pointer border-gray-50 shadow-sm"
-                  onClick={() => {
-                    // Could show tx details modal
-                  }}
+                  className="card flex items-center gap-5 hover:bg-[var(--bg-secondary)] transition-all cursor-pointer border-[var(--border-color)] active:scale-95 group"
                 >
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center text-white",
+                    "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
                     tx.transactionType === 'paybill' ? 'bg-blue-600' :
-                      tx.transactionType === 'send' ? 'bg-mpesa-green' :
-                        tx.transactionType === 'till' ? 'bg-mpesa-green-dark' : 'bg-orange-500'
+                      tx.transactionType === 'send' ? 'bg-[var(--accent)]' :
+                        tx.transactionType === 'till' ? 'bg-[var(--accent)]-dark' : 'bg-orange-500'
                   )}>
-                    {tx.transactionType === 'paybill' ? <CreditCard className="w-5 h-5" /> :
-                      tx.transactionType === 'send' ? <Send className="w-5 h-5" /> :
-                        tx.transactionType === 'till' ? <Store className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                    {tx.transactionType === 'paybill' ? <CreditCard className="w-6 h-6" /> :
+                      tx.transactionType === 'send' ? <Send className="w-6 h-6" /> :
+                        tx.transactionType === 'till' ? <Store className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-gray-800">
+                    <p className="text-sm font-black text-[var(--text-primary)]">
                       {tx.transactionType === 'paybill' && `Bill: ${tx.accountNumber || 'Unknown'}`}
-                      {tx.transactionType === 'send' && `Pochi: ${tx.phoneNumber || 'Unknown'}`}
-                      {tx.transactionType === 'till' && `Buy Goods: ${tx.tillNumber || 'Unknown'}`}
+                      {tx.transactionType === 'send' && `Send: ${tx.phoneNumber || 'Unknown'}`}
+                      {tx.transactionType === 'till' && `Till: ${tx.tillNumber || 'Unknown'}`}
                       {tx.transactionType === 'pochi' && `Pochi: ${tx.phoneNumber || 'Unknown'}`}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-medium">
-                      {new Date(tx.steps?.[0]?.timestamp || Date.now()).toLocaleDateString()}
+                    <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-tighter mt-0.5">
+                      {new Date(tx.steps?.[0]?.timestamp || Date.now()).toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-gray-800">-{formatCurrency(tx.kesAmount, selectedCurrency)}</p>
+                    <p className="text-sm font-black text-[var(--text-primary)]">-{formatCurrency(tx.kesAmount, selectedCurrency)}</p>
                     <p className={cn(
-                      "text-[10px] font-bold",
-                      tx.status === 'SETTLED' ? "text-mpesa-green" :
-                        tx.status === 'FAILED' ? "text-red-500" : "text-orange-400"
+                      "text-[10px] font-black uppercase tracking-widest mt-0.5",
+                      tx.status === 'SETTLED' ? "text-[var(--accent)]" :
+                        tx.status === 'FAILED' ? "text-red-500" : "text-orange-500"
                     )}>
                       {tx.status}
                     </p>
@@ -252,19 +249,19 @@ export default function HomePage() {
       </div>
 
       {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent pt-12 z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-16 z-50">
         <button
-          className="btn-mpesa w-full py-5 shadow-2xl h-16 group"
+          className="btn-mpesa py-6 shadow-[0_20px_40px_var(--accent-glow)] h-20 group"
           onClick={() => setScreen('payment-form')}
           disabled={rateLoading}
         >
           {rateLoading ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
+            <Loader2 className="w-7 h-7 animate-spin" />
           ) : (
-            <>
-              <span>Quick Payment</span>
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </>
+            <div className="flex items-center gap-4">
+              <span className="text-xl font-black">Transfer Assets</span>
+              <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-500" />
+            </div>
           )}
         </button>
       </div>

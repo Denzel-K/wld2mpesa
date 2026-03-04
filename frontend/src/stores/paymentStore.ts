@@ -145,7 +145,7 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
   // Navigation
   setScreen: (screen) => set({ screen, error: null }),
   goBack: () => {
-    const { screen, onboarded } = get();
+    const { screen } = get();
     const backMap: Partial<Record<AppScreen, AppScreen>> = {
       'onboarding': 'verification',
       'home': 'onboarding', // Should maybe be blocked or handle logic

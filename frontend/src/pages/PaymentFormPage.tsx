@@ -143,37 +143,37 @@ export default function PaymentFormPage() {
   const displayError = localError ?? error;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white animate-fade-in">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in">
       {/* Premium Header */}
-      <header className="px-6 pt-12 pb-6 flex items-center justify-between">
+      <header className="px-8 pt-16 pb-8 flex items-center justify-between bg-[var(--bg-primary)]/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-[var(--border-color)]">
         <button
           onClick={() => step === 'amount' ? setScreen('home') : setStep(step === 'details' ? 'amount' : 'details')}
-          className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+          className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-primary)] hover:border-[var(--accent)] transition-all border border-[var(--border-color)] active:scale-95"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center">
-          <h2 className="text-sm font-800 font-display text-gray-800">{getStepTitle()}</h2>
-          <div className="flex gap-1 mt-1">
-            <div className={cn("step-dot", step === 'amount' ? "w-4 bg-mpesa-green" : "bg-gray-200")} />
-            <div className={cn("step-dot", step === 'details' ? "w-4 bg-mpesa-green" : "bg-gray-200")} />
-            <div className={cn("step-dot", step === 'confirm' ? "w-4 bg-mpesa-green" : "bg-gray-200")} />
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] mb-2">{getStepTitle()}</h2>
+          <div className="flex gap-2 mt-1">
+            <div className={cn("h-1 rounded-full transition-all duration-500", step === 'amount' ? "w-8 bg-[var(--accent)]" : "w-2 bg-[var(--text-secondary)]/20")} />
+            <div className={cn("h-1 rounded-full transition-all duration-500", step === 'details' ? "w-8 bg-[var(--accent)]" : "w-2 bg-[var(--text-secondary)]/20")} />
+            <div className={cn("h-1 rounded-full transition-all duration-500", step === 'confirm' ? "w-8 bg-[var(--accent)]" : "w-2 bg-[var(--text-secondary)]/20")} />
           </div>
         </div>
-        <div className="w-10" /> {/* Spacer */}
+        <div className="w-12" /> {/* Spacer */}
       </header>
 
-      <div className="flex-1 px-6 pt-4 pb-24 flex flex-col relative overflow-hidden">
+      <div className="flex-1 px-8 pt-8 pb-32 flex flex-col relative overflow-hidden">
 
         {/* Step 1: Amount */}
         {step === 'amount' && (
           <div className="animate-slide-up">
-            <h1 className="text-2xl font-800 font-display text-gray-900 mb-2">How much?</h1>
-            <p className="text-gray-400 text-sm mb-8">Enter the amount you want to transfer.</p>
+            <h1 className="text-4xl font-black font-display text-[var(--text-primary)] mb-4 tracking-tight">How much?</h1>
+            <p className="text-[var(--text-secondary)] text-lg mb-10 font-medium">Enter the amount you want to transfer.</p>
 
-            <div className="relative mb-8">
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-3xl font-800 text-mpesa-green font-display">KSh</span>
+            <div className="relative mb-12">
+              <div className="flex items-baseline gap-4 mb-4">
+                <span className="text-4xl font-black text-[var(--accent)] font-display tracking-tight">KSh</span>
                 <input
                   ref={inputRef}
                   type="number"
@@ -181,33 +181,35 @@ export default function PaymentFormPage() {
                   placeholder="0"
                   value={kesAmount}
                   onChange={(e) => setKesAmount(e.target.value)}
-                  className="w-full bg-transparent text-6xl font-800 font-display text-gray-900 focus:outline-none placeholder:text-gray-100"
+                  className="w-full bg-transparent text-7xl font-black font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/10"
                 />
               </div>
 
               {conversion && (
-                <div className="flex items-center gap-2 p-3 bg-mpesa-green-soft rounded-2xl animate-scale-in">
-                  <div className="w-6 h-6 bg-mpesa-green rounded-full flex items-center justify-center">
-                    <Zap className="w-3 h-3 text-white" />
+                <div className="flex items-center gap-4 p-5 bg-[var(--accent)]/5 rounded-[2rem] border border-[var(--accent)]/20 animate-scale-in">
+                  <div className="w-10 h-10 bg-[var(--accent)] rounded-2xl flex items-center justify-center shadow-[0_0_20px_var(--accent-glow)]">
+                    <Zap className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-xs font-bold text-mpesa-green">
-                    ≈ {formatWld(conversion.wldAmount)}
-                  </p>
-                  <span className="text-[10px] text-mpesa-green/60 font-medium">Incl. 0.5% + M-Pesa fees</span>
+                  <div>
+                    <p className="text-sm font-black text-[var(--accent)] uppercase tracking-wider">
+                      ≈ {formatWld(conversion.wldAmount)}
+                    </p>
+                    <p className="text-[10px] text-[var(--accent)]/60 font-black uppercase tracking-tighter">Incl. 0.5% + M-Pesa fees</p>
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-4 gap-2 mb-8">
-              {[100, 500, 1000, 2000].map((amt) => (
+            <div className="grid grid-cols-2 gap-4 mb-10">
+              {[500, 1000, 2500, 5000].map((amt) => (
                 <button
                   key={amt}
                   onClick={() => setKesAmount(String(amt))}
                   className={cn(
-                    "py-3 rounded-2xl text-xs font-bold transition-all border",
+                    "py-5 rounded-3xl text-sm font-black transition-all border font-display tracking-wide",
                     kes === amt
-                      ? "bg-mpesa-green text-white border-mpesa-green shadow-button"
-                      : "bg-white text-gray-500 border-gray-100 hover:border-mpesa-green/30"
+                      ? "bg-[var(--accent)] text-white border-transparent shadow-[0_10px_20px_var(--accent-glow)] scale-[1.02]"
+                      : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent)]/50"
                   )}
                 >
                   {formatCurrency(amt, 'KES')}
@@ -220,12 +222,12 @@ export default function PaymentFormPage() {
         {/* Step 2: Details */}
         {step === 'details' && (
           <div className="animate-slide-up">
-            <h1 className="text-2xl font-800 font-display text-gray-900 mb-2">Who to?</h1>
-            <p className="text-gray-400 text-sm mb-8">Enter the recipient's details.</p>
+            <h1 className="text-4xl font-black font-display text-[var(--text-primary)] mb-4 tracking-tight">Who to?</h1>
+            <p className="text-[var(--text-secondary)] text-lg mb-10 font-medium">Enter the recipient's details.</p>
 
-            <div className="space-y-4 mb-8">
-              <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-[2rem] border border-gray-100 focus-within:border-mpesa-green focus-within:bg-white transition-all">
-                {transactionType === 'paybill' || transactionType === 'till' ? <Store className="w-6 h-6 text-gray-400" /> : <Phone className="w-6 h-6 text-gray-400" />}
+            <div className="space-y-6 mb-10">
+              <div className="flex items-center gap-5 p-6 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)] transition-all shadow-xl">
+                {transactionType === 'paybill' || transactionType === 'till' ? <Store className="w-8 h-8 text-[var(--text-secondary)]" /> : <Phone className="w-8 h-8 text-[var(--text-secondary)]" />}
                 <input
                   ref={inputRef}
                   type="tel"
@@ -240,19 +242,19 @@ export default function PaymentFormPage() {
                       setTillNumber(val.slice(0, 7));
                     }
                   }}
-                  className="w-full bg-transparent text-2xl font-800 font-display text-gray-900 focus:outline-none placeholder:text-gray-200"
+                  className="w-full bg-transparent text-3xl font-black font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
                 />
               </div>
 
               {transactionType === 'paybill' && (
-                <div className="flex items-center gap-4 p-5 bg-gray-50 rounded-[2rem] border border-gray-100 focus-within:border-mpesa-green focus-within:bg-white transition-all">
-                  <User className="w-6 h-6 text-gray-400" />
+                <div className="flex items-center gap-5 p-6 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-color)] focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)] transition-all shadow-xl">
+                  <User className="w-8 h-8 text-[var(--text-secondary)]" />
                   <input
                     type="text"
                     placeholder="Account Number"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full bg-transparent text-2xl font-800 font-display text-gray-900 focus:outline-none placeholder:text-gray-200"
+                    className="w-full bg-transparent text-3xl font-black font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
                   />
                 </div>
               )}
@@ -263,77 +265,76 @@ export default function PaymentFormPage() {
         {/* Step 3: Confirm */}
         {step === 'confirm' && (
           <div className="animate-slide-up">
-            <h1 className="text-2xl font-800 font-display text-gray-900 mb-2">Review</h1>
-            <p className="text-gray-400 text-sm mb-8">Check all details before proceeding.</p>
+            <h1 className="text-4xl font-black font-display text-[var(--text-primary)] mb-4 tracking-tight">Review</h1>
+            <p className="text-[var(--text-secondary)] text-lg mb-10 font-medium">Check all details before proceeding.</p>
 
-            <div className="card shadow-lg p-0 overflow-hidden mb-8 border-gray-50">
-              <div className="bg-mpesa-green p-6 text-white">
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Total to Pay</p>
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-4xl font-800 font-display">{formatWld(conversion?.wldAmount || 0)}</h2>
+            <div className="card p-0 overflow-hidden mb-8 border-[var(--border-color)] shadow-2xl">
+              <div className="bg-[var(--accent)] p-8 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60 mb-2 relative z-10">Total to Pay</p>
+                <div className="flex items-baseline gap-3 relative z-10">
+                  <h2 className="text-5xl font-black font-display tracking-tight">{formatWld(conversion?.wldAmount || 0)}</h2>
                 </div>
               </div>
 
-              <div className="p-6 space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <span className="text-xs text-gray-400 font-medium">Recipient Receives</span>
-                  <span className="text-sm font-bold text-gray-800">{formatCurrency(kes, 'KES')}</span>
+              <div className="p-8 space-y-6 bg-[var(--card-bg)]">
+                <div className="flex justify-between items-center pb-6 border-b border-[var(--border-color)]">
+                  <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Recipient Receives</span>
+                  <span className="text-lg font-black text-[var(--text-primary)] font-display">{formatCurrency(kes, 'KES')}</span>
                 </div>
 
                 {transactionType === 'paybill' && (
                   <>
-                    <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                      <span className="text-xs text-gray-400 font-medium">Business Number</span>
-                      <span className="text-sm font-bold text-gray-800">{tillNumber}</span>
+                    <div className="flex justify-between items-center pb-6 border-b border-[var(--border-color)]">
+                      <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Business Number</span>
+                      <span className="text-lg font-black text-[var(--text-primary)] font-display">{tillNumber}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                      <span className="text-xs text-gray-400 font-medium">Account No</span>
-                      <span className="text-sm font-bold text-gray-800">{accountNumber}</span>
+                    <div className="flex justify-between items-center pb-6 border-b border-[var(--border-color)]">
+                      <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Account No</span>
+                      <span className="text-lg font-black text-[var(--text-primary)] font-display">{accountNumber}</span>
                     </div>
                   </>
                 )}
 
                 {transactionType === 'till' && (
-                  <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                    <span className="text-xs text-gray-400 font-medium">Till Number</span>
-                    <span className="text-sm font-bold text-gray-800">{tillNumber}</span>
+                  <div className="flex justify-between items-center pb-6 border-b border-[var(--border-color)]">
+                    <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Till Number</span>
+                    <span className="text-lg font-black text-[var(--text-primary)] font-display">{tillNumber}</span>
                   </div>
                 )}
 
                 {(transactionType === 'send' || transactionType === 'pochi') && (
-                  <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                    <span className="text-xs text-gray-400 font-medium">Phone Number</span>
-                    <span className="text-sm font-bold text-gray-800">{phoneNumber}</span>
+                  <div className="flex justify-between items-center pb-6 border-b border-[var(--border-color)]">
+                    <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Phone Number</span>
+                    <span className="text-lg font-black text-[var(--text-primary)] font-display">{phoneNumber}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <span className="text-xs text-gray-400 font-medium">Transaction Type</span>
-                  <span className="text-xs font-bold text-mpesa-green uppercase">{transactionType}</span>
-                </div>
                 <div className="pt-2">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-gray-400 font-medium">Total Fees</span>
-                    <span className="text-sm font-bold text-gray-800">{formatCurrency(conversion?.feeKes || 0, 'KES')}</span>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-wider">Total Fees</span>
+                    <span className="text-sm font-black text-[var(--text-primary)]">{formatCurrency(conversion?.feeKes || 0, 'KES')}</span>
                   </div>
-                  <div className="flex flex-col gap-1.5 pl-3 border-l-2 border-mpesa-green/20">
+                  <div className="flex flex-col gap-3 pl-4 border-l-2 border-[var(--accent)]/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-gray-400">Service Fee (0.5%)</span>
-                      <span className="text-[10px] font-bold text-gray-500">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter">Service Fee (0.5%)</span>
+                      <span className="text-[10px] font-black text-[var(--text-primary)]">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-gray-400">Safaricom Cost</span>
-                      <span className="text-[10px] font-bold text-orange-400">{formatCurrency(conversion?.safaricomFee || 0, 'KES')}</span>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter">Network Cost</span>
+                      <span className="text-[10px] font-black text-orange-500 uppercase">{formatCurrency(conversion?.safaricomFee || 0, 'KES')}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
-              <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                Your payment is secured by World Chain. Funds are released to the merchant only after on-chain confirmation.
+            <div className="flex items-center gap-4 p-5 bg-[var(--accent)]/5 rounded-[2rem] border border-[var(--accent)]/20 shadow-xl">
+              <div className="bg-[var(--accent)]/10 p-2 rounded-xl">
+                <ShieldCheck className="w-6 h-6 text-[var(--accent)]" />
+              </div>
+              <p className="text-[10px] text-[var(--text-primary)] font-black uppercase tracking-wider leading-relaxed">
+                Secured by World Chain. Funds released only after on-chain verification.
               </p>
             </div>
           </div>
@@ -341,17 +342,17 @@ export default function PaymentFormPage() {
 
         {/* Error Message */}
         {displayError && (
-          <div className="mt-4 flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl animate-shake">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-xs text-red-700 font-medium">{displayError}</p>
+          <div className="mt-6 flex items-start gap-4 p-5 bg-red-500/5 border border-red-500/20 rounded-[2rem] animate-shake shadow-lg">
+            <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+            <p className="text-xs text-red-400 font-black uppercase tracking-wider">{displayError}</p>
           </div>
         )}
 
         {/* Sticky Action Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-white z-50">
+        <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-16 z-50">
           <button
             className={cn(
-              "btn-mpesa w-full h-16 shadow-2xl group",
+              "btn-mpesa w-full h-20 shadow-[0_20px_40px_var(--accent-glow)] group",
               loading && "opacity-80"
             )}
             onClick={handleNext}
@@ -364,14 +365,14 @@ export default function PaymentFormPage() {
             }
           >
             {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="w-7 h-7 animate-spin" />
             ) : (
-              <>
-                <span className="font-800">
-                  {step === 'amount' ? 'Next' : step === 'details' ? 'Next' : 'Confirm & Pay'}
+              <div className="flex items-center gap-4">
+                <span className="text-xl font-black">
+                  {step === 'amount' ? 'Continue' : step === 'details' ? 'Review Details' : 'Initialize Transfer'}
                 </span>
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </>
+                <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-500" />
+              </div>
             )}
           </button>
         </div>

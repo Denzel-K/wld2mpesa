@@ -31,8 +31,8 @@ function optionalEnvNumber(key: string, fallback: number): number {
 }
 
 // ─── Simulation mode ──────────────────────────────────────────────────────────
-// Defaults to TRUE for safety. Explicitly set SIMULATION_MODE=false to go live.
-const SIMULATION_MODE = process.env.SIMULATION_MODE !== 'false';
+// Defaults to FALSE for production safety. Set SIMULATION_MODE=true for testing.
+const SIMULATION_MODE = process.env.SIMULATION_MODE === 'true';
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 const PORT = optionalEnvNumber('PORT', 3001);

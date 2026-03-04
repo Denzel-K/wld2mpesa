@@ -6,11 +6,33 @@
 
 @layer base {
   :root {
+    /* M-Pesa Brand Colors */
     --mpesa-green: #00A651;
     --mpesa-green-dark: #007A3D;
-    --mpesa-green-light: #E6F7EE;
-    --world-blue: #0052FF;
-    --world-black: #000000;
+
+    /* Theme Variables (Light Mode Default) */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F8F9FA;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+    --card-bg: rgba(255, 255, 255, 0.8);
+    --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    --accent: var(--mpesa-green);
+    --accent-glow: rgba(0, 166, 81, 0.2);
+  }
+
+  .dark {
+    /* Theme Variables (Dark Mode) */
+    --bg-primary: #050505;
+    --bg-secondary: #0F0F0F;
+    --text-primary: #FFFFFF;
+    --text-secondary: #9CA3AF;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --card-bg: rgba(20, 20, 20, 0.6);
+    --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+    --accent: var(--mpesa-green);
+    --accent-glow: rgba(0, 166, 81, 0.4);
   }
 
   * {
@@ -18,80 +40,57 @@
     box-sizing: border-box;
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
     margin: 0;
     padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #F8F9FA;
-    color: #1a1a1a;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  h1, h2, h3, .font-display {
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: 'Sora', sans-serif;
-  }
-
-  input[type='number'],
-  input[type='text'],
-  input[type='tel'] {
-    -webkit-appearance: none;
-    appearance: none;
-    border-radius: 0.75rem;
-  }
-
-  input[type='number']::-webkit-inner-spin-button,
-  input[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
   }
 }
 
 @layer components {
+
   /* Premium M-Pesa Button */
   .btn-mpesa {
-    @apply w-full py-4 px-6 bg-mpesa-green text-white font-bold text-lg rounded-3xl
-           shadow-button hover:shadow-button-hover active:scale-95 transition-all duration-300
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2;
+    @apply w-full py-4 px-6 bg-[var(--accent)] text-white font-bold text-lg rounded-3xl shadow-[0_0_20px_var(--accent-glow)] active:scale-95 transition-all duration-300 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2;
   }
 
   /* Secondary Button */
   .btn-secondary {
-    @apply w-full py-4 px-6 bg-world-black text-white font-bold text-lg rounded-3xl
-           shadow-lg active:scale-95 transition-all duration-300;
+    @apply w-full py-4 px-6 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-bold text-lg rounded-3xl border border-[var(--border-color)] active:scale-95 transition-all duration-300;
   }
 
-  /* Ghost/Outline button */
+  /* Ghost Button */
   .btn-ghost {
-    @apply w-full py-3 px-6 border-2 border-mpesa-green/20 text-mpesa-green font-semibold
-           text-base rounded-2xl active:bg-mpesa-green-light hover:border-mpesa-green transition-all duration-300;
+    @apply w-full py-3 px-6 border-2 border-[var(--accent)]/20 text-[var(--accent)] font-semibold text-base rounded-2xl active:bg-[var(--accent)]/10 transition-all duration-300;
   }
 
   /* Premium Card */
   .card {
-    @apply bg-white rounded-3xl shadow-card p-5 border border-white transition-all duration-300;
+    @apply bg-[var(--card-bg)] backdrop-blur-xl rounded-3xl shadow-[var(--card-shadow)] p-6 border border-[var(--border-color)] transition-all duration-300;
   }
 
   .card-interactive {
-    @apply hover:shadow-card-hover hover:-translate-y-1 cursor-pointer;
-  }
-
-  /* Glassmorphism */
-  .glass {
-    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-glass;
+    @apply hover:shadow-[0_15px_40px_-10px_rgba(0, 0, 0, 0.3)] hover:-translate-y-1 cursor-pointer;
   }
 
   /* Input field */
   .input-field {
-    @apply w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4
-           text-lg focus:outline-none focus:ring-2 focus:ring-mpesa-green/30 focus:bg-white
-           transition-all duration-300 placeholder:text-gray-400;
-  }
-
-  /* Selection steps */
-  .step-dot {
-    @apply w-2 h-2 rounded-full transition-all duration-500;
+    @apply w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 text-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 transition-all duration-300 placeholder:text-[var(--text-secondary)]/50;
   }
 }
 

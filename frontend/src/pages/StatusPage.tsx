@@ -84,39 +84,40 @@ export default function StatusPage() {
   const steps = transactionStatus?.steps ?? [];
 
   return (
-    <div className="flex flex-col min-h-screen animate-fade-in">
-      {/* Header */}
-      <header className="bg-mpesa-green px-4 pt-10 pb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+    <div className="flex flex-col min-h-screen animate-fade-in bg-[var(--bg-primary)]">
+      {/* Premium Header */}
+      <header className="bg-[var(--accent)] px-8 pt-16 pb-12 rounded-b-[4rem] relative overflow-hidden shadow-[0_20px_40px_var(--accent-glow)]">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+        <div className="flex items-center gap-5 relative z-10">
+          <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/20 shadow-xl">
             {statusPolling
-              ? <Loader2 className="w-5 h-5 text-white animate-spin" />
-              : <CheckCircle2 className="w-5 h-5 text-white" />
+              ? <Loader2 className="w-8 h-8 text-white animate-spin" />
+              : <CheckCircle2 className="w-8 h-8 text-white" />
             }
           </div>
           <div>
-            <h2 className="text-white text-xl font-bold">Processing Payment</h2>
-            <p className="text-white/70 text-sm">1–5 minutes · don't close the app</p>
+            <h2 className="text-white text-3xl font-black font-display tracking-tight">Processing Payment</h2>
+            <p className="text-white/60 text-xs font-black uppercase tracking-[0.2em] mt-1">1–5 minutes · Stay on this screen</p>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 px-4 pt-4 pb-8 flex flex-col gap-4">
+      <div className="flex-1 px-8 pt-8 pb-12 flex flex-col gap-6">
 
-        {/* Summary */}
-        <div className="card">
+        {/* Summary Card */}
+        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-8 shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-gray-900">{formatKes(kes)}</p>
-              <p className="text-sm text-mpesa-gray-dark">
-                → {transactionType === 'send' || transactionType === 'pochi' ? phoneNumber :
+              <p className="text-4xl font-black text-[var(--text-primary)] font-display tracking-tight">{formatKes(kes)}</p>
+              <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-3">
+                Recipient: {transactionType === 'send' || transactionType === 'pochi' ? phoneNumber :
                   transactionType === 'paybill' ? `Paybill ${tillNumber}` :
                     `Till ${tillNumber}`}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-mpesa-gray-dark">You paid</p>
-              <p className="text-base font-semibold text-mpesa-green">
+              <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Total Dedicated</p>
+              <p className="text-xl font-black text-[var(--accent)] font-display">
                 {pendingTransaction.wldAmount ? formatWld(pendingTransaction.wldAmount) : '…'}
               </p>
             </div>
@@ -124,13 +125,13 @@ export default function StatusPage() {
         </div>
 
         {/* Step tracker */}
-        <div className="card">
-          <p className="text-xs font-semibold text-mpesa-gray-dark uppercase tracking-wide mb-4">
-            Payment progress
+        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-8 shadow-xl">
+          <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-8">
+            Transaction Journey
           </p>
-          <div className="relative">
-            {/* Vertical line */}
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-mpesa-gray-border" />
+          <div className="relative pl-4">
+            {/* Vertical line with gradient */}
+            <div className="absolute left-8 top-0 bottom-0 w-[2px] bg-gradient-to-b from-[var(--accent)] via-[var(--accent)]/30 to-[var(--border-color)]/20" />
 
             {Object.entries(getStepLabels(transactionType)).map(([stepKey, label], idx) => {
               const stepData = steps.find((s) => s.step === stepKey);
@@ -138,31 +139,38 @@ export default function StatusPage() {
               const isNext = !done && steps.filter((s) => s.done).length === idx;
 
               return (
-                <div key={stepKey} className="flex items-start gap-4 mb-5 last:mb-0 relative">
+                <div key={stepKey} className="flex items-start gap-6 mb-8 last:mb-0 relative">
                   {/* Step dot */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${done
-                    ? 'bg-mpesa-green'
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 z-10 transition-all duration-500 shadow-lg ${done
+                    ? 'bg-[var(--accent)] scale-110 shadow-[0_0_15px_var(--accent-glow)]'
                     : isNext
-                      ? 'bg-white border-2 border-mpesa-green'
-                      : 'bg-white border-2 border-mpesa-gray-border'
+                      ? 'bg-[var(--bg-primary)] border-2 border-[var(--accent)]'
+                      : 'bg-[var(--bg-primary)] border-2 border-[var(--border-color)]'
                     }`}>
                     {done ? (
                       <CheckCircle2 className="w-5 h-5 text-white" />
                     ) : isNext ? (
-                      <Loader2 className="w-4 h-4 text-mpesa-green animate-spin" />
+                      <div className="w-2 h-2 bg-[var(--accent)] rounded-full animate-ping" />
                     ) : (
-                      <Clock className="w-4 h-4 text-mpesa-gray-dark" />
+                      <Clock className="w-4 h-4 text-[var(--text-secondary)]/30" />
                     )}
                   </div>
 
-                  <div className="pt-1">
-                    <p className={`text-sm font-medium ${done ? 'text-mpesa-green' : isNext ? 'text-gray-900' : 'text-mpesa-gray-dark'}`}>
+                  <div className="pt-0.5">
+                    <p className={`text-sm font-black uppercase tracking-wider transition-colors duration-500 ${done ? 'text-[var(--accent)]' : isNext ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]/40'}`}>
                       {label}
                     </p>
                     {stepData?.timestamp && (
-                      <p className="text-xs text-mpesa-gray-dark mt-0.5">
+                      <p className="text-[10px] text-[var(--text-secondary)] font-bold mt-1 uppercase tracking-tighter opacity-60">
                         {new Date(stepData.timestamp).toLocaleTimeString('en-KE')}
                       </p>
+                    )}
+                    {isNext && (
+                      <div className="flex gap-1 mt-2">
+                        <div className="w-1 h-1 rounded-full bg-[var(--accent)] animate-bounce [animation-delay:-0.3s]" />
+                        <div className="w-1 h-1 rounded-full bg-[var(--accent)] animate-bounce [animation-delay:-0.15s]" />
+                        <div className="w-1 h-1 rounded-full bg-[var(--accent)] animate-bounce" />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -171,28 +179,18 @@ export default function StatusPage() {
           </div>
         </div>
 
-        {/* M-Pesa receipt (shows after settlement) */}
-        {transactionStatus?.mpesaReceiptNumber && (
-          <div className="card bg-mpesa-green-light border border-mpesa-green">
-            <p className="text-xs font-semibold text-mpesa-green-dark uppercase tracking-wide mb-1">
-              M-Pesa Receipt
-            </p>
-            <p className="text-lg font-bold text-mpesa-green font-mono">
-              {transactionStatus.mpesaReceiptNumber}
-            </p>
+        {/* Global status badge */}
+        {transactionStatus && (
+          <div className="mt-auto">
+            <StatusBadge status={transactionStatus} />
           </div>
         )}
 
-        {/* Status badge */}
-        {transactionStatus && (
-          <StatusBadge status={transactionStatus} />
-        )}
-
-        <div className="flex-1" />
-
-        <p className="text-center text-xs text-mpesa-gray-dark">
-          Transaction ID: {pendingTransaction.transactionId}
-        </p>
+        <div className="mt-4 p-4 text-center">
+          <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.3em] opacity-40">
+            Internal Ref: {pendingTransaction.transactionId}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -203,19 +201,25 @@ function StatusBadge({ status }: { status: TransactionStatus }) {
 
   if (s === 'FAILED') {
     return (
-      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
-        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-red-700">{status.failureReason ?? 'Payment failed'}</p>
+      <div className="flex items-start gap-5 p-6 bg-red-400/5 border border-red-400/20 rounded-[2rem] shadow-lg animate-shake">
+        <AlertCircle className="w-8 h-8 text-red-500 flex-shrink-0" />
+        <div>
+          <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Critical Failure</p>
+          <p className="text-sm text-red-400 font-medium">{status.failureReason ?? 'Payment could not be completed at this time.'}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-mpesa-green-light border border-mpesa-green rounded-xl">
-      <Loader2 className="w-4 h-4 text-mpesa-green animate-spin flex-shrink-0" />
-      <p className="text-sm text-mpesa-green font-medium">
-        {s.replace(/_/g, ' ')}
-      </p>
+    <div className="flex items-center gap-5 p-6 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-[2.5rem] shadow-[0_10px_30px_var(--accent-glow)] animate-pulse">
+      <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin flex-shrink-0" />
+      <div>
+        <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-[0.3em] mb-1">Current Activity</p>
+        <p className="text-sm text-[var(--text-primary)] font-black uppercase tracking-wider">
+          {s.replace(/_/g, ' ')}
+        </p>
+      </div>
     </div>
   );
 }

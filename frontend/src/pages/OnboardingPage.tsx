@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePaymentStore } from '../stores/paymentStore';
 import * as api from '../lib/api';
@@ -9,7 +10,8 @@ import {
     Cpu,
     CheckCircle2,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    Loader2
 } from 'lucide-react';
 
 const slides = [
@@ -90,7 +92,7 @@ export const OnboardingPage: React.FC = () => {
     const slide = slides[currentSlide];
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col relative overflow-hidden">
             {/* Background Glow */}
             <AnimatePresence mode="wait">
                 <motion.div
@@ -98,7 +100,7 @@ export const OnboardingPage: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`absolute inset-0 bg-gradient-to-b ${slide.color} to-transparent opacity-30`}
+                    className={`absolute inset-0 bg-gradient-to-b ${slide.color} to-transparent opacity-20`}
                 />
             </AnimatePresence>
 
@@ -110,18 +112,21 @@ export const OnboardingPage: React.FC = () => {
                         initial={{ x: 300, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: -300, opacity: 0 }}
-                        transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 120 }}
                         className="flex flex-col items-center text-center max-w-sm"
                     >
-                        <div className="mb-8 p-6 bg-white/5 backdrop-blur-xl rounded-[2.5rem] border border-white/10">
-                            {slide.icon}
+                        <div className="mb-10 p-8 bg-[var(--card-bg)] backdrop-blur-3xl rounded-[3rem] border border-[var(--border-color)] shadow-[var(--card-shadow)] relative">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent rounded-[3rem]" />
+                            <div className="relative z-10">
+                                {slide.icon}
+                            </div>
                         </div>
 
-                        <h2 className="text-4xl font-black mb-4 tracking-tight">
+                        <h2 className="text-4xl font-black mb-4 tracking-tight font-display">
                             {slide.title}
                         </h2>
 
-                        <p className="text-lg text-gray-400 leading-relaxed font-medium">
+                        <p className="text-lg text-[var(--text-secondary)] leading-relaxed font-medium">
                             {slide.description}
                         </p>
                     </motion.div>
@@ -129,23 +134,27 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* Navigation Footer */}
-            <div className="p-10 z-10 flex flex-col items-center bg-[#050505]/80 backdrop-blur-lg border-t border-white/5">
+            <div className="p-10 z-10 flex flex-col items-center bg-[var(--bg-primary)]/80 backdrop-blur-2xl border-t border-[var(--border-color)]">
                 {/* Progress Dots */}
-                <div className="flex space-x-2 mb-8">
+                <div className="flex space-x-3 mb-10">
                     {slides.map((_, i) => (
                         <div
                             key={i}
-                            className={`h-1.5 transition-all duration-300 rounded-full ${i === currentSlide ? 'w-8 bg-blue-500' : 'w-1.5 bg-white/10'
+                            className={`h-1.5 transition-all duration-500 rounded-full ${i === currentSlide
+                                ? 'w-10 bg-[var(--accent)] shadow-[0_0_10px_var(--accent-glow)]'
+                                : 'w-1.5 bg-[var(--text-secondary)]/20'
                                 }`}
                         />
                     ))}
                 </div>
 
-                <div className="w-full flex items-center justify-between max-w-sm">
+                <div className="w-full flex items-center justify-between max-w-sm gap-4">
                     <button
                         onClick={prev}
                         disabled={currentSlide === 0 || loading}
-                        className={`p-4 rounded-2xl transition-all ${currentSlide === 0 ? 'opacity-0' : 'bg-white/5 text-white hover:bg-white/10'
+                        className={`p-5 rounded-3xl transition-all border border-transparent ${currentSlide === 0
+                            ? 'opacity-0 pointer-events-none'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] border-[var(--border-color)] active:scale-95'
                             }`}
                     >
                         <ChevronLeft className="w-6 h-6" />
@@ -154,21 +163,18 @@ export const OnboardingPage: React.FC = () => {
                     <button
                         onClick={next}
                         disabled={loading}
-                        className="bg-white text-black font-black py-4 px-10 rounded-2xl flex items-center space-x-2 active:scale-95 transition-all disabled:opacity-50"
+                        className="btn-mpesa py-5 px-10 rounded-3xl tracking-tight"
                     >
                         {loading ? (
-                            <span className="flex items-center space-x-2">
-                                <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                >
-                                    <Cpu className="w-5 h-5" />
-                                </motion.div>
-                                <span>Processing...</span>
+                            <span className="flex items-center space-x-3">
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <span>Starting...</span>
                             </span>
                         ) : (
                             <>
-                                <span>{currentSlide === slides.length - 1 ? 'Get Started' : 'Continue'}</span>
+                                <span className="font-black">
+                                    {currentSlide === slides.length - 1 ? 'Get Started' : 'Next Step'}
+                                </span>
                                 <ChevronRight className="w-5 h-5" />
                             </>
                         )}

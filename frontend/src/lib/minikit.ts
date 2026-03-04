@@ -7,7 +7,31 @@
  * 3. TypeScript types stay consistent
  */
 
-import { MiniKit, tokenToDecimals, Tokens, PayCommandInput } from '@worldcoin/minikit-js';
+import { MiniKit, tokenToDecimals } from '@worldcoin/minikit-js';
+
+// Workaround for broken/missing exports in @worldcoin/minikit-js@1.11.0 types
+export enum Tokens {
+  WLD = 'WLD',
+  USDC = 'USDCE',
+}
+
+export enum Network {
+  Optimism = 'optimism',
+  WorldChain = 'worldchain',
+}
+
+export interface TokensPayload {
+  symbol: Tokens;
+  token_amount: string;
+}
+
+export interface PayCommandInput {
+  reference: string;
+  to: `0x${string}` | string;
+  tokens: TokensPayload[];
+  network?: Network;
+  description: string;
+}
 
 // @ts-ignore
 const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID ?? 'app_staging_wld2mpesa';

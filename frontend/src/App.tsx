@@ -19,7 +19,6 @@ import { OnboardingPage } from './pages/OnboardingPage';
 
 // Components
 import DevModePanel from './components/DevModePanel';
-import NotInWorldAppBanner from './components/NotInWorldAppBanner';
 
 export default function App() {
   const {
@@ -83,16 +82,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col max-w-md mx-auto relative overflow-x-hidden">
-      {/* World App banner for browser testing */}
-      {!isInsideWorldApp() && <NotInWorldAppBanner />}
-
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col max-w-md mx-auto relative overflow-x-hidden dark">
       {/* Main screen */}
       <main className="flex-1 flex flex-col">
         {renderScreen()}
       </main>
 
-      {/* Developer Mode panel (bottom) */}
+      {/* Developer Mode panel (bottom) - strictly for internal debug */}
       {devMode && <DevModePanel />}
     </div>
   );

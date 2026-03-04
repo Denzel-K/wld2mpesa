@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePaymentStore } from '../stores/paymentStore';
 import { isInsideWorldApp, getWalletAddress, verifyWithWorldId } from '../lib/minikit';
 import * as api from '../lib/api';
@@ -92,18 +92,18 @@ export const VerificationPage: React.FC = () => {
 
     if (!isInsideWorldApp() && !loading) {
         return (
-            <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
-                    <AlertCircle className="w-10 h-10 text-blue-400" />
+            <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-24 h-24 bg-[var(--accent)]/10 rounded-[2rem] flex items-center justify-center mb-8 shadow-[0_0_30px_var(--accent-glow)]">
+                    <AlertCircle className="w-12 h-12 text-[var(--accent)]" />
                 </div>
-                <h1 className="text-2xl font-bold mb-4">Open in World App</h1>
-                <p className="text-gray-400 mb-8 max-w-xs">
-                    WLD2Mpesa is a mini app designed for the World App ecosystem.
+                <h1 className="text-3xl font-black mb-4 tracking-tight">Open in World App</h1>
+                <p className="text-[var(--text-secondary)] mb-10 max-w-xs font-medium leading-relaxed">
+                    WLD2Mpesa is a native World Chain experience.
                     Please open this link inside your World App to continue.
                 </p>
                 <button
                     onClick={() => window.location.href = 'https://worldcoin.org/download'}
-                    className="bg-white text-black font-semibold py-3 px-8 rounded-full hover:bg-gray-200 transition-colors"
+                    className="btn-mpesa max-w-xs"
                 >
                     Download World App
                 </button>
@@ -112,62 +112,59 @@ export const VerificationPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white flex flex-col p-6">
-            <div className="flex-1 flex flex-col items-center justify-center max-w-xs mx-auto text-center">
-                <div className="relative mb-8">
-                    <div className="w-24 h-24 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-3xl rotate-12 absolute -inset-1 blur-lg opacity-50 animate-pulse" />
-                    <div className="w-24 h-24 bg-[#111] border border-white/10 rounded-3xl flex items-center justify-center relative">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col p-8">
+            <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto text-center">
+                <div className="relative mb-10">
+                    <div className="w-24 h-24 bg-gradient-to-tr from-[var(--accent)] to-emerald-400 rounded-3xl rotate-12 absolute -inset-2 blur-xl opacity-30 animate-pulse" />
+                    <div className="w-24 h-24 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl flex items-center justify-center relative shadow-2xl">
                         {loading ? (
-                            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                            <Loader2 className="w-10 h-10 text-[var(--accent)] animate-spin" />
                         ) : (
-                            <ShieldCheck className="w-10 h-10 text-blue-500" />
+                            <ShieldCheck className="w-10 h-10 text-[var(--accent)]" />
                         )}
                     </div>
                 </div>
 
-                <h1 className="text-3xl font-bold mb-4">Identity Verification</h1>
-                <p className="text-gray-400 mb-10 leading-relaxed">
+                <h1 className="text-3xl font-black mb-4 tracking-tight font-display">Identity Verification</h1>
+                <p className="text-[var(--text-secondary)] mb-10 leading-relaxed font-medium">
                     Securely verify your unique identity with World ID to access instant WLD-to-Mpesa transfers.
                 </p>
 
                 {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                        {error}
+                    <div className="bg-red-500/5 border border-red-500/20 text-red-400 p-5 rounded-2xl mb-8 text-sm flex items-center shadow-lg">
+                        <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+                        <span className="font-semibold">{error}</span>
                     </div>
                 )}
 
-                <div className="w-full space-y-4">
+                <div className="w-full space-y-6">
                     <button
                         onClick={handleVerify}
                         disabled={loading}
-                        className={`w-full py-4 px-6 rounded-2xl font-bold flex items-center justify-center space-x-3 transition-all ${loading
-                                ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                                : 'bg-white text-black active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.2)]'
-                            }`}
+                        className="btn-mpesa h-16 group"
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <Loader2 className="w-6 h-6 animate-spin" />
                                 <span>{status}</span>
                             </>
                         ) : (
                             <>
                                 <span>Verify with World ID</span>
-                                <ArrowRight className="w-5 h-5" />
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </>
                         )}
                     </button>
 
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
+                    <p className="text-[10px] text-[var(--text-secondary)]/50 uppercase tracking-[0.2em] font-black">
                         Powered by World ID 2.0
                     </p>
                 </div>
             </div>
 
-            <div className="mt-auto px-4 py-8 border-t border-white/5 flex items-center justify-center space-x-2 text-gray-500 text-xs">
-                <Wallet className="w-3 h-3" />
-                <span>Secure Wallet Connection Active</span>
+            <div className="mt-auto py-8 flex items-center justify-center space-x-3 text-[var(--text-secondary)]/40 text-xs font-bold border-t border-[var(--border-color)]">
+                <Wallet className="w-4 h-4" />
+                <span>SECURE WALLET CONNECTION ACTIVE</span>
             </div>
         </div>
     );

@@ -20,7 +20,7 @@ services:
     environment:
       NODE_ENV: development
       SIMULATION_MODE: "true"
-      DATABASE_URL: "file:./dev.db"
+      DATABASE_URL: "file:/app/data/dev.db"
       PORT: "3001"
       CORS_ORIGIN: "*"
       # Add any other overrides here; secrets go in backend/.env
@@ -30,7 +30,7 @@ services:
     volumes:
       - ./backend:/app # Live source mount
       - backend_modules:/app/node_modules # Isolated node_modules
-      - db_data:/app/prisma # Persist SQLite DB
+      - db_data:/app/data # Persist SQLite DB in a dedicated folder
     ports:
       - "3001:3001"
     restart: unless-stopped

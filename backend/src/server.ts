@@ -19,23 +19,28 @@ import rateLimit from 'express-rate-limit';
 
 const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests (needed for simulator)
+  })
+);
+
 app.use(rateLimit({
   windowMs: 60 * 1000,
-  max: 30, // 30 req/min
+  max: config.SIMULATION_MODE ? 1000 : 30, // Much higher limit in simulation/dev
   message: { error: 'Too many requests' },
 }));
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 // CORS_ORIGIN env var — set to comma-separated origins in production.
-// When served through nginx (Docker prod) or Vite proxy (dev), the browser
-// sees same-origin requests so CORS is a non-issue; '*' is safe for the MVP.
-// TODO: PRODUCTION - Restrict to your actual frontend domain: CORS_ORIGIN=https://yourdomain.com
-const corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', '*'];
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:3000', 'https://developer.worldcoin.org', '*'];
+
 app.use(cors({
   origin: corsOrigin,
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
