@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "updatedAt": "2026-03-04T17:20:12.178Z",
+  "transactions": [
+    {
+      "id": "TXN-1772639256494-824E",
+      "status": "SETTLED",
+      "transactionType": "paybill",
+      "kesAmount": 100,
+      "tillNumber": "123123",
+      "accountNumber": "123456789",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.044177",
+      "feeWld": "0.00022",
+      "feeKes": 0.5,
+      "wldRate": "2274.92",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T15:47:36.494Z",
+      "txHash": "0xSIMULATED_1772639281553",
+      "miniKitPayload": {
+        "simulated": true,
+        "worldIdProof": {
+          "nullifier_hash": "0xSIMULATED_NULLIFIER",
+          "merkle_root": "0xSIMULATED_ROOT",
+          "proof": "0xSIMULATED_PROOF",
+          "verification_level": "orb"
+        }
+      },
+      "confirmedAt": "2026-03-04T15:48:01.871Z",
+      "mpesaReceiptNumber": "RGX39299882",
+      "settledAt": "2026-03-04T15:48:19.882Z"
+    },
+    {
+      "id": "TXN-1772642232668-B88D",
+      "status": "SETTLED",
+      "transactionType": "send",
+      "kesAmount": 100,
+      "phoneNumber": "0712345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.041574",
+      "feeWld": "0.000207",
+      "feeKes": 0.5,
+      "wldRate": "2417.37",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T16:37:12.669Z",
+      "txHash": "0xSIMULATED_1772642248264",
+      "miniKitPayload": {
+        "simulated": true,
+        "worldIdProof": {
+          "nullifier_hash": "0xSIMULATED_NULLIFIER",
+          "merkle_root": "0xSIMULATED_ROOT",
+          "proof": "0xSIMULATED_PROOF",
+          "verification_level": "orb"
+        }
+      },
+      "confirmedAt": "2026-03-04T16:37:28.577Z",
+      "mpesaReceiptNumber": "RGX42266628",
+      "settledAt": "2026-03-04T16:37:46.628Z"
+    },
+    {
+      "id": "TXN-1772642455145-156A",
+      "status": "INITIATED",
+      "transactionType": "send",
+      "kesAmount": 100,
+      "phoneNumber": "0712345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.042588",
+      "feeWld": "0.000212",
+      "feeKes": 0.5,
+      "wldRate": "2359.84",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T16:40:55.146Z"
+    },
+    {
+      "id": "TXN-1772643068913-9C54",
+      "status": "SETTLED",
+      "transactionType": "send",
+      "kesAmount": 100,
+      "phoneNumber": "0712345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.043929",
+      "feeWld": "0.000219",
+      "feeKes": 0.5,
+      "wldRate": "2287.8",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T16:51:08.914Z",
+      "txHash": "0xSIMULATED_1772643086544",
+      "miniKitPayload": {
+        "simulated": true,
+        "worldIdProof": {
+          "nullifier_hash": "0xSIMULATED_NULLIFIER",
+          "merkle_root": "0xSIMULATED_ROOT",
+          "proof": "0xSIMULATED_PROOF",
+          "verification_level": "orb"
+        }
+      },
+      "confirmedAt": "2026-03-04T16:51:26.639Z",
+      "mpesaReceiptNumber": "RGX43104663",
+      "settledAt": "2026-03-04T16:51:44.663Z"
+    },
+    {
+      "id": "TXN-1772643232946-3BBE",
+      "status": "INITIATED",
+      "transactionType": "paybill",
+      "kesAmount": 300,
+      "tillNumber": "123123",
+      "accountNumber": "12345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.1294",
+      "feeWld": "0.000644",
+      "feeKes": 1.5,
+      "wldRate": "2329.99",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T16:53:52.947Z"
+    },
+    {
+      "id": "TXN-1772643424680-522F",
+      "status": "SETTLED",
+      "transactionType": "paybill",
+      "kesAmount": 300,
+      "tillNumber": "123123",
+      "accountNumber": "123456",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.130821",
+      "feeWld": "0.000651",
+      "feeKes": 1.5,
+      "wldRate": "2304.68",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T16:57:04.690Z",
+      "txHash": "0xSIMULATED_1772643441157",
+      "miniKitPayload": {
+        "simulated": true,
+        "worldIdProof": {
+          "nullifier_hash": "0xSIMULATED_NULLIFIER",
+          "merkle_root": "0xSIMULATED_ROOT",
+          "proof": "0xSIMULATED_PROOF",
+          "verification_level": "orb"
+        }
+      },
+      "confirmedAt": "2026-03-04T16:57:21.856Z",
+      "mpesaReceiptNumber": "RGX43459895",
+      "settledAt": "2026-03-04T16:57:39.895Z"
+    },
+    {
+      "id": "TXN-1772644715758-9235",
+      "status": "SETTLED",
+      "transactionType": "paybill",
+      "kesAmount": 300,
+      "tillNumber": "123123",
+      "accountNumber": "12345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.12956",
+      "feeWld": "0.00357",
+      "feeKes": 8.5,
+      "wldRate": "2381.14",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T17:18:35.772Z",
+      "txHash": "0xSIMULATED_1772644726299",
+      "miniKitPayload": {
+        "simulated": true,
+        "worldIdProof": {
+          "nullifier_hash": "0xSIMULATED_NULLIFIER",
+          "merkle_root": "0xSIMULATED_ROOT",
+          "proof": "0xSIMULATED_PROOF",
+          "verification_level": "orb"
+        }
+      },
+      "confirmedAt": "2026-03-04T17:18:47.046Z",
+      "mpesaReceiptNumber": "RGX44745083",
+      "settledAt": "2026-03-04T17:19:05.083Z"
+    },
+    {
+      "id": "TXN-1772644788385-79DE",
+      "status": "SETTLED",
+      "transactionType": "send",
+      "kesAmount": 100,
+      "phoneNumber": "0712345678",
+      "walletAddress": "0xSIMULATED_USER_WALLET",
+      "wldAmount": "0.043702",
+      "feeWld": "0.000217",
+      "feeKes": 0.5,
+      "wldRate": "2299.69",
+      "payToAddress": "0xSIMULATED_BACKEND_WALLET_ADDRESS",
+      "createdAt": "2026-03-04T17:19:48.386Z",
+      "txHash": "0xSIMULATED_1772644792934",
+      "miniKitPayload": {
+        "simulated": true
+      },
+      "confirmedAt": "2026-03-04T17:19:54.132Z",
+      "mpesaReceiptNumber": "RGX44812177",
+      "settledAt": "2026-03-04T17:20:12.177Z"
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+// ─── Prisma Schema ────────────────────────────────────────────────────────────
+// WLD2Mpesa — 4 core models
+// Database: SQLite (swap to PostgreSQL later by changing provider + adapter)
+// ──────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id                String   @id @default(uuid())
+  walletAddress     String   @unique @map("wallet_address")
+  nullifierHash     String?  @unique @map("nullifier_hash")
+  verificationLevel String?  @map("verification_level") // "orb" | "device"
+  isVerified        Boolean  @default(false) @map("is_verified")
+  onboarded         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @map("created_at")
+  lastSeenAt        DateTime @default(now()) @map("last_seen_at")
+
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+// ─── Transaction ──────────────────────────────────────────────────────────────
+
+model Transaction {
+  id              String   @id // "TXN-{timestamp}-{uuid4_short}"
+  status          String   @default("INITIATED")
+  transactionType String   @map("transaction_type") // send | paybill | pochi | till
+
+  // Amounts
+  kesAmount  Float  @map("kes_amount")
+  wldAmount  String @map("wld_amount")
+  feeWld     String @map("fee_wld")
+  feeKes     Float  @map("fee_kes")
+  wldRate    String @map("wld_rate")
+
+  // Recipient details
+  tillNumber    String? @map("till_number")
+  phoneNumber   String? @map("phone_number")
+  accountNumber String? @map("account_number")
+
+  // Wallet
+  walletAddress String @map("wallet_address")
+  payToAddress  String @map("pay_to_address")
+
+  // Chain / service references
+  txHash              String? @map("tx_hash")
+  offrampId           String? @map("offramp_id")
+  mpesaConversationId String? @map("mpesa_conversation_id")
+  mpesaReceiptNumber  String? @map("mpesa_receipt_number")
+
+  // Failure
+  failureReason String? @map("failure_reason")
+
+  // Audit payloads (stored as JSON strings)
+  miniKitPayload String? @map("minikit_payload")
+  worldIdProof   String? @map("world_id_proof")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  confirmedAt DateTime? @map("confirmed_at")
+  offrampAt   DateTime? @map("offramp_at")
+  mpesaSentAt DateTime? @map("mpesa_sent_at")
+  settledAt   DateTime? @map("settled_at")
+  failedAt    DateTime? @map("failed_at")
+
+  // Relations
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  webhookEvents WebhookEvent[]
+
+  @@index([walletAddress])
+  @@index([status])
+  @@map("transactions")
+}
+
+// ─── Rate Cache ───────────────────────────────────────────────────────────────
+
+model RateCache {
+  id          Int      @id @default(autoincrement())
+  wldPriceKes Float    @map("wld_price_kes")
+  wldPriceUsd Float    @map("wld_price_usd")
+  usdKesRate  Float    @map("usd_kes_rate")
+  source      String   @default("coingecko")
+  fetchedAt   DateTime @default(now()) @map("fetched_at")
+
+  @@map("rate_cache")
+}
+
+// ─── Webhook Events (audit trail) ─────────────────────────────────────────────
+
+model WebhookEvent {
+  id            String    @id @default(uuid())
+  source        String    // "mpesa" | "yellowcard"
+  eventType     String    @map("event_type")
+  rawPayload    String    @map("raw_payload") // JSON string
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  transactionId String?      @map("transaction_id")
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@map("webhook_events")
+}

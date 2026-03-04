@@ -1,0 +1,71 @@
+# ── Production docker-compose ──────────────────────────────────────────────────
+# Builds optimised images: multi-stage backend + nginx-served frontend.
+# nginx handles the /api proxy so the backend is not exposed directly.
+#
+# Build + start:  docker compose up --build -d
+# Logs (both):    docker compose logs -f
+# Logs (one):     docker compose logs -f backend
+# Stop:           docker compose down
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend (compiled Node.js) ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: wld2mpesa-backend
+    environment:
+      NODE_ENV: production
+      SIMULATION_MODE: "true" # Set to "false" to go live
+      DATABASE_URL: "file:./dev.db"
+      CORS_ORIGIN: "*"
+    env_file:
+      - path: ./backend/.env
+        required: false # Create from backend/.env.example for secrets
+    volumes:
+      - db_data:/app/prisma # Persists database across restarts
+    # Backend is NOT exposed to host — nginx is the only public entry point
+    expose:
+      - "3001"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3001/api/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Frontend (nginx serving React + proxying /api to backend) ───────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        # VITE_* vars are baked into the JS bundle at build time
+        VITE_WLD_APP_ID: ${VITE_WLD_APP_ID:-app_staging_wld2mpesa}
+        VITE_BACKEND_URL: /api
+    container_name: wld2mpesa-frontend
+    ports:
+      - "${APP_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  db_data:
+    driver: local

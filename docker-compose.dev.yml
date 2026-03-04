@@ -1,0 +1,76 @@
+# ── Development docker-compose ─────────────────────────────────────────────────
+# Mounts source code from host → hot-reload for both services.
+# Named volumes isolate node_modules from the host so platform differences
+# (Linux vs macOS) don't corrupt the installed packages.
+#
+# Start:  docker compose -f docker-compose.dev.yml up
+# Logs:   docker compose -f docker-compose.dev.yml logs -f
+# Stop:   docker compose -f docker-compose.dev.yml down
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend (Express + tsx watch) ──────────────────────────────────────────
+  backend:
+    image: node:22-alpine
+    container_name: wld2mpesa-backend
+    working_dir: /app
+    # Install deps (fast if node_modules volume already exists), then hot-reload
+    command: sh -c "npm install && npx prisma generate && npx tsx watch src/server.ts"
+    environment:
+      NODE_ENV: development
+      SIMULATION_MODE: "true"
+      DATABASE_URL: "file:./dev.db"
+      PORT: "3001"
+      CORS_ORIGIN: "*"
+      # Add any other overrides here; secrets go in backend/.env
+    env_file:
+      - path: ./backend/.env
+        required: false # Don't fail if .env doesn't exist yet
+    volumes:
+      - ./backend:/app # Live source mount
+      - backend_modules:/app/node_modules # Isolated node_modules
+      - db_data:/app/prisma # Persist SQLite DB
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ── Frontend (Vite dev server) ──────────────────────────────────────────────
+  frontend:
+    image: node:22-alpine
+    container_name: wld2mpesa-frontend
+    working_dir: /app
+    command: sh -c "npm install && npx vite --host 0.0.0.0 --port 3000"
+    environment:
+      # Tell Vite's proxy where to forward /api requests inside the Docker network
+      VITE_PROXY_TARGET: http://backend:3001
+      VITE_WLD_APP_ID: app_staging_wld2mpesa
+      # Polling is required for file-watching inside Docker bind mounts on Linux
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  backend_modules:
+  frontend_modules:
+  db_data:
