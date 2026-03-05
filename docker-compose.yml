@@ -19,7 +19,6 @@ services:
     container_name: wld2mpesa-backend
     environment:
       NODE_ENV: production
-      SIMULATION_MODE: "true" # Set to "false" to go live
       DATABASE_URL: "file:./dev.db"
       CORS_ORIGIN: "*"
     env_file:

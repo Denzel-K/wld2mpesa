@@ -11,6 +11,7 @@ import type { RateData, InitiatePaymentResponse, TransactionStatus } from '@/lib
 // ─── State shape ──────────────────────────────────────────────────────────────
 
 export type AppScreen =
+  | 'welcome'
   | 'verification'
   | 'onboarding'
   | 'home'

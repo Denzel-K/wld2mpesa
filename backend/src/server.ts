@@ -14,20 +14,26 @@ import { paymentRouter } from './routes/payment.routes';
 import { ratesRouter } from './routes/rates.routes';
 import { userRouter } from './routes/user.routes';
 import { webhooksRouter } from './routes/webhooks.routes';
+import { nonceRouter } from './routes/nonce.routes';
+import { debugRouter } from './routes/debug.routes';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 const app = express();
 
+// Trust the first proxy hop (ngrok, nginx, etc.)
+// Required so express-rate-limit can correctly identify clients via X-Forwarded-For
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests (needed for simulator)
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
 
 app.use(rateLimit({
   windowMs: 60 * 1000,
-  max: config.SIMULATION_MODE ? 1000 : 30, // Much higher limit in simulation/dev
+  max: config.SIMULATION_MODE ? 1000 : 30,
   message: { error: 'Too many requests' },
 }));
 
@@ -66,6 +72,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/payment', paymentRouter);
 app.use('/api/rates', ratesRouter);
 app.use('/api/user', userRouter);
+app.use('/api/nonce', nonceRouter);
+app.use('/api/debug', debugRouter);
 app.use('/api/mpesa', webhooksRouter);
 app.use('/api/yellowcard', webhooksRouter);
 

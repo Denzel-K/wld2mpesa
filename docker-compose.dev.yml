@@ -16,10 +16,9 @@ services:
     container_name: wld2mpesa-backend
     working_dir: /app
     # Install deps (fast if node_modules volume already exists), then hot-reload
-    command: sh -c "npm install && npx prisma generate && npx tsx watch src/server.ts"
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npx tsx watch src/server.ts"
     environment:
       NODE_ENV: development
-      SIMULATION_MODE: "true"
       DATABASE_URL: "file:/app/data/dev.db"
       PORT: "3001"
       CORS_ORIGIN: "*"

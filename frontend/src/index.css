@@ -76,7 +76,12 @@
 
   /* Ghost Button */
   .btn-ghost {
-    @apply w-full py-3 px-6 border-2 border-[var(--accent)]/20 text-[var(--accent)] font-semibold text-base rounded-2xl active:bg-[var(--accent)]/10 transition-all duration-300;
+    @apply w-full py-3 px-6 border-2 text-[var(--accent)] font-semibold text-base rounded-2xl transition-all duration-300;
+    border-color: color-mix(in srgb, var(--accent), transparent 80%);
+  }
+
+  .btn-ghost:active {
+    background-color: color-mix(in srgb, var(--accent), transparent 90%);
   }
 
   /* Premium Card */
@@ -90,7 +95,15 @@
 
   /* Input field */
   .input-field {
-    @apply w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 text-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 transition-all duration-300 placeholder:text-[var(--text-secondary)]/50;
+    @apply w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 text-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 transition-all duration-300;
+  }
+
+  .input-field:focus {
+    --tw-ring-color: color-mix(in srgb, var(--accent), transparent 70%);
+  }
+
+  .input-field::placeholder {
+    color: color-mix(in srgb, var(--text-secondary), transparent 50%);
   }
 }
 

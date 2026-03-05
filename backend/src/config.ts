@@ -13,14 +13,6 @@
 
 import 'dotenv/config';
 
-function requireEnv(key: string, fallback?: string): string {
-  const value = process.env[key] ?? fallback;
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return value;
-}
-
 function optionalEnv(key: string, fallback = ''): string {
   return process.env[key] ?? fallback;
 }
@@ -54,7 +46,7 @@ const BACKEND_WALLET_ADDRESS = optionalEnv(
 // ─── World App ────────────────────────────────────────────────────────────────
 // TODO: PRODUCTION - Set real values from World Developer Portal
 const WLD_APP_ID = optionalEnv('WLD_APP_ID', 'app_staging_wld2mpesa');
-const WLD_ACTION_ID = optionalEnv('WLD_ACTION_ID', 'wld2mpesa-pay');
+const WLD_ACTION_ID = optionalEnv('WLD_ACTION_ID', 'wld2mpesa-login');
 
 // ─── Rate API ─────────────────────────────────────────────────────────────────
 // TODO: PRODUCTION - Get a CoinGecko API key (free tier works)
@@ -141,11 +133,21 @@ console.log(`
 `);
 
 if (!SIMULATION_MODE) {
-  // Validate required production env vars
-  requireEnv('BACKEND_WALLET_ADDRESS');
-  requireEnv('YELLOW_CARD_API_KEY');
-  requireEnv('YELLOW_CARD_SECRET');
-  requireEnv('MPESA_CONSUMER_KEY');
-  requireEnv('MPESA_CONSUMER_SECRET');
-  console.log('✅ All production environment variables present');
+  // Warn about missing production env vars — don't crash, let services fail gracefully at runtime
+  const requiredProdVars = [
+    'BACKEND_WALLET_ADDRESS',
+    'YELLOW_CARD_API_KEY',
+    'YELLOW_CARD_SECRET',
+    'MPESA_CONSUMER_KEY',
+    'MPESA_CONSUMER_SECRET',
+  ];
+
+  const missing = requiredProdVars.filter((key) => !process.env[key]);
+
+  if (missing.length > 0) {
+    console.warn(`\n⚠️  PRODUCTION mode — missing env vars: ${missing.join(', ')}`);
+    console.warn('   Affected services will fail at runtime. Set these in backend/.env to enable them.\n');
+  } else {
+    console.log('✅ All production environment variables present');
+  }
 }

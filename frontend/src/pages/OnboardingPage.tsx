@@ -9,46 +9,48 @@ import {
     Globe,
     Cpu,
     CheckCircle2,
-    ChevronRight,
-    ChevronLeft,
-    Loader2
+    ArrowRight,
+    Loader2,
+    Sparkles
 } from 'lucide-react';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const slides = [
     {
         id: 'problem',
         title: 'Instant Liquidity',
+        subtitle: 'Skip the queues',
         description: 'Tired of waiting for exchange settlements? WLD2Mpesa brings instant liquidity to your World Chain assets.',
-        icon: <Zap className="w-12 h-12 text-yellow-400" />,
+        icon: <Zap className="w-10 h-10 text-yellow-400" />,
         color: 'from-yellow-500/20 to-orange-500/20',
+        brand: 'M-PESA INTEGRATED'
     },
     {
         id: 'how-it-works',
         title: 'Automated Flow',
-        description: 'We automate the bridge from World Chain to KES via M-Pesa. No manual peer-to-peer matching required.',
-        icon: <Globe className="w-12 h-12 text-blue-400" />,
+        subtitle: 'No P2P Hassles',
+        description: 'We automate the bridge from World Chain to KES via M-Pesa. No manual matching required.',
+        icon: <Globe className="w-10 h-10 text-blue-400" />,
         color: 'from-blue-500/20 to-cyan-500/20',
+        brand: 'REAL-TIME SWAPS'
     },
     {
         id: 'security',
         title: 'Bank-Grade Security',
-        description: 'All transactions are verified through MiniKit and World ID. We never touch your private keys.',
-        icon: <ShieldCheck className="w-12 h-12 text-green-400" />,
-        color: 'from-green-500/20 to-emerald-500/20',
+        subtitle: 'Self-Custodial',
+        description: 'All transactions are verified through MiniKit. We never touch your private keys.',
+        icon: <ShieldCheck className="w-10 h-10 text-emerald-400" />,
+        color: 'from-emerald-500/20 to-teal-500/20',
+        brand: 'WORLD CHAIN NATIVE'
     },
     {
         id: 'tech',
         title: 'Proof of Personhood',
-        description: 'Powered by World ID 2.0 and the latest World Chain infrastructure for a secure, bot-free experience.',
-        icon: <Cpu className="w-12 h-12 text-purple-400" />,
+        subtitle: 'Bot-Free Ecosystem',
+        description: 'Powered by World ID 2.0 to ensure a secure, human-only financial experience.',
+        icon: <Cpu className="w-10 h-10 text-purple-400" />,
         color: 'from-purple-500/20 to-pink-500/20',
-    },
-    {
-        id: 'compliance',
-        title: 'Fully Compliant',
-        description: 'We follow local regulations and M-Pesa B2B best practices to ensure your funds reach you safely.',
-        icon: <CheckCircle2 className="w-12 h-12 text-white" />,
-        color: 'from-gray-500/20 to-white/10',
+        brand: 'WORLD ID 2.0'
     }
 ];
 
@@ -65,12 +67,6 @@ export const OnboardingPage: React.FC = () => {
         }
     };
 
-    const prev = () => {
-        if (currentSlide > 0) {
-            setCurrentSlide(s => s - 1);
-        }
-    };
-
     const finish = async () => {
         setLoading(true);
         try {
@@ -81,7 +77,6 @@ export const OnboardingPage: React.FC = () => {
             setScreen('home');
         } catch (err) {
             console.error('Failed to mark onboarding:', err);
-            // Fallback: move to home anyway to not block user
             setOnboarded(true);
             setScreen('home');
         } finally {
@@ -92,93 +87,121 @@ export const OnboardingPage: React.FC = () => {
     const slide = slides[currentSlide];
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col relative overflow-hidden">
-            {/* Background Glow */}
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col relative overflow-hidden font-sans">
+            {/* Dynamic Background Glow */}
             <AnimatePresence mode="wait">
                 <motion.div
                     key={slide.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`absolute inset-0 bg-gradient-to-b ${slide.color} to-transparent opacity-20`}
+                    transition={{ duration: 1 }}
+                    className={`absolute inset-0 bg-gradient-to-br ${slide.color} to-transparent opacity-30`}
                 />
             </AnimatePresence>
 
-            {/* Slide Content */}
-            <div className="flex-1 flex flex-col items-center justify-center p-8 z-10">
+            {/* Header */}
+            <div className="flex justify-between items-center p-8 z-10">
+                <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)]">Setup</span>
+                </div>
+                <ThemeToggle />
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 flex flex-col items-center justify-center px-10 z-10">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={slide.id}
-                        initial={{ x: 300, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: -300, opacity: 0 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 120 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 1.05, y: -10 }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                         className="flex flex-col items-center text-center max-w-sm"
                     >
-                        <div className="mb-10 p-8 bg-[var(--card-bg)] backdrop-blur-3xl rounded-[3rem] border border-[var(--border-color)] shadow-[var(--card-shadow)] relative">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent rounded-[3rem]" />
-                            <div className="relative z-10">
-                                {slide.icon}
+                        <div className="mb-12 relative">
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                                className="absolute -inset-4 border border-dashed border-[var(--accent)]/20 rounded-full"
+                            />
+                            <div className="w-24 h-24 bg-[var(--card-bg)] backdrop-blur-2xl rounded-[2rem] border border-[var(--border-color)] flex items-center justify-center shadow-xl relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/5 to-transparent" />
+                                <div className="relative z-10 transition-transform duration-500 hover:scale-110">
+                                    {slide.icon}
+                                </div>
                             </div>
                         </div>
 
-                        <h2 className="text-4xl font-black mb-4 tracking-tight font-display">
+                        <span className="text-[var(--accent)] text-xs font-black uppercase tracking-widest mb-3">
+                            {slide.subtitle}
+                        </span>
+
+                        <h2 className="text-4xl font-black mb-6 tracking-tight font-display leading-tight">
                             {slide.title}
                         </h2>
 
-                        <p className="text-lg text-[var(--text-secondary)] leading-relaxed font-medium">
+                        <p className="text-lg text-[var(--text-secondary)] leading-relaxed font-medium mb-4">
                             {slide.description}
                         </p>
+
+                        <div className="px-4 py-1.5 bg-[var(--bg-secondary)] rounded-full border border-[var(--border-color)]">
+                            <span className="text-[8px] font-black tracking-widest text-[var(--text-secondary)] uppercase">
+                                {slide.brand}
+                            </span>
+                        </div>
                     </motion.div>
                 </AnimatePresence>
             </div>
 
-            {/* Navigation Footer */}
-            <div className="p-10 z-10 flex flex-col items-center bg-[var(--bg-primary)]/80 backdrop-blur-2xl border-t border-[var(--border-color)]">
-                {/* Progress Dots */}
-                <div className="flex space-x-3 mb-10">
+            {/* Custom Footer Navigation */}
+            <div className="px-8 pb-12 pt-8 z-10 flex flex-col items-center">
+                {/* Visual Progress */}
+                <div className="flex gap-2.5 mb-10">
                     {slides.map((_, i) => (
                         <div
                             key={i}
-                            className={`h-1.5 transition-all duration-500 rounded-full ${i === currentSlide
-                                ? 'w-10 bg-[var(--accent)] shadow-[0_0_10px_var(--accent-glow)]'
-                                : 'w-1.5 bg-[var(--text-secondary)]/20'
+                            className={`h-1.5 rounded-full transition-all duration-700 ${i === currentSlide
+                                    ? 'w-12 bg-[var(--accent)] shadow-[0_0_15px_var(--accent-glow)]'
+                                    : 'w-1.5 bg-[var(--border-color)]'
                                 }`}
                         />
                     ))}
                 </div>
 
-                <div className="w-full flex items-center justify-between max-w-sm gap-4">
-                    <button
-                        onClick={prev}
-                        disabled={currentSlide === 0 || loading}
-                        className={`p-5 rounded-3xl transition-all border border-transparent ${currentSlide === 0
-                            ? 'opacity-0 pointer-events-none'
-                            : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] border-[var(--border-color)] active:scale-95'
-                            }`}
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-
+                <div className="w-full max-w-sm">
                     <button
                         onClick={next}
                         disabled={loading}
-                        className="btn-mpesa py-5 px-10 rounded-3xl tracking-tight"
+                        className="btn-mpesa h-18 py-5 px-10 group relative overflow-hidden"
                     >
                         {loading ? (
-                            <span className="flex items-center space-x-3">
-                                <Loader2 className="w-6 h-6 animate-spin" />
-                                <span>Starting...</span>
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span className="font-black">Configuring Account...</span>
+                            </div>
                         ) : (
-                            <>
-                                <span className="font-black">
-                                    {currentSlide === slides.length - 1 ? 'Get Started' : 'Next Step'}
+                            <div className="flex items-center justify-between w-full">
+                                <span className="font-black text-xl">
+                                    {currentSlide === slides.length - 1 ? 'Start Using App' : 'Continue'}
                                 </span>
-                                <ChevronRight className="w-5 h-5" />
-                            </>
+                                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                    <ArrowRight className="w-5 h-5 transform group-hover:translate-x-0.5 transition-transform" />
+                                </div>
+                            </div>
                         )}
                     </button>
+
+                    {currentSlide < slides.length - 1 && (
+                        <button
+                            onClick={finish}
+                            disabled={loading}
+                            className="w-full mt-6 py-2 text-[var(--text-secondary)] text-xs font-bold uppercase tracking-widest hover:text-[var(--text-primary)] transition-colors"
+                        >
+                            Skip Tour
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

@@ -1,13 +1,35 @@
 /**
  * minikit.ts — MiniKit SDK wrapper
  *
- * Centralises all MiniKit SDK interactions so that:
- * 1. The rest of the app never imports @worldcoin/minikit-js directly
- * 2. We can easily swap implementations (e.g., mock for unit tests)
- * 3. TypeScript types stay consistent
+ * Correct integration pattern per Worldcoin docs (2025):
+ * 1. Call walletAuth to get the user's wallet address (required)
+ * 2. Call verify to get the World ID proof (for human uniqueness)
+ * 3. Backend syncs user with proof
  */
 
-import { MiniKit, tokenToDecimals } from '@worldcoin/minikit-js';
+import { MiniKit, tokenToDecimals, VerificationLevel } from '@worldcoin/minikit-js';
+
+const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID || 'app_ac9f43a974959b04b11b081c3740f932';
+const ACTION_ID = (import.meta as any).env?.VITE_WLD_ACTION_ID || 'wld2mpesa-login';
+const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || '/api';
+
+export { APP_ID, ACTION_ID, BASE_URL };
+
+/**
+ * Log an error to the backend so it surfaces in Docker logs.
+ * Browser-side console.error is invisible in Docker — this is the workaround.
+ */
+async function logToServer(level: 'info' | 'warn' | 'error', message: string, context?: object) {
+  try {
+    await fetch(`${BASE_URL}/debug/log`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level, message, context }),
+    });
+  } catch {
+    // Ignore — if the backend is unreachable, we can't log anyway
+  }
+}
 
 // Workaround for broken/missing exports in @worldcoin/minikit-js@1.11.0 types
 export enum Tokens {
@@ -33,43 +55,168 @@ export interface PayCommandInput {
   description: string;
 }
 
-// @ts-ignore
-const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID ?? 'app_staging_wld2mpesa';
-
 /**
- * Initialise MiniKit. Call this once at app startup (App.tsx).
+ * Initialise MiniKit. Call once at app startup.
  */
 export function initMiniKit(): void {
   try {
     if (typeof window !== 'undefined') {
       MiniKit.install(APP_ID);
+      logToServer('info', `MiniKit installed. App ID: ${APP_ID}, BASE_URL: ${BASE_URL}`);
     }
   } catch (error) {
-    console.warn('[MiniKit] Installation failed (likely running outside World App)');
+    logToServer('warn', 'MiniKit installation failed', { error: String(error) });
+    console.warn('[MiniKit] Installation failed (likely running outside World App):', error);
   }
 }
 
 /**
- * Returns the user's wallet address if running inside World App.
+ * Test if the backend is reachable via the Vite proxy.
+ * Useful for diagnosing network issues before attempting walletAuth.
  */
-export function getWalletAddress(): string | null {
+export async function checkBackend(): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (!isInsideWorldApp()) return '0xSIMULATED_USER_WALLET';
-    // Use any cast to bypass missing type property in some versions of SDK types
-    return (MiniKit as any).walletAddress ?? null;
-  } catch {
-    return null;
+    const res = await fetch(`${BASE_URL}/health`, { method: 'GET' });
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Network error' };
   }
 }
 
 /**
- * Returns true if the app is running inside World App.
+ * Returns true if the app is running inside World App with MiniKit available.
  */
 export function isInsideWorldApp(): boolean {
   try {
     return MiniKit.isInstalled();
   } catch {
     return false;
+  }
+}
+
+export interface WorldIdProof {
+  nullifier_hash: string;
+  merkle_root: string;
+  proof: string;
+  verification_level: string;
+}
+
+export interface WalletAuthResult {
+  success: boolean;
+  walletAddress?: string;
+  error?: string;
+  payload?: unknown;
+}
+
+/**
+ * Step 1: Authenticate wallet using SIWE (Sign-In with Ethereum).
+ * This is the ONLY way to get the user's wallet address from MiniKit.
+ *
+ * Returns the wallet address on success.
+ */
+export async function authenticateWallet(): Promise<WalletAuthResult> {
+  if (!isInsideWorldApp()) {
+    // Development fallback (no real wallet)
+    console.warn('[MiniKit] Not in World App — using simulated walletAuth');
+    return {
+      success: true,
+      walletAddress: '0xDEV_SIMULATED_WALLET',
+    };
+  }
+
+  try {
+    // 1. Fetch nonce from backend
+    const nonceRes = await fetch(`${BASE_URL}/nonce`);
+    if (!nonceRes.ok) {
+      throw new Error(`Failed to get nonce: ${nonceRes.status}`);
+    }
+    const { nonce } = await nonceRes.json();
+
+    // 2. Call walletAuth command on MiniKit
+    const { finalPayload } = await MiniKit.commandsAsync.walletAuth({
+      nonce,
+      requestId: '0',
+      expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      statement: 'Sign in to WLD2Mpesa to enable WLD-to-M-Pesa transfers.',
+    });
+
+    if (finalPayload.status === 'error') {
+      return {
+        success: false,
+        error: 'Wallet authentication was declined',
+        payload: finalPayload,
+      };
+    }
+
+    const successPayload = finalPayload as { status: 'success'; address: string };
+
+    // 3. Confirm with backend
+    const siweRes = await fetch(`${BASE_URL}/user/complete-siwe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: finalPayload, nonce }),
+    });
+
+    if (!siweRes.ok) {
+      const err = await siweRes.json().catch(() => ({ error: 'SIWE confirmation failed' }));
+      throw new Error(err.error || 'SIWE verification failed');
+    }
+
+    return {
+      success: true,
+      walletAddress: successPayload.address,
+      payload: finalPayload,
+    };
+  } catch (err: any) {
+    const errMsg = err.message || 'Wallet authentication failed';
+    console.error('[MiniKit] walletAuth error:', err);
+    logToServer('error', '[MiniKit] walletAuth error', { message: errMsg, stack: err.stack });
+    return { success: false, error: errMsg };
+  }
+}
+
+/**
+ * Step 2: World ID verification — proves user is a unique human.
+ * Must be called AFTER authenticateWallet() to have a wallet address.
+ *
+ * @param action - The action ID registered in World Developer Portal
+ * @param signal - Typically the user's wallet address
+ */
+export async function verifyWithWorldId(
+  action: string,
+  signal: string
+): Promise<WorldIdProof | null> {
+  if (!isInsideWorldApp()) {
+    console.warn('[MiniKit] Not inside World App — simulating verify() success');
+    await sleep(800);
+    return {
+      nullifier_hash: '0xSIMULATED_NULLIFIER',
+      merkle_root: '0xSIMULATED_ROOT',
+      proof: '0xSIMULATED_PROOF',
+      verification_level: 'orb',
+    };
+  }
+
+  try {
+    const { finalPayload } = await MiniKit.commandsAsync.verify({
+      action,
+      signal,
+      verification_level: VerificationLevel.Orb,
+    });
+
+    if (finalPayload.status === 'error') {
+      console.error('[MiniKit] verify error:', finalPayload);
+      return null;
+    }
+
+    return finalPayload as unknown as WorldIdProof;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[MiniKit] verify exception:', err);
+    logToServer('error', '[MiniKit] verify exception', { message: errMsg });
+    return null;
   }
 }
 
@@ -84,11 +231,7 @@ export interface MiniKitPayResult {
 }
 
 /**
- * Send WLD to the backend escrow wallet.
- *
- * @param recipientAddress - Backend wallet that receives WLD
- * @param wldAmount        - Amount in WLD (as a string, e.g. "0.4231")
- * @param referenceId      - Your internal transaction ID (stored on-chain as reference)
+ * Send WLD to the backend escrow wallet via MiniKit payment.
  */
 export async function payWithMiniKit(
   recipientAddress: string,
@@ -96,7 +239,6 @@ export async function payWithMiniKit(
   referenceId: string
 ): Promise<MiniKitPayResult> {
   if (!isInsideWorldApp()) {
-    // Outside World App — simulate success for dev/preview
     console.warn('[MiniKit] Not inside World App — simulating pay() success');
     await sleep(1500);
     return {
@@ -133,47 +275,6 @@ export async function payWithMiniKit(
     txHash: (finalPayload as { transaction_id?: string }).transaction_id,
     payload: { commandPayload, finalPayload },
   };
-}
-
-/**
- * World ID verification (optional — proves user is a unique human).
- *
- * @param action - The action ID registered in World Developer Portal
- * @param signal - A string signal to bind the proof to (e.g. transaction ID)
- */
-export interface WorldIdProof {
-  nullifier_hash: string;
-  merkle_root: string;
-  proof: string;
-  verification_level: string;
-}
-
-export async function verifyWithWorldId(
-  action: string,
-  signal: string
-): Promise<WorldIdProof | null> {
-  if (!isInsideWorldApp()) {
-    console.warn('[MiniKit] Not inside World App — simulating verify() success');
-    await sleep(1000);
-    return {
-      nullifier_hash: '0xSIMULATED_NULLIFIER',
-      merkle_root: '0xSIMULATED_ROOT',
-      proof: '0xSIMULATED_PROOF',
-      verification_level: 'orb',
-    };
-  }
-
-  const { finalPayload } = await MiniKit.commandsAsync.verify({
-    action,
-    signal,
-    verification_level: 'orb' as any,
-  });
-
-  if (finalPayload.status === 'error') {
-    return null;
-  }
-
-  return finalPayload as unknown as WorldIdProof;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

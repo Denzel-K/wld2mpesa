@@ -3,7 +3,7 @@
  */
 
 import { useEffect } from 'react';
-import { initMiniKit, isInsideWorldApp } from './lib/minikit';
+import { initMiniKit } from './lib/minikit';
 import { usePaymentStore } from './stores/paymentStore';
 import { fetchRate } from './lib/api';
 
@@ -16,27 +16,28 @@ import SuccessPage from './pages/SuccessPage';
 import FailurePage from './pages/FailurePage';
 import { VerificationPage } from './pages/VerificationPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { WelcomePage } from './pages/WelcomePage';
 
 // Components
 import DevModePanel from './components/DevModePanel';
+import { ThemeProvider } from './components/ThemeProvider';
 
 export default function App() {
   const {
     screen, setScreen, devMode,
-    setRate, setRateLoading, setRateError,
     addSimLog
+  } = usePaymentStore();
+
+  const {
+    setRate, setRateLoading, setRateError
   } = usePaymentStore();
 
   // ── MiniKit init ──────────────────────────────────────────────────────────
   useEffect(() => {
     initMiniKit();
     addSimLog('info', 'MiniKit initialised');
-    addSimLog(
-      isInsideWorldApp() ? 'success' : 'warn',
-      isInsideWorldApp() ? 'Running inside World App' : 'Not in World App — simulation mode active'
-    );
-    // Start at verification
-    setScreen('verification');
+    // Start at welcome
+    setScreen('welcome');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Pre-fetch rate on mount ───────────────────────────────────────────────
@@ -60,6 +61,8 @@ export default function App() {
   // ── Screen router ─────────────────────────────────────────────────────────
   const renderScreen = () => {
     switch (screen) {
+      case 'welcome':
+        return <WelcomePage />;
       case 'verification':
         return <VerificationPage />;
       case 'onboarding':
@@ -77,19 +80,21 @@ export default function App() {
       case 'failure':
         return <FailurePage />;
       default:
-        return <HomePage />;
+        return <WelcomePage />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col max-w-md mx-auto relative overflow-x-hidden dark">
-      {/* Main screen */}
-      <main className="flex-1 flex flex-col">
-        {renderScreen()}
-      </main>
+    <ThemeProvider>
+      <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col max-w-md mx-auto relative overflow-x-hidden">
+        {/* Main screen */}
+        <main className="flex-1 flex flex-col">
+          {renderScreen()}
+        </main>
 
-      {/* Developer Mode panel (bottom) - strictly for internal debug */}
-      {devMode && <DevModePanel />}
-    </div>
+        {/* Developer Mode panel (bottom) - strictly for internal debug */}
+        {devMode && <DevModePanel />}
+      </div>
+    </ThemeProvider>
   );
 }

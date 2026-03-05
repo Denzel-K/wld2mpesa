@@ -12,6 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true,
     // Proxy /api/* to the backend.
     // VITE_PROXY_TARGET is set to http://backend:3001 in Docker dev (docker-compose.dev.yml)
     // so the proxy uses the Docker service name instead of localhost.
@@ -21,6 +22,7 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    allowedHosts: ['localhost', '127.0.0.1', '0.0.0.0', 'backend', 'sweeping-manually-grouse.ngrok-free.app']
   },
   define: {
     // Make env vars available — only VITE_ prefixed vars are exposed
