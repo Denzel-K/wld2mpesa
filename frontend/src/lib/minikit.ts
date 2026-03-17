@@ -10,10 +10,11 @@
 import { MiniKit, tokenToDecimals, VerificationLevel } from '@worldcoin/minikit-js';
 
 const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID || 'app_ac9f43a974959b04b11b081c3740f932';
-const ACTION_ID = (import.meta as any).env?.VITE_WLD_ACTION_ID || 'wld2mpesa-login';
+const LOGIN_ACTION_ID = (import.meta as any).env?.VITE_WLD_LOGIN_ACTION_ID || 'wld2mpesa-login';
+const PAY_ACTION_ID = (import.meta as any).env?.VITE_WLD_PAY_ACTION_ID || 'wld2mpesa-pay';
 const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || '/api';
 
-export { APP_ID, ACTION_ID, BASE_URL };
+export { APP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL };
 
 /**
  * Log an error to the backend so it surfaces in Docker logs.

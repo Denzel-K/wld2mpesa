@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { usePaymentStore } from '../stores/paymentStore';
-import { isInsideWorldApp, authenticateWallet, verifyWithWorldId, checkBackend, ACTION_ID } from '../lib/minikit';
+import { isInsideWorldApp, authenticateWallet, verifyWithWorldId, checkBackend, LOGIN_ACTION_ID } from '../lib/minikit';
 import * as api from '../lib/api';
 import {
     ShieldCheck,
@@ -93,7 +93,7 @@ export const VerificationPage: React.FC = () => {
         setStep('world-id');
         setStatusMsg('Opening World ID…');
 
-        const proof = await verifyWithWorldId(ACTION_ID, walletAddress);
+        const proof = await verifyWithWorldId(LOGIN_ACTION_ID, walletAddress);
 
         if (!proof) {
             setError('World ID verification was cancelled or failed. Please try again.');
@@ -106,7 +106,7 @@ export const VerificationPage: React.FC = () => {
         setStatusMsg('Securing your account…');
 
         try {
-            const user = await api.syncUser({ walletAddress, worldIdProof: proof });
+            const user = await api.syncUser({ walletAddress, worldIdProof: proof, actionId: LOGIN_ACTION_ID });
             setWorldIdVerified(true);
             setOnboarded(user.onboarded);
             setStep('done');

@@ -38,7 +38,8 @@ const BACKEND_WALLET_ADDRESS = optionalEnv(
 // ─── World App ────────────────────────────────────────────────────────────────
 // TODO: PRODUCTION - Set real values from World Developer Portal
 const WLD_APP_ID = optionalEnv('WLD_APP_ID', 'app_staging_wld2mpesa');
-const WLD_ACTION_ID = optionalEnv('WLD_ACTION_ID', 'wld2mpesa-login');
+const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', 'wld2mpesa-login');
+const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', 'wld2mpesa-pay');
 
 // ─── Rate API ─────────────────────────────────────────────────────────────────
 // TODO: PRODUCTION - Get a CoinGecko API key (free tier works)
@@ -87,7 +88,8 @@ export const config = {
 
   BACKEND_WALLET_ADDRESS,
   WLD_APP_ID,
-  WLD_ACTION_ID,
+  WLD_LOGIN_ACTION_ID,
+  WLD_PAY_ACTION_ID,
 
   COINGECKO_API_KEY,
 
@@ -122,7 +124,8 @@ console.log(`
 ║  Mode: ${IS_PRODUCTION ? '🔴 PRODUCTION (LIVE!)' : '🟡 DEVELOPMENT'}  ║
 ║  Port: ${PORT}                                         ║
 ║  World App App ID: ${WLD_APP_ID}                       ║
-║  World ID Action: ${WLD_ACTION_ID}                    ║
+║  World ID Login Action: ${WLD_LOGIN_ACTION_ID}         ║
+║  World ID Pay Action: ${WLD_PAY_ACTION_ID}             ║
 ╚═══════════════════════════════════════════════════════╝
 `);
 

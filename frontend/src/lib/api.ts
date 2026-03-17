@@ -133,7 +133,7 @@ export async function fetchUser(walletAddress: string): Promise<User | null> {
 /**
  * Sync user (verify world id proof and create/update user).
  */
-export async function syncUser(data: { walletAddress: string; worldIdProof: any }): Promise<User> {
+export async function syncUser(data: { walletAddress: string; worldIdProof: any; actionId: string }): Promise<User> {
   const res = await apiFetch('/user/sync', {
     method: 'POST',
     body: JSON.stringify(data),

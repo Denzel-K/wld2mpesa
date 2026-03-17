@@ -58,10 +58,15 @@ router.post('/complete-siwe', async (req, res) => {
  * Verify World ID proof and create/update user
  */
 router.post('/sync', async (req, res) => {
-    const { walletAddress, worldIdProof } = req.body;
+    const { walletAddress, worldIdProof, actionId } = req.body;
 
-    if (!walletAddress || !worldIdProof) {
-        return res.status(400).json({ error: 'Missing walletAddress or worldIdProof' });
+    if (!walletAddress || !worldIdProof || !actionId) {
+        return res.status(400).json({ error: 'Missing walletAddress, worldIdProof, or actionId' });
+    }
+
+    // Ensure the action is one of the ones we allow
+    if (actionId !== config.WLD_LOGIN_ACTION_ID && actionId !== config.WLD_PAY_ACTION_ID) {
+        return res.status(400).json({ error: 'Invalid actionId provided' });
     }
 
     // Normalize possible casing variants from MiniKit payloads (snake_case vs camelCase)
@@ -100,7 +105,7 @@ router.post('/sync', async (req, res) => {
     let verified = false;
 
     try {
-      console.log(`[Verify] Verifying World ID proof (app=${config.WLD_APP_ID} action=${config.WLD_ACTION_ID}) for ${walletAddress}`);
+      console.log(`[Verify] Verifying World ID proof (app=${config.WLD_APP_ID} action=${actionId}) for ${walletAddress}`);
       console.log(`[Verify] Normalized proof:`, JSON.stringify({
         nullifier_hash: normalizedProof.nullifier_hash,
         merkle_root: normalizedProof.merkle_root,
@@ -115,7 +120,7 @@ router.post('/sync', async (req, res) => {
           merkle_root: normalizedProof.merkle_root,
           proof: normalizedProof.proof,
           verification_level: normalizedProof.verification_level,
-          action: config.WLD_ACTION_ID,
+          action: actionId,
           signal: walletAddress,
         }),
       });
@@ -123,12 +128,12 @@ router.post('/sync', async (req, res) => {
       const responseText = await verifyResponse.text();
 
             if (!verifyResponse.ok) {
-                console.error(`[Verify] Worldcoin API error (${verifyResponse.status}) (app=${config.WLD_APP_ID} action=${config.WLD_ACTION_ID}):`, responseText);
+                console.error(`[Verify] Worldcoin API error (${verifyResponse.status}) (app=${config.WLD_APP_ID} action=${actionId}):`, responseText);
                 return res.status(verifyResponse.status).json({
                     error: 'Identity verification failed',
                     details: responseText,
                     appId: config.WLD_APP_ID,
-                    actionId: config.WLD_ACTION_ID,
+                    actionId: actionId,
                 });
             }
 

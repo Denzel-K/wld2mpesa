@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { confirmPayment } from '@/lib/api';
-import { payWithMiniKit, verifyWithWorldId } from '@/lib/minikit';
+import { payWithMiniKit, verifyWithWorldId, PAY_ACTION_ID } from '@/lib/minikit';
 import { formatKes, formatWld, shortTxId, calculateWldAmount } from '@/lib/utils';
 import { ArrowLeft, Shield, ChevronRight, Loader2, AlertCircle, Store, Phone, CreditCard } from 'lucide-react';
 
@@ -43,7 +43,7 @@ export default function ConfirmationPage() {
       if (useWorldId) {
         setVerifying(true);
         addSimLog('info', 'Requesting World ID proof…');
-        const proof = await verifyWithWorldId('wld2mpesa-pay', tx.transactionId);
+        const proof = await verifyWithWorldId(PAY_ACTION_ID, tx.transactionId);
         setVerifying(false);
         if (!proof) {
           setError('World ID verification cancelled or failed');
