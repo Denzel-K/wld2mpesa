@@ -10,11 +10,12 @@
 import { MiniKit, tokenToDecimals, VerificationLevel } from '@worldcoin/minikit-js';
 
 const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID || 'app_ac9f43a974959b04b11b081c3740f932';
+const RP_ID = (import.meta as any).env?.VITE_WLD_RP_ID || APP_ID;
 const LOGIN_ACTION_ID = (import.meta as any).env?.VITE_WLD_LOGIN_ACTION_ID || 'wld2mpesa-login';
 const PAY_ACTION_ID = (import.meta as any).env?.VITE_WLD_PAY_ACTION_ID || 'wld2mpesa-pay';
 const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || '/api';
 
-export { APP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL };
+export { APP_ID, RP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL };
 
 /**
  * Log an error to the backend so it surfaces in Docker logs.
@@ -187,8 +188,9 @@ export async function authenticateWallet(): Promise<WalletAuthResult> {
  */
 export async function verifyWithWorldId(
   action: string,
-  signal: string
-): Promise<WorldIdProof | null> {
+  signal: string,
+  rpContext?: string
+): Promise<any | null> {
   if (!isInsideWorldApp()) {
     console.warn('[MiniKit] Not inside World App — simulating verify() success');
     await sleep(800);
@@ -201,10 +203,11 @@ export async function verifyWithWorldId(
   }
 
   try {
-    const { finalPayload } = await MiniKit.commandsAsync.verify({
+    const { finalPayload } = await (MiniKit.commandsAsync.verify as any)({
       action,
       signal,
       verification_level: VerificationLevel.Orb,
+      rp_context: rpContext,
     });
 
     if (finalPayload.status === 'error') {
@@ -212,31 +215,8 @@ export async function verifyWithWorldId(
       return null;
     }
 
-    const candidate = finalPayload as any;
-    const proof: WorldIdProof = {
-      nullifier_hash: candidate.nullifier_hash ?? candidate.nullifierHash,
-      merkle_root: candidate.merkle_root ?? candidate.merkleRoot,
-      proof: candidate.proof,
-      verification_level: candidate.verification_level ?? candidate.verificationLevel,
-    };
-
-    const isHex = (s: unknown): s is string => typeof s === 'string' && /^(0x)?[0-9a-fA-F]+$/.test(s);
-
-    if (
-      !proof.nullifier_hash ||
-      !isHex(proof.nullifier_hash) ||
-      !proof.merkle_root ||
-      !isHex(proof.merkle_root) ||
-      !proof.proof ||
-      !isHex(proof.proof) ||
-      typeof proof.verification_level !== 'string'
-    ) {
-      console.error('[MiniKit] verify returned invalid proof:', finalPayload);
-      logToServer('error', '[MiniKit] verify returned invalid proof', { finalPayload });
-      return null;
-    }
-
-    return proof;
+    // Return the full payload for v4 pass-through
+    return finalPayload;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[MiniKit] verify exception:', err);

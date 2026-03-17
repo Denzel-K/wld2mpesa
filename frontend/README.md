@@ -14,7 +14,7 @@ npm run dev
 | Var | Default | Description |
 |-----|---------|-------------|
 | `VITE_BACKEND_URL` | `/api` | Backend base URL |
-| `VITE_WLD_APP_ID` | `app_staging_wld2mpesa` | World App ID |
+| `VITE_WLD_APP_ID` | `app_ac9f43a974959b04b11b081c3740f932` | World App ID |
 
 ## Pages
 - `HomePage` — landing, rate display, CTA

@@ -44,7 +44,9 @@ WLD2Mpesa runs against **real services (World App, World Chain, Yellow Card, M-P
 
 Required fields (must be set for production):
 - `WLD_APP_ID` (from https://developer.worldcoin.org)
-- `WLD_ACTION_ID` (must match the Action ID configured in your World App dashboard)
+- `WLD_SIGNING_KEY` (Required for World ID 4.0 context signing)
+- `WLD_LOGIN_ACTION_ID` (Action ID used for initial proof of personhood)
+- `WLD_PAY_ACTION_ID` (Action ID used specifically for authorizing payments)
 - `BACKEND_WALLET_ADDRESS` (World Chain escrow wallet)
 - `BACKEND_WALLET_PRIVATE_KEY` (keep secret!)
 - `WORLD_CHAIN_RPC_URL` (e.g. Alchemy World Chain endpoint)
@@ -286,9 +288,10 @@ WORLD_CHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/v2/YOUR_KEY
 +
 + const isValid = await MiniKit.validatePayment({
 +   payload: req.body.miniKitPayload,
-+   action: 'pay',
-+   appId: config.WLD_APP_ID,
-+ });
++    worldAppId: config.WLD_APP_ID,
++    worldLoginActionId: config.WLD_LOGIN_ACTION_ID,
++    worldPayActionId: config.WLD_PAY_ACTION_ID,
++  });
 +
 + if (!isValid) {
 +   return res.status(400).json({ error: 'Invalid MiniKit payload' });
@@ -317,7 +320,7 @@ WORLD_CHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/v2/YOUR_KEY
 +       merkle_root: worldIdProof.merkle_root,
 +       proof: worldIdProof.proof,
 +       verification_level: worldIdProof.verification_level,
-+       action: config.WLD_ACTION_ID,
++       action: req.body.actionId, // The ID of the action being verified
 +     }),
 +   });
 +   const { verified } = await verifyResponse.json();
@@ -392,7 +395,8 @@ PORT=3001
 BACKEND_WALLET_ADDRESS=0xYOUR_REAL_WALLET
 BACKEND_WALLET_PRIVATE_KEY=<secret_manager_reference>
 WLD_APP_ID=app_YOUR_APP_ID
-WLD_ACTION_ID=YOUR_ACTION_ID
+WLD_LOGIN_ACTION_ID=YOUR_LOGIN_ACTION_ID
+WLD_PAY_ACTION_ID=YOUR_PAY_ACTION_ID
 WORLD_CHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/v2/YOUR_KEY
 
 # Rates
@@ -429,7 +433,7 @@ MAX_KES_AMOUNT=150000
 | `mpesaService.ts` | Configure Daraja credentials (`MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`) |
 | `worldChainListener.ts` | Ensure `WORLD_CHAIN_RPC_URL` points to a live World Chain node (e.g. Alchemy) |
 | `rateService.ts` | Ensure `COINGECKO_API_KEY` is set (optional, but avoids rate limits) |
-| `payment.routes.ts` | Ensure `WLD_APP_ID` and `WLD_ACTION_ID` match your World App configuration |
+| `payment.routes.ts` | Ensure `WLD_APP_ID`, `WLD_LOGIN_ACTION_ID` and `WLD_PAY_ACTION_ID` match your portal configuration |
 | `server.ts` | Ensure CORS origin (`CORS_ORIGIN`) allows access from your frontend and World App simulator |
 
 ---

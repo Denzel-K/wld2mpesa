@@ -133,12 +133,23 @@ export async function fetchUser(walletAddress: string): Promise<User | null> {
 /**
  * Sync user (verify world id proof and create/update user).
  */
-export async function syncUser(data: { walletAddress: string; worldIdProof: any; actionId: string }): Promise<User> {
+export async function syncUser(data: { walletAddress: string; worldIdProof?: any; v4Result?: any; actionId: string }): Promise<User> {
   const res = await apiFetch('/user/sync', {
     method: 'POST',
     body: JSON.stringify(data),
   });
   return res as User;
+}
+
+/**
+ * Fetch World ID 4.0 IDKit context (signed signature).
+ */
+export async function fetchIdKitContext(actionId: string): Promise<any> {
+    const res = await apiFetch('/idkit/rp-context', {
+        method: 'POST',
+        body: JSON.stringify({ action: actionId }),
+    });
+    return res;
 }
 
 /**

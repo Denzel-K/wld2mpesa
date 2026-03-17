@@ -50,7 +50,7 @@ services:
       target: production
       args:
         # VITE_* vars are baked into the JS bundle at build time
-        VITE_WLD_APP_ID: ${VITE_WLD_APP_ID:-app_staging_wld2mpesa}
+        VITE_WLD_APP_ID: ${VITE_WLD_APP_ID:-app_ac9f43a974959b04b11b081c3740f932}
         VITE_BACKEND_URL: /api
     container_name: wld2mpesa-frontend
     ports:

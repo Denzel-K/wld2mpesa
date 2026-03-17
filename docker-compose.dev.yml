@@ -48,7 +48,7 @@ services:
     environment:
       # Tell Vite's proxy where to forward /api requests inside the Docker network
       VITE_PROXY_TARGET: http://backend:3001
-      VITE_WLD_APP_ID: app_staging_wld2mpesa
+      VITE_WLD_APP_ID: app_ac9f43a974959b04b11b081c3740f932
       # Polling is required for file-watching inside Docker bind mounts on Linux
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"

@@ -16,6 +16,7 @@ import { userRouter } from './routes/user.routes';
 import { webhooksRouter } from './routes/webhooks.routes';
 import { nonceRouter } from './routes/nonce.routes';
 import { debugRouter } from './routes/debug.routes';
+import { idkitRouter } from './routes/idkit.routes';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
@@ -66,7 +67,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     worldAppId: config.WLD_APP_ID,
-    worldActionId: config.WLD_ACTION_ID,
+    worldLoginActionId: config.WLD_LOGIN_ACTION_ID,
+    worldPayActionId: config.WLD_PAY_ACTION_ID,
   });
 });
 
@@ -75,6 +77,7 @@ app.use('/api/rates', ratesRouter);
 app.use('/api/user', userRouter);
 app.use('/api/nonce', nonceRouter);
 app.use('/api/debug', debugRouter);
+app.use('/api/idkit', idkitRouter);
 app.use('/api/mpesa', webhooksRouter);
 app.use('/api/yellowcard', webhooksRouter);
 

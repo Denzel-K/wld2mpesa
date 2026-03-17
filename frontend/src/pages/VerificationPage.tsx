@@ -93,7 +93,16 @@ export const VerificationPage: React.FC = () => {
         setStep('world-id');
         setStatusMsg('Opening World ID…');
 
-        const proof = await verifyWithWorldId(LOGIN_ACTION_ID, walletAddress);
+        let rpContext: string | undefined;
+        try {
+            const contextRes = await api.fetchIdKitContext(LOGIN_ACTION_ID);
+            rpContext = contextRes.rp_context;
+        } catch (ctxErr) {
+            console.warn('[Verification] Failed to fetch rp-context (falling back to unsigned):', ctxErr);
+            // Don't fail the whole flow, let MiniKit try unsigned if the backend doesn't support it yet
+        }
+
+        const proof = await verifyWithWorldId(LOGIN_ACTION_ID, walletAddress, rpContext);
 
         if (!proof) {
             setError('World ID verification was cancelled or failed. Please try again.');
@@ -104,9 +113,15 @@ export const VerificationPage: React.FC = () => {
         // ─── Step 3: Backend Sync ────────────────────────────────────────
         setStep('syncing');
         setStatusMsg('Securing your account…');
-
+        
         try {
-            const user = await api.syncUser({ walletAddress, worldIdProof: proof, actionId: LOGIN_ACTION_ID });
+            // Forward the proof as v4Result to the backend, including the rpContext
+            const user = await api.syncUser({ 
+                walletAddress, 
+                v4Result: proof, // v4 result from verifyWithWorldId
+                rpContext, // Include the context fetched in Step 2
+                actionId: LOGIN_ACTION_ID 
+            });
             setWorldIdVerified(true);
             setOnboarded(user.onboarded);
             setStep('done');

@@ -4,7 +4,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Declare build-time args — VITE_* vars are baked into the JS bundle at build time
-ARG VITE_WLD_APP_ID=app_staging_wld2mpesa
+ARG VITE_WLD_APP_ID=app_ac9f43a974959b04b11b081c3740f932
 ARG VITE_BACKEND_URL=/api
 
 # Make args available to the Vite build
