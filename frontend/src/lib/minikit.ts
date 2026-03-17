@@ -211,7 +211,31 @@ export async function verifyWithWorldId(
       return null;
     }
 
-    return finalPayload as unknown as WorldIdProof;
+    const candidate = finalPayload as any;
+    const proof: WorldIdProof = {
+      nullifier_hash: candidate.nullifier_hash ?? candidate.nullifierHash,
+      merkle_root: candidate.merkle_root ?? candidate.merkleRoot,
+      proof: candidate.proof,
+      verification_level: candidate.verification_level ?? candidate.verificationLevel,
+    };
+
+    const isHex = (s: unknown): s is string => typeof s === 'string' && /^(0x)?[0-9a-fA-F]+$/.test(s);
+
+    if (
+      !proof.nullifier_hash ||
+      !isHex(proof.nullifier_hash) ||
+      !proof.merkle_root ||
+      !isHex(proof.merkle_root) ||
+      !proof.proof ||
+      !isHex(proof.proof) ||
+      typeof proof.verification_level !== 'string'
+    ) {
+      console.error('[MiniKit] verify returned invalid proof:', finalPayload);
+      logToServer('error', '[MiniKit] verify returned invalid proof', { finalPayload });
+      return null;
+    }
+
+    return proof;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[MiniKit] verify exception:', err);

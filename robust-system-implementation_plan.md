@@ -161,7 +161,7 @@ erDiagram
 > **Yellow Card API**: Off-ramp requires `YELLOW_CARD_API_KEY` + `YELLOW_CARD_SECRET`. Without them, the off-ramp flow will fail at runtime.
 
 > [!CAUTION]
-> **Real Money**: Once `SIMULATION_MODE=false`, all transactions involve real WLD and real KES.
+> **Real Money**: With real API keys configured, transactions involve real WLD and real KES.
 
 ---
 
@@ -271,7 +271,7 @@ cd wld2mpesa/frontend && npx tsc --noEmit
 
 ### Manual
 1. Backend starts → SQLite DB auto-created at `data/wld2mpesa.db`
-2. `GET /api/health` → `simulationMode: false`
+2. `GET /api/health` → { status: 'ok' }
 3. `GET /api/rates/wld-kes` → live CoinGecko + cached in `rate_cache`
 4. Browser → VerificationPage → "Open in World App" message
 5. World App → verify → onboard → home → execute test payment

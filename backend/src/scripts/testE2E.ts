@@ -68,13 +68,8 @@ async function main(): Promise<void> {
   console.log('╚═══════════════════════════════════════════════╝\n');
 
   // ── Step 0: Health check ──────────────────────────────────────────────────
-  const health = await apiGet<{ status: string; simulationMode: boolean }>('/health');
-  log('🏥', `Backend healthy | Simulation mode: ${health.simulationMode}`);
-
-  if (!health.simulationMode) {
-    console.error('\n⛔ SIMULATION_MODE is false — this test runs real money! Aborting.');
-    process.exit(1);
-  }
+  const health = await apiGet<{ status: string }>('/health');
+  log('🏥', `Backend healthy`);
 
   // ── Step 1: Fetch rate ────────────────────────────────────────────────────
   log('📈', 'Fetching WLD/KES rate…');

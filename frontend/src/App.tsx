@@ -28,12 +28,33 @@ export default function App() {
     addSimLog
   } = usePaymentStore();
 
+  const initEruda = () => {
+    const enabled = (import.meta.env.VITE_ENABLE_ERUDA ?? 'false') === 'true';
+    if (!enabled) return;
+
+    if (typeof window === 'undefined' || (window as any).eruda) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    script.async = true;
+    script.onload = () => {
+      try {
+        (window as any).eruda.init();
+        console.info('[Eruda] Mobile console enabled');
+      } catch {
+        // ignore
+      }
+    };
+    document.head.appendChild(script);
+  };
+
   const {
     setRate, setRateLoading, setRateError
   } = usePaymentStore();
 
   // ── MiniKit init ──────────────────────────────────────────────────────────
   useEffect(() => {
+    initEruda();
     initMiniKit();
     addSimLog('info', 'MiniKit initialised');
     // Start at welcome

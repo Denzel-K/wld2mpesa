@@ -148,9 +148,6 @@ class YellowCardOfframpService implements IOfframpService {
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 export function createOfframpService(): IOfframpService {
-  if (config.SIMULATION_MODE) {
-    return new SimulatedOfframpService();
-  }
   return new YellowCardOfframpService();
 }
 

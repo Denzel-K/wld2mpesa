@@ -33,7 +33,7 @@ app.use(
 
 app.use(rateLimit({
   windowMs: 60 * 1000,
-  max: config.SIMULATION_MODE ? 1000 : 30,
+  max: 30,
   message: { error: 'Too many requests' },
 }));
 
@@ -63,9 +63,10 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    simulationMode: config.SIMULATION_MODE,
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    worldAppId: config.WLD_APP_ID,
+    worldActionId: config.WLD_ACTION_ID,
   });
 });
 
@@ -106,7 +107,7 @@ app.listen(config.PORT, () => {
   console.log(`\n🚀 WLD2Mpesa backend running on http://localhost:${config.PORT}`);
   console.log(`   Health: http://localhost:${config.PORT}/api/health`);
   console.log(`   Rates:  http://localhost:${config.PORT}/api/rates/wld-kes`);
-  console.log(`   Mode:   ${config.SIMULATION_MODE ? '🟡 SIMULATION' : '🔴 PRODUCTION'}\n`);
+  console.log(`   Mode:   ${config.IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}\n`);
 });
 
 export { app };

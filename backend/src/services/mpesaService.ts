@@ -97,11 +97,6 @@ class DarajaMpesaService implements IMpesaService {
 }
 
 export function createMpesaService(): IMpesaService {
-  if (config.SIMULATION_MODE) {
-    // Need a way to access the SimulatedMpesaService which was in the same file
-    // I'll keep the Simulated version in this file too
-    return new SimulatedMpesaService();
-  }
   return new DarajaMpesaService();
 }
 

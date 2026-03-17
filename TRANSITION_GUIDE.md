@@ -1,36 +1,70 @@
-# TRANSITION GUIDE — Simulation → Production
+# TRANSITION GUIDE — Production Setup
 
-> **Audience:** The solo developer taking WLD2Mpesa from MVP to live money.
+> **Audience:** The solo developer configuring WLD2Mpesa for live usage.
 > **Time estimate:** 1–2 weeks with all third-party accounts ready.
-> **Risk level:** Low — each step is independently testable.
+> **Risk level:** Medium — real money and real payment rails are involved.
 
 ---
 
 ## Overview
 
-This guide provides exact, diff-style instructions for every change needed to go from `SIMULATION_MODE=true` to a fully live payment system. Each section tells you:
+This guide provides exact, diff-style instructions for configuring the app to run against real-world services (World App, World Chain, Yellow Card, M-Pesa). Each section tells you:
 - **Which file to change**
 - **What to remove (-)** and **what to add (+)**
 - **How to verify** the change works
 
 ---
 
-## Step 1 — Flip the Master Switch
+## Quick local testing (World App only)
 
-**File:** `backend/src/config.ts`
+⚠️ Mini apps **do not** run as full web apps in a desktop browser. The only reliable way to test MiniKit commands (pay, verify, wallet auth) is inside the real **World App mobile app**.
 
-```diff
-- SIMULATION_MODE: process.env.SIMULATION_MODE !== 'false', // defaults to TRUE
-+ SIMULATION_MODE: process.env.SIMULATION_MODE === 'true', // defaults to FALSE
+1. Run the app locally:
+   ```bash
+   cd backend && npm run dev
+   cd frontend && npm run dev
+   ```
+2. Expose the frontend to the internet (required for mobile):
+   ```bash
+   ngrok http 3000
+   ```
+3. Use the official Worldcoin QR tool: https://docs.world.org/mini-apps/quick-start/testing
+   - Enter your **App ID** (e.g. `app_staging_wld2mpesa`)
+   - Scan the QR code with your phone (or copy the link into World App)
+
+✅ Pro Tip: Add `VITE_ENABLE_ERUDA=true` to `frontend/.env.local` to get an in-app console on mobile.
+
+---
+
+## Step 1 — Configure required environment variables
+
+WLD2Mpesa runs against **real services (World App, World Chain, Yellow Card, M-Pesa)**. Before starting, ensure your backend `.env` contains the correct values for your app.
+
+**File:** `backend/.env`
+
+Required fields (must be set for production):
+- `WLD_APP_ID` (from https://developer.worldcoin.org)
+- `WLD_ACTION_ID` (must match the Action ID configured in your World App dashboard)
+- `BACKEND_WALLET_ADDRESS` (World Chain escrow wallet)
+- `BACKEND_WALLET_PRIVATE_KEY` (keep secret!)
+- `WORLD_CHAIN_RPC_URL` (e.g. Alchemy World Chain endpoint)
+- `YELLOW_CARD_API_KEY` / `YELLOW_CARD_SECRET` (Yellow Card Business API)
+- `MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET` (Safaricom Daraja)
+- `BACKEND_URL` (public URL for webhook callbacks)
+
+**Verify:**
+1. Start the backend (`cd backend && npm run dev`).
+2. Call the health endpoint:
+
+```bash
+curl http://localhost:3001/api/health
 ```
 
-**Then in `.env` (production):**
-```diff
-- SIMULATION_MODE=true
-+ SIMULATION_MODE=false
-```
+Expected response:
 
-**Verify:** `GET /api/health` should return `"simulationMode": false`
+```json
+{ "status": "ok", "version": "1.0.0", "timestamp": "..." }
+```
 
 ---
 
@@ -348,9 +382,9 @@ cd backend && npm install express-rate-limit helmet cors
 
 ## Step 10 — Final Environment Variables for Production
 
-Create `.env.production`:
+Create `.env.production` and ensure all required keys are set:
+
 ```bash
-SIMULATION_MODE=false
 NODE_ENV=production
 PORT=3001
 
@@ -364,7 +398,7 @@ WORLD_CHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/v2/YOUR_KEY
 # Rates
 COINGECKO_API_KEY=YOUR_KEY
 
-# Off-ramp
+# Off-ramp (Yellow Card)
 YELLOW_CARD_API_KEY=YOUR_KEY
 YELLOW_CARD_SECRET=YOUR_SECRET
 
@@ -388,15 +422,15 @@ MAX_KES_AMOUNT=150000
 
 ## Quick Reference — Files to Change
 
-| File | Simulation Change | Production Change |
-|---|---|---|
-| `config.ts` | `SIMULATION_MODE=true` | `SIMULATION_MODE=false` |
-| `offrampService.ts` | Uses `SimulatedOfframpService` | Switch to `YellowCardOfframpService` |
-| `mpesaService.ts` | Uses `SimulatedMpesaService` | Switch to `DarajaMpesaService` |
-| `worldChainListener.ts` | Uses `setTimeout` mock | Uses `viem` + World Chain RPC |
-| `rateService.ts` | Returns hardcoded rates | Calls CoinGecko API |
-| `payment.routes.ts` | Skips payload verification | Verifies MiniKit signature |
-| `server.ts` | No rate limiting | Adds `helmet` + `express-rate-limit` |
+| File | What to configure / verify |
+|---|---|
+| `config.ts` | Ensure World App and payment API keys are set; warn if missing |
+| `offrampService.ts` | Configure Yellow Card credentials and ensure `YELLOW_CARD_API_KEY` / `YELLOW_CARD_SECRET` are set |
+| `mpesaService.ts` | Configure Daraja credentials (`MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`) |
+| `worldChainListener.ts` | Ensure `WORLD_CHAIN_RPC_URL` points to a live World Chain node (e.g. Alchemy) |
+| `rateService.ts` | Ensure `COINGECKO_API_KEY` is set (optional, but avoids rate limits) |
+| `payment.routes.ts` | Ensure `WLD_APP_ID` and `WLD_ACTION_ID` match your World App configuration |
+| `server.ts` | Ensure CORS origin (`CORS_ORIGIN`) allows access from your frontend and World App simulator |
 
 ---
 

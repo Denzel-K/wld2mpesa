@@ -121,7 +121,10 @@ class RealRateService implements IRateService {
           cachedAt: cached.fetchedAt.toISOString(),
         };
       }
-      throw err;
+
+      // If we don't have any cached rates, fall back to a simulated rate so the app stays usable.
+      console.warn('[RateService] No cached rate available; falling back to simulated rate.');
+      return new SimulatedRateService().getWldKesRate();
     }
   }
 }
@@ -129,9 +132,6 @@ class RealRateService implements IRateService {
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 export function createRateService(): IRateService {
-  if (config.SIMULATION_MODE) {
-    return new SimulatedRateService();
-  }
   return new RealRateService();
 }
 

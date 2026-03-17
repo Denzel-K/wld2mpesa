@@ -15,7 +15,7 @@ npm run test:e2e  # simulate a full payment end-to-end
 ## Key files
 | File | Purpose |
 |------|---------|
-| `src/config.ts` | Master switch: `SIMULATION_MODE` |
+| `src/config.ts` | App configuration (World App IDs + payment API keys) |
 | `src/services/paymentService.ts` | Core orchestration |
 | `src/services/rateService.ts` | WLD/KES rate fetch |
 | `src/services/offrampService.ts` | Yellow Card off-ramp |

@@ -232,7 +232,7 @@ curl http://localhost:3000/api/health
 
 Expected response:
 ```json
-{ "status": "ok", "simulationMode": true, "version": "1.0.0" }
+{ "status": "ok", "version": "1.0.0" }
 ```
 
 ### 5. Rebuild after code changes

@@ -1,14 +1,9 @@
 /**
  * config.ts — Application configuration
  *
- * ╔══════════════════════════════════════════════════════════╗
- * ║  SIMULATION_MODE is the master switch.                   ║
- * ║  true  → all API calls are mocked (safe, no real money)  ║
- * ║  false → real Yellow Card, Daraja, World Chain           ║
- * ║                                                          ║
- * ║  To go live: set SIMULATION_MODE=false in .env           ║
- * ║  See TRANSITION_GUIDE.md for the full checklist          ║
- * ╚══════════════════════════════════════════════════════════╝
+ * This project is designed to run against live Worldcoin and payment APIs.
+ * Run locally with real app settings (World App App ID + Action ID) and
+ * real backend credentials.
  */
 
 import 'dotenv/config';
@@ -22,13 +17,10 @@ function optionalEnvNumber(key: string, fallback: number): number {
   return val ? parseFloat(val) : fallback;
 }
 
-// ─── Simulation mode ──────────────────────────────────────────────────────────
-// Defaults to FALSE for production safety. Set SIMULATION_MODE=true for testing.
-const SIMULATION_MODE = process.env.SIMULATION_MODE === 'true';
-
 // ─── Server ───────────────────────────────────────────────────────────────────
 const PORT = optionalEnvNumber('PORT', 3001);
 const NODE_ENV = optionalEnv('NODE_ENV', 'development');
+const IS_PRODUCTION = NODE_ENV === 'production';
 
 // ─── World Chain RPC ───────────────────────────────────────────────────────────
 const WORLD_CHAIN_RPC_URL = optionalEnv(
@@ -88,9 +80,9 @@ const SIM_MPESA_MS = 5000;           // 5s for "M-Pesa disbursement" (real: ~30s
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export const config = {
-  SIMULATION_MODE,
   PORT,
   NODE_ENV,
+  IS_PRODUCTION,
   WORLD_CHAIN_RPC_URL,
 
   BACKEND_WALLET_ADDRESS,
@@ -125,29 +117,28 @@ export const config = {
 
 // Log config state on startup
 console.log(`
-╔═══════════════════════════════════════╗
-║  WLD2Mpesa Backend                    ║
-║  Mode: ${SIMULATION_MODE ? '🟡 SIMULATION (no real money)' : '🔴 PRODUCTION (LIVE!)'}  ║
-║  Port: ${PORT}                              ║
-╚═══════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════╗
+║  WLD2Mpesa Backend                                  ║
+║  Mode: ${IS_PRODUCTION ? '🔴 PRODUCTION (LIVE!)' : '🟡 DEVELOPMENT'}  ║
+║  Port: ${PORT}                                         ║
+║  World App App ID: ${WLD_APP_ID}                       ║
+║  World ID Action: ${WLD_ACTION_ID}                    ║
+╚═══════════════════════════════════════════════════════╝
 `);
 
-if (!SIMULATION_MODE) {
-  // Warn about missing production env vars — don't crash, let services fail gracefully at runtime
-  const requiredProdVars = [
-    'BACKEND_WALLET_ADDRESS',
-    'YELLOW_CARD_API_KEY',
-    'YELLOW_CARD_SECRET',
-    'MPESA_CONSUMER_KEY',
-    'MPESA_CONSUMER_SECRET',
-  ];
+// Warn about missing environment variables (will cause runtime failures)
+const requiredEnvVars = [
+  'BACKEND_WALLET_ADDRESS',
+  'YELLOW_CARD_API_KEY',
+  'YELLOW_CARD_SECRET',
+  'MPESA_CONSUMER_KEY',
+  'MPESA_CONSUMER_SECRET',
+];
 
-  const missing = requiredProdVars.filter((key) => !process.env[key]);
-
-  if (missing.length > 0) {
-    console.warn(`\n⚠️  PRODUCTION mode — missing env vars: ${missing.join(', ')}`);
-    console.warn('   Affected services will fail at runtime. Set these in backend/.env to enable them.\n');
-  } else {
-    console.log('✅ All production environment variables present');
-  }
+const missing = requiredEnvVars.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.warn(`\n⚠️  Missing env vars: ${missing.join(', ')}`);
+  console.warn('   Affected services will fail at runtime. Set these in backend/.env to enable them.\n');
+} else {
+  console.log('✅ All required environment variables present');
 }

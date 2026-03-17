@@ -33,7 +33,7 @@ router.post('/complete-siwe', async (req, res) => {
     }
 
     // Validate nonce
-    const nonceValid = config.SIMULATION_MODE ? true : validateNonce(nonce);
+    const nonceValid = validateNonce(nonce);
     if (!nonceValid) {
         return res.status(400).json({ error: 'Invalid or expired nonce' });
     }
@@ -64,35 +64,71 @@ router.post('/sync', async (req, res) => {
         return res.status(400).json({ error: 'Missing walletAddress or worldIdProof' });
     }
 
+    // Normalize possible casing variants from MiniKit payloads (snake_case vs camelCase)
+    const normalizedProof = {
+        nullifier_hash: worldIdProof.nullifier_hash ?? worldIdProof.nullifierHash,
+        merkle_root: worldIdProof.merkle_root ?? worldIdProof.merkleRoot,
+        proof: worldIdProof.proof,
+        verification_level: worldIdProof.verification_level ?? worldIdProof.verificationLevel,
+    } as Record<string, unknown>;
+
+    // Validate incoming World ID proof structure early to avoid hitting the Worldcoin API with invalid data.
+    const isHexString = (val: unknown): val is string => {
+        return typeof val === 'string' && /^(0x)?[0-9a-fA-F]+$/.test(val);
+    };
+
+    if (
+        !isHexString(normalizedProof.nullifier_hash) ||
+        !isHexString(normalizedProof.merkle_root) ||
+        !isHexString(normalizedProof.proof) ||
+        typeof normalizedProof.verification_level !== 'string'
+    ) {
+        return res.status(400).json({
+            error: 'Invalid World ID proof',
+            details: 'Expected nullifier_hash, merkle_root, proof (hex strings) and verification_level (string).',
+            received: {
+              nullifier_hash: normalizedProof.nullifier_hash,
+              merkle_root: normalizedProof.merkle_root,
+              proof: normalizedProof.proof,
+              verification_level: normalizedProof.verification_level,
+            },
+        });
+    }
+
     // 1. Verify World ID Proof with World App API
     // In simulation mode, we skip actual API call
     let verified = false;
 
-    if (config.SIMULATION_MODE) {
-        console.log('[SIM] Skipping World ID cloud verification for', walletAddress);
-        verified = true;
-    } else {
-        try {
-            const verifyResponse = await fetch(`https://developer.worldcoin.org/api/v2/verify/${config.WLD_APP_ID}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nullifier_hash: worldIdProof.nullifier_hash,
-                    merkle_root: worldIdProof.merkle_root,
-                    proof: worldIdProof.proof,
-                    verification_level: worldIdProof.verification_level,
-                    action: config.WLD_ACTION_ID,
-                    signal: walletAddress,
-                }),
-            });
+    try {
+      console.log(`[Verify] Verifying World ID proof (app=${config.WLD_APP_ID} action=${config.WLD_ACTION_ID}) for ${walletAddress}`);
+      console.log(`[Verify] Normalized proof:`, JSON.stringify({
+        nullifier_hash: normalizedProof.nullifier_hash,
+        merkle_root: normalizedProof.merkle_root,
+        proof: normalizedProof.proof?.substring(0, 50) + '...',
+        verification_level: normalizedProof.verification_level,
+      }, null, 2));
+      const verifyResponse = await fetch(`https://developer.worldcoin.org/api/v2/verify/${config.WLD_APP_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nullifier_hash: normalizedProof.nullifier_hash,
+          merkle_root: normalizedProof.merkle_root,
+          proof: normalizedProof.proof,
+          verification_level: normalizedProof.verification_level,
+          action: config.WLD_ACTION_ID,
+          signal: walletAddress,
+        }),
+      });
 
-            const responseText = await verifyResponse.text();
+      const responseText = await verifyResponse.text();
 
             if (!verifyResponse.ok) {
-                console.error(`[Verify] Worldcoin API error (${verifyResponse.status}):`, responseText);
+                console.error(`[Verify] Worldcoin API error (${verifyResponse.status}) (app=${config.WLD_APP_ID} action=${config.WLD_ACTION_ID}):`, responseText);
                 return res.status(verifyResponse.status).json({
                     error: 'Identity verification failed',
-                    details: responseText
+                    details: responseText,
+                    appId: config.WLD_APP_ID,
+                    actionId: config.WLD_ACTION_ID,
                 });
             }
 
@@ -107,7 +143,6 @@ router.post('/sync', async (req, res) => {
             console.error('[Verify] Proof verification exception:', err);
             return res.status(500).json({ error: 'Identity verification service error' });
         }
-    }
 
     if (!verified) {
         return res.status(400).json({ error: 'Invalid World ID proof' });
@@ -116,8 +151,8 @@ router.post('/sync', async (req, res) => {
     // 2. Create or Update User
     const user = await userStore.createOrUpdate({
         walletAddress,
-        nullifierHash: worldIdProof.nullifier_hash,
-        verificationLevel: worldIdProof.verification_level,
+        nullifierHash: normalizedProof.nullifier_hash as string,
+        verificationLevel: normalizedProof.verification_level as string,
         isVerified: true
     });
 

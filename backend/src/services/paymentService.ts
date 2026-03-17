@@ -320,7 +320,6 @@ class RealPaymentService extends SimulatedPaymentService {
 }
 
 export function createPaymentService(): IPaymentService {
-  if (config.SIMULATION_MODE) return new SimulatedPaymentService();
   return new RealPaymentService();
 }
 

@@ -15,9 +15,9 @@ leaving the World App.
 
 ## Status
 
-MVP running in **simulation mode** — no real money moves.
-Every service layer is stubbed with a production-ready implementation waiting
-behind a single `SIMULATION_MODE=false` switch.
+MVP is designed to run with real World App and payment services. Set the required
+environment variables (World App IDs, Yellow Card credentials, M-Pesa API keys)
+and launch the backend + frontend to test the full flow.
 
 ## Documentation
 

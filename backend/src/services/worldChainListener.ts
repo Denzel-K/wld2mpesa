@@ -118,9 +118,6 @@ class RealWorldChainListener implements IWorldChainListener {
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 export function createWorldChainListener(): IWorldChainListener {
-  if (config.SIMULATION_MODE) {
-    return new SimulatedWorldChainListener();
-  }
   return new RealWorldChainListener();
 }
 
