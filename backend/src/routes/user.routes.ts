@@ -2,6 +2,20 @@ import { Router } from 'express';
 import { userStore } from '../services/userStore';
 import { config } from '../config';
 import { validateNonce } from './nonce.routes';
+import { keccak256, encodeAbiParameters, parseAbiParameters, isAddress, getAddress } from 'viem';
+
+/**
+ * Compute the signal_hash expected by the Worldcoin v4 verify API.
+ * The proof is generated with the raw wallet address as the signal;
+ * the verification request must include keccak256(abi.encode(address))
+ * inside each responses[] item — NOT a top-level `signal` field.
+ */
+function computeSignalHash(signal: string): `0x${string}` {
+  const addr = isAddress(signal) ? getAddress(signal) : signal;
+  return keccak256(
+    encodeAbiParameters(parseAbiParameters('address'), [addr as `0x${string}`])
+  );
+}
 
 const router = Router();
 
@@ -87,31 +101,43 @@ router.post('/sync', async (req, res) => {
       let verifyBody: any;
       const context = rpContext || {};
 
+      const signalHash = computeSignalHash(walletAddress);
+      console.log(`  Signal (raw): ${walletAddress}`);
+      console.log(`  Signal Hash:  ${signalHash}`);
+
       if (v4Result) {
         // v4 Pass-through: result from MiniKit.commandsAsync.verify
+        // Protocol version mapping
+        const detectedProtocol = v4Result.protocol_version || (Array.isArray(v4Result.proof) ? "4.0" : "3.0");
+        
         if (v4Result.responses && Array.isArray(v4Result.responses)) {
+            // Inject signal_hash into each response item; remove any stale top-level signal field
+            const enrichedResponses = v4Result.responses.map((r: any) => ({
+                ...r,
+                signal_hash: signalHash,
+            }));
+            const { signal: _s, ...v4ResultClean } = v4Result;
             verifyBody = { 
-                ...v4Result, 
+                ...v4ResultClean, 
                 ...context,
                 action: actionId, 
-                signal: walletAddress,
-                protocol_version: v4Result.protocol_version || "4.0", // Default to 4.0 for MiniKit v4 payloads
-                allow_legacy_proofs: true
+                protocol_version: detectedProtocol,
+                allow_legacy_proofs: true,
+                responses: enrichedResponses,
             };
         } else {
             // Manual wrap for flat proofs (e.g. from simulation or old IDKit)
-            const isV3 = !Array.isArray(v4Result.proof);
             verifyBody = {
                 ...context,
                 action: actionId,
-                signal: walletAddress,
-                protocol_version: isV3 ? "3.0" : "4.0",
+                protocol_version: detectedProtocol,
                 allow_legacy_proofs: true,
                 responses: [{ 
                     nullifier: v4Result.nullifier_hash ?? v4Result.nullifierHash ?? v4Result.nullifier,
                     merkle_root: v4Result.merkle_root ?? v4Result.merkleRoot ?? v4Result.merkle_root,
                     proof: v4Result.proof,
-                    identifier: v4Result.verification_level ?? v4Result.verificationLevel ?? 'orb'
+                    identifier: v4Result.verification_level ?? v4Result.verificationLevel ?? 'orb',
+                    signal_hash: signalHash,
                 }]
             };
         }
@@ -121,7 +147,6 @@ router.post('/sync', async (req, res) => {
         verifyBody = {
           ...context,
           action: actionId,
-          signal: walletAddress,
           protocol_version: isV3 ? "3.0" : "4.0",
           allow_legacy_proofs: true,
           responses: [{
@@ -129,6 +154,7 @@ router.post('/sync', async (req, res) => {
             proof: worldIdProof.proof,
             merkle_root: worldIdProof.merkle_root ?? worldIdProof.merkleRoot ?? worldIdProof.merkle_root,
             identifier: worldIdProof.verification_level ?? worldIdProof.verificationLevel ?? 'orb',
+            signal_hash: signalHash,
           }]
         };
       }

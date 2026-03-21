@@ -10,8 +10,8 @@ export async function signVerificationRequest(action: string, _unusedNonce?: str
         throw new Error('WLD_SIGNING_KEY is not configured');
     }
 
-    // signRequest handles nonce and timestamp generation automatically
-    const result = await signRequest(action, config.WLD_SIGNING_KEY);
+    // IMPORTANT: World ID 4.0 signatures MUST be based on the RP_ID, not the action ID.
+    const result = await signRequest(config.WLD_RP_ID, config.WLD_SIGNING_KEY);
 
     return {
         rp_id: config.WLD_RP_ID,
