@@ -15,7 +15,11 @@ services:
     image: node:22-alpine
     container_name: wld2mpesa-backend
     working_dir: /app
-    # Install deps (fast if node_modules volume already exists), then hot-reload
+    # network_mode: host — uses the host machine's network stack directly.
+    # This bypasses Docker's internal DNS stub (127.0.0.11) which fails to
+    # resolve external domains like developer.world.org on many Linux setups.
+    # Side-effects: `ports:` and `dns:` are not needed (ignored in host mode).
+    network_mode: host
     command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npx tsx watch src/server.ts"
     environment:
       NODE_ENV: development
@@ -30,12 +34,6 @@ services:
       - ./backend:/app # Live source mount
       - backend_modules:/app/node_modules # Isolated node_modules
       - db_data:/app/data # Persist SQLite DB in a dedicated folder
-    ports:
-      - "3001:3001"
-    dns:  # Add explicit DNS servers for external API access
-      - 8.8.8.8      # Google DNS
-      - 8.8.4.4      # Google DNS (backup)
-      - 1.1.1.1      # Cloudflare DNS
     restart: unless-stopped
     logging:
       driver: json-file
@@ -50,8 +48,8 @@ services:
     working_dir: /app
     command: sh -c "npm install && npx vite --host 0.0.0.0 --port 3000"
     environment:
-      # Tell Vite's proxy where to forward /api requests inside the Docker network
-      VITE_PROXY_TARGET: http://backend:3001
+      # Backend is on the host network — reach it via host's loopback
+      VITE_PROXY_TARGET: http://localhost:3001
       VITE_WLD_APP_ID: app_ac9f43a974959b04b11b081c3740f932
       # Polling is required for file-watching inside Docker bind mounts on Linux
       CHOKIDAR_USEPOLLING: "true"
@@ -62,12 +60,8 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_modules:/app/node_modules
-    ports:
-      - "3000:3000"
-    dns:  # Add explicit DNS servers for MiniKit communication
-      - 8.8.8.8      # Google DNS
-      - 8.8.4.4      # Google DNS (backup)
-      - 1.1.1.1      # Cloudflare DNS
+    # ports: not needed — host network mode exposes port 3000 directly
+    network_mode: host
     depends_on:
       - backend
     restart: unless-stopped

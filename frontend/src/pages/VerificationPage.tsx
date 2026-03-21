@@ -74,6 +74,7 @@ export const VerificationPage: React.FC = () => {
         if (!walletResult.success || !walletResult.walletAddress) {
             setError(walletResult.error || 'Wallet authentication failed. Please try again.');
             setStep('error');
+            inProgressRef.current = false; // Allow retry with fresh credentials
             return;
         }
 
@@ -115,6 +116,7 @@ export const VerificationPage: React.FC = () => {
         if (!proof) {
             setError('World ID verification was cancelled or failed. Please try again.');
             setStep('error');
+            inProgressRef.current = false; // Allow retry — user will get a fresh proof from World App
             return;
         }
 
@@ -139,6 +141,7 @@ export const VerificationPage: React.FC = () => {
         } catch (err: any) {
             setError(err.message || 'Account sync failed. Please try again.');
             setStep('error');
+            inProgressRef.current = false; // Allow retry — user will get a fresh proof from World App
         }
     };
 

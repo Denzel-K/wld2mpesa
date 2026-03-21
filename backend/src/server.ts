@@ -7,6 +7,11 @@
  *   (see TRANSITION_GUIDE.md Step 9)
  */
 
+import dns from 'node:dns';
+// Force Node to use external DNS servers, bypassing the problematic 
+// Alpine/musl libc resolver that often fails with 127.0.0.53 stubs.
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { config } from './config';

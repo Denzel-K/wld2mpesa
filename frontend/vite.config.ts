@@ -14,8 +14,8 @@ export default defineConfig({
     port: 3000,
     host: true,
     // Proxy /api/* to the backend.
-    // VITE_PROXY_TARGET is set to http://backend:3001 in Docker dev (docker-compose.dev.yml)
-    // so the proxy uses the Docker service name instead of localhost.
+    // Both services use network_mode: host, so backend is always reachable at localhost:3001.
+    // VITE_PROXY_TARGET defaults to http://localhost:3001 (set in docker-compose.dev.yml).
     proxy: {
       '/api': {
         target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:3001',

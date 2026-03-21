@@ -2,19 +2,21 @@ import { Router } from 'express';
 import { userStore } from '../services/userStore';
 import { config } from '../config';
 import { validateNonce } from './nonce.routes';
-import { keccak256, encodeAbiParameters, parseAbiParameters, isAddress, getAddress } from 'viem';
+import { hashToField } from '@worldcoin/idkit-core/hashing';
+import { isAddress, getAddress } from 'viem';
 
 /**
  * Compute the signal_hash expected by the Worldcoin v4 verify API.
- * The proof is generated with the raw wallet address as the signal;
- * the verification request must include keccak256(abi.encode(address))
- * inside each responses[] item — NOT a top-level `signal` field.
+ * 
+ * Worldcoin uses a specific hashing algorithm (keccak256(signal) >> 8) 
+ * to ensure the hash fits within the scalar field of the SNARK.
+ * 
+ * We use the official @worldcoin/idkit-core/hashing implementation.
  */
 function computeSignalHash(signal: string): `0x${string}` {
-  const addr = isAddress(signal) ? getAddress(signal) : signal;
-  return keccak256(
-    encodeAbiParameters(parseAbiParameters('address'), [addr as `0x${string}`])
-  );
+  // If it's an address, ensure it's checksummed first, then hash it.
+  const input = isAddress(signal) ? getAddress(signal) : signal;
+  return hashToField(input).digest as `0x${string}`;
 }
 
 const router = Router();
@@ -104,6 +106,7 @@ router.post('/sync', async (req, res) => {
       const signalHash = computeSignalHash(walletAddress);
       console.log(`  Signal (raw): ${walletAddress}`);
       console.log(`  Signal Hash:  ${signalHash}`);
+      console.log(`  v4Result:     ${JSON.stringify(v4Result, null, 2)}`);
 
       if (v4Result) {
         // v4 Pass-through: result from MiniKit.commandsAsync.verify
@@ -111,11 +114,15 @@ router.post('/sync', async (req, res) => {
         const detectedProtocol = v4Result.protocol_version || (Array.isArray(v4Result.proof) ? "4.0" : "3.0");
         
         if (v4Result.responses && Array.isArray(v4Result.responses)) {
-            // Inject signal_hash into each response item; remove any stale top-level signal field
-            const enrichedResponses = v4Result.responses.map((r: any) => ({
-                ...r,
-                signal_hash: signalHash,
-            }));
+            // Preserve signal_hash from MiniKit if it already provided one;
+            // only fall back to our computed hash if it's absent.
+            const enrichedResponses = v4Result.responses.map((r: any) => {
+                const resolvedHash = r.signal_hash ?? signalHash;
+                console.log(`  Response[${r.identifier}] signal_hash: ${
+                    r.signal_hash ? `(from MiniKit) ${r.signal_hash}` : `(computed) ${signalHash}`
+                }`);
+                return { ...r, signal_hash: resolvedHash };
+            });
             const { signal: _s, ...v4ResultClean } = v4Result;
             verifyBody = { 
                 ...v4ResultClean, 
