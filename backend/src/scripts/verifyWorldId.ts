@@ -24,58 +24,60 @@ async function checkAction(actionId: string) {
     responses: [] // Added for v4 validation
   };
 
+  const isStagingApp = config.WLD_APP_ID.startsWith('app_staging_');
   const endpoints = [
     { name: 'v2 (Legacy)', url: `https://developer.worldcoin.org/api/v2/verify/${config.WLD_APP_ID}` },
-    { name: 'v4 (World ID 4.0)', url: `https://developer.world.org/api/v4/verify/${config.WLD_APP_ID}` }
+    { name: 'v4 (World ID 4.0)', url: `https://developer.world.org/api/v4/verify/${config.WLD_RP_ID || config.WLD_APP_ID}${isStagingApp ? '?is_staging=true' : ''}` }
   ];
 
   for (const endpoint of endpoints) {
     try {
-      let res;
+      let body;
       if (endpoint.name === 'v4 (World ID 4.0)') {
-        // Use a specific payload for v4 to bypass 'responses array is required' validation
-        res = await fetch(endpoint.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                action: actionId, 
-                signal: 'diagnostic-check',
-                protocol_version: '3.0',
-                allow_legacy_proofs: true,
-                nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                signature: '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
-                created_at: Math.floor(Date.now() / 1000),
-                expires_at: Math.floor(Date.now() / 1000) + 600,
-                responses: [{
-                    nullifier: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                    merkle_root: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                    proof: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                    identifier: 'orb'
-                }]
-            }),
-        });
+        body = { 
+            action: actionId, 
+            signal: 'diagnostic-check',
+            protocol_version: '3.0',
+            allow_legacy_proofs: true,
+            rp_id: config.WLD_RP_ID || config.WLD_APP_ID,
+            nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
+            signature: '0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+            created_at: Math.floor(Date.now() / 1000),
+            expires_at: Math.floor(Date.now() / 1000) + 600,
+            responses: [{
+                nullifier: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                merkle_root: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                proof: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                identifier: 'orb'
+            }]
+        };
       } else {
-        // Use the generic dummyPayload for other endpoints (e.g., v2)
-        res = await fetch(endpoint.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(dummyPayload),
-        });
+        body = dummyPayload;
       }
 
-      const data = await res.json() as any;
+      console.log(`   [${endpoint.name}] POST ${endpoint.url}`);
       
-      if (res.status === 400 && data.code === 'invalid_action') {
-        console.error(`   ❌ [${endpoint.name}] NOT FOUND: "${actionId}" is not registered for this App ID.`);
-      } else if (res.status === 400 && (data.code === 'invalid_proof' || data.code === 'invalid_merkle_root' || data.code === 'invalid_nullifier' || data.detail?.includes('responses'))) {
-        console.log(`   ✅ [${endpoint.name}] Action exists! (Endpoint recognized the action but rejected the dummy payload)`);
+      const res = await fetch(endpoint.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json() as any;
+      console.log(`   [${endpoint.name}] Status: ${res.status}`);
+      console.log(`   [${endpoint.name}] Response:`, JSON.stringify(data));
+      
+      if (res.status === 400 && (data.code === 'invalid_action' || data.code === 'action_not_found')) {
+        console.error(`   ❌ NOT FOUND: "${actionId}" is not registered for this App ID.`);
+      } else if (res.status === 400 && (data.code === 'invalid_proof' || data.code === 'invalid_format' || data.code === 'all_verifications_failed' || data.code === 'invalid_merkle_root' || data.code === 'invalid_nullifier' || data.detail?.includes('responses'))) {
+        console.log(`   ✅ Action exists! (Endpoint recognized the action but rejected the dummy payload)`);
       } else if (res.ok) {
-        console.log(`   ✅ [${endpoint.name}] Action exists and dummy proof was somehow accepted (unexpected but positive).`);
+        console.log(`   ✅ Action exists and dummy proof was somehow accepted.`);
       } else {
-        console.warn(`   ⚠️ [${endpoint.name}] Unexpected response (${res.status}):`, JSON.stringify(data));
+        console.warn(`   ⚠️ Unexpected response.`);
       }
     } catch (err: any) {
-      console.error(`   ❌ [${endpoint.name}] Connection failed: ${err.message}`);
+      console.error(`   ❌ Connection failed: ${err.message}`);
     }
   }
 }

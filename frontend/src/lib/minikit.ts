@@ -189,7 +189,7 @@ export async function authenticateWallet(): Promise<WalletAuthResult> {
 export async function verifyWithWorldId(
   action: string,
   signal: string,
-  rpContext?: string
+  rpContext?: any
 ): Promise<any | null> {
   if (!isInsideWorldApp()) {
     console.warn('[MiniKit] Not inside World App — simulating verify() success');
@@ -207,11 +207,12 @@ export async function verifyWithWorldId(
       action,
       signal,
       verification_level: VerificationLevel.Orb,
-      rp_context: rpContext,
+      ...rpContext, // Spread the context directly (rp_id, nonce, signature, etc.)
     });
 
     if (finalPayload.status === 'error') {
       console.error('[MiniKit] verify error:', finalPayload);
+      logToServer('error', '[MiniKit] verify error', { payload: finalPayload });
       return null;
     }
 

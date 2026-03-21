@@ -74,56 +74,77 @@ router.post('/sync', async (req, res) => {
     let verificationLevel = '';
 
     try {
-      console.log(`[Verify] Verifying World ID proof (app=${config.WLD_APP_ID} action=${actionId}) for ${walletAddress}`);
+      // Determine if this is a staging App ID
+      const isStagingApp = config.WLD_APP_ID.startsWith('app_staging_');
+      
+      console.log(`\n--- [Verify] World ID Verification Start ---`);
+      console.log(`  Wallet: ${walletAddress}`);
+      console.log(`  Action: ${actionId}`);
+      console.log(`  App ID: ${config.WLD_APP_ID}`);
+      console.log(`  RP ID: ${config.WLD_RP_ID}`);
+      console.log(`  Staging Mode: ${isStagingApp}`);
       
       let verifyBody: any;
+      const context = rpContext || {};
+
       if (v4Result) {
-        // v4 Pass-through: result from IDKit
-        // World ID 4.0 expects a 'responses' array. 
-        // If IDKit already gave us a v4Result, check if it has 'responses'.
+        // v4 Pass-through: result from MiniKit.commandsAsync.verify
         if (v4Result.responses && Array.isArray(v4Result.responses)) {
-            verifyBody = { ...v4Result, action: actionId, signal: walletAddress };
+            verifyBody = { 
+                ...v4Result, 
+                ...context,
+                action: actionId, 
+                signal: walletAddress,
+                protocol_version: v4Result.protocol_version || "4.0", // Default to 4.0 for MiniKit v4 payloads
+                allow_legacy_proofs: true
+            };
         } else {
-            // If it's a flat result (e.g. from an older IDKit or manual call), wrap it.
-            const isV4Proof = Array.isArray(v4Result.proof);
+            // Manual wrap for flat proofs (e.g. from simulation or old IDKit)
+            const isV3 = !Array.isArray(v4Result.proof);
             verifyBody = {
+                ...context,
                 action: actionId,
                 signal: walletAddress,
-                protocol_version: isV4Proof ? "4.0" : "3.0",
+                protocol_version: isV3 ? "3.0" : "4.0",
                 allow_legacy_proofs: true,
-                ...rpContext, // Spread nonce, signature, etc.
                 responses: [{ 
-                    ...v4Result,
-                    nullifier: v4Result.nullifier_hash ?? v4Result.nullifierHash,
+                    nullifier: v4Result.nullifier_hash ?? v4Result.nullifierHash ?? v4Result.nullifier,
+                    merkle_root: v4Result.merkle_root ?? v4Result.merkleRoot ?? v4Result.merkle_root,
+                    proof: v4Result.proof,
                     identifier: v4Result.verification_level ?? v4Result.verificationLevel ?? 'orb'
                 }]
             };
         }
-      } else {
-        // Legacy fallback from manual worldIdProof object
-        const proof = worldIdProof.proof;
-        const isV4Proof = Array.isArray(proof);
-        
+      } else if (worldIdProof) {
+        // Legacy fallback
+        const isV3 = !Array.isArray(worldIdProof.proof);
         verifyBody = {
+          ...context,
           action: actionId,
           signal: walletAddress,
-          protocol_version: isV4Proof ? "4.0" : "3.0",
+          protocol_version: isV3 ? "3.0" : "4.0",
           allow_legacy_proofs: true,
-          ...rpContext, // Spread nonce, signature, etc.
           responses: [{
-            nullifier: worldIdProof.nullifier_hash ?? worldIdProof.nullifierHash,
-            proof: proof,
-            merkle_root: worldIdProof.merkle_root ?? worldIdProof.merkleRoot,
+            nullifier: worldIdProof.nullifier_hash ?? worldIdProof.nullifierHash ?? worldIdProof.nullifier,
+            proof: worldIdProof.proof,
+            merkle_root: worldIdProof.merkle_root ?? worldIdProof.merkleRoot ?? worldIdProof.merkle_root,
             identifier: worldIdProof.verification_level ?? worldIdProof.verificationLevel ?? 'orb',
           }]
         };
       }
 
-      console.log(`[Verify] Sending payload to v4/verify:`, JSON.stringify(verifyBody, null, 2));
+      // Cleanup
+      delete verifyBody.status;
+      delete verifyBody.commandPayload;
+      delete verifyBody.finalPayload;
 
-      const isStaging = !config.IS_PRODUCTION;
-      const verifyUrl = `https://developer.world.org/api/v4/verify/${config.WLD_RP_ID}${isStaging ? '?is_staging=true' : ''}`;
+      console.log(`[Verify] Request Body:`, JSON.stringify(verifyBody, null, 2));
+
+      const rpId = context.rp_id || config.WLD_RP_ID || config.WLD_APP_ID;
+      const verifyUrl = `https://developer.world.org/api/v4/verify/${rpId}${isStagingApp ? '?is_staging=true' : ''}`;
       
+      console.log(`[Verify] Request URL: ${verifyUrl}`);
+
       const verifyResponse = await fetch(verifyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,17 +152,17 @@ router.post('/sync', async (req, res) => {
       });
 
       const responseText = await verifyResponse.text();
+      console.log(`[Verify] Response Status: ${verifyResponse.status}`);
+      console.log(`[Verify] Response Body: ${responseText}`);
 
-            if (!verifyResponse.ok) {
-                console.error(`[Verify] Worldcoin API error (${verifyResponse.status}) (app=${config.WLD_APP_ID} action=${actionId}):`, responseText);
-                return res.status(verifyResponse.status).json({
-                    error: 'Identity verification failed',
-                    details: responseText,
-                    appId: config.WLD_APP_ID,
-                    actionId: actionId,
-                    endpoint: 'v4',
-                });
-            }
+      if (!verifyResponse.ok) {
+          return res.status(verifyResponse.status).json({
+              error: 'Identity verification failed',
+              details: responseText,
+              appId: config.WLD_APP_ID,
+              actionId: actionId,
+          });
+      }
 
             try {
                 const result = JSON.parse(responseText);

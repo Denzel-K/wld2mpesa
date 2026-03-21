@@ -119,7 +119,7 @@ export const config = {
 console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║  WLD2Mpesa Backend                                  ║
-║  Mode: ${IS_PRODUCTION ? '🔴 PRODUCTION (LIVE!)' : '🟡 DEVELOPMENT'}  ║
+║  Mode: ${IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}  ║
 ║  Port: ${PORT}                                         ║
 ║  World App App ID: ${WLD_APP_ID}                       ║
 ║  World ID 4.0 RP ID: ${WLD_RP_ID}                       ║

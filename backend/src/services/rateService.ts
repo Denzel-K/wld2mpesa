@@ -64,7 +64,9 @@ class RealRateService implements IRateService {
 
     // 2. Fetch fresh rates from Kraken API
     try {
-      const response = await fetch('https://api.kraken.com/0/public/Ticker?pair=WLDUSD,USDKES');
+      // Kraken often doesn't have local currency pairs like USDKES.
+      // We'll try to get WLD/USD and then use a stable fallback for USD/KES.
+      const response = await fetch('https://api.kraken.com/0/public/Ticker?pair=WLDUSD');
       
       if (!response.ok) {
         throw new Error(`Kraken API error: ${response.status}`);
@@ -72,27 +74,24 @@ class RealRateService implements IRateService {
 
       const data = await response.json() as any;
 
-      if (!data.result) {
-        throw new Error('Invalid response from Kraken');
+      if (!data.result || (!data.result['WLDUSD'] && !data.result['XWLDZUSD'])) {
+        console.warn('[RateService] WLDUSD not found in Kraken response, using fallback.');
+        throw new Error('WLDUSD pair not found');
       }
 
-      // Kraken returns last trade prices
-      const wldUsdTicker = data.result['WLDUSD'] || data.result['WLDUSD.d'];
-      const usdKesTicker = data.result['USDKES'] || data.result['USDKES.d'];
-
-      if (!wldUsdTicker?.c || !usdKesTicker?.c) {
-        throw new Error('Missing WLD/USD or USD/KES data from Kraken');
-      }
-
-      const wldPriceUsd = parseFloat(wldUsdTicker.c[0]); // Close price
-      const usdKesRate = parseFloat(usdKesTicker.c[0]);
+      const ticker = data.result['WLDUSD'] || data.result['XWLDZUSD'];
+      const wldPriceUsd = parseFloat(ticker.c[0]);
+      
+      // USD/KES is rarely available on Kraken. We'll use a fixed but realistic rate (e.g. 129.50)
+      // in development/sandbox, or you could integrate a real forex API here.
+      const usdKesRate = 129.50; 
       const wldPriceKes = wldPriceUsd * usdKesRate;
 
       const newRate: RateData = {
         wldPriceKes: parseFloat(wldPriceKes.toFixed(2)),
         wldPriceUsd: parseFloat(wldPriceUsd.toFixed(4)),
         usdKesRate: parseFloat(usdKesRate.toFixed(2)),
-        source: 'kraken',
+        source: 'kraken+fallback',
         cachedAt: new Date().toISOString(),
       };
 

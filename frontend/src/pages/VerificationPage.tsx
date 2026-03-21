@@ -61,7 +61,15 @@ export const VerificationPage: React.FC = () => {
         setStep('wallet-auth');
         setStatusMsg('Connecting Secure Wallet…');
 
+        // Add a timeout to catch cases where MiniKit doesn't resolve
+        const authTimeout = setTimeout(() => {
+            if (step === 'wallet-auth') {
+                setStatusMsg('Still connecting… click below to retry manually if the prompt didn\'t appear.');
+            }
+        }, 8000);
+
         const walletResult = await authenticateWallet();
+        clearTimeout(authTimeout);
 
         if (!walletResult.success || !walletResult.walletAddress) {
             setError(walletResult.error || 'Wallet authentication failed. Please try again.');
