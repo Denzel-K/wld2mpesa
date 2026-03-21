@@ -50,9 +50,9 @@ const DEMO_RATES: Record<string, number> = {
   YEN: 0.83,
 };
 
-/** Convert KES to target currency */
+/** Convert KES to target currency (simulated) */
 export function convertKesTo(kesAmount: number, targetCurrency: string): number {
-  if (targetCurrency === 'KES') return kesAmount;
+  if (!targetCurrency || targetCurrency === 'KES') return kesAmount;
   const rate = DEMO_RATES[targetCurrency] || 1;
   return kesAmount / rate;
 }

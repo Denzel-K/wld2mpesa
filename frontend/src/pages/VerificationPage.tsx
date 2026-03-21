@@ -156,10 +156,10 @@ export const VerificationPage: React.FC = () => {
                     <ThemeToggle />
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-                    <div className="w-24 h-24 bg-amber-500/10 rounded-[2rem] flex items-center justify-center mb-8 border border-amber-500/20">
-                        <AlertCircle className="w-12 h-12 text-amber-500" />
+                    <div className="w-20 h-20 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-8 border border-amber-500/20">
+                        <AlertCircle className="w-10 h-10 text-amber-500" />
                     </div>
-                    <h1 className="text-3xl font-black mb-4 tracking-tight font-display">Open in World App</h1>
+                    <h1 className="text-2xl font-bold mb-4 tracking-tight font-display">Open in World App</h1>
                     <p className="text-[var(--text-secondary)] mb-10 leading-relaxed">
                         WLD2Mpesa requires the secure environment of the World App for wallet authentication and transfers.
                     </p>
@@ -195,12 +195,12 @@ export const VerificationPage: React.FC = () => {
 
     // ── Main UI ───────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col p-8 relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col p-6 relative overflow-hidden">
             {/* Bg Glow */}
             <div className="absolute top-0 right-0 w-72 h-72 bg-[var(--accent)]/5 rounded-full blur-3xl -translate-y-1/3 translate-x-1/3 pointer-events-none" />
 
             {/* Header */}
-            <div className="flex justify-between items-center z-10 mb-12">
+            <div className="flex justify-between items-center z-10 mb-8">
                 <button onClick={() => setScreen('welcome')} className="p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                     <ArrowRight className="w-5 h-5 rotate-180" />
                 </button>
@@ -210,21 +210,21 @@ export const VerificationPage: React.FC = () => {
             {/* Icon */}
             <div className="flex flex-col items-center z-10">
                 <motion.div
-                    className="relative mb-10"
+                    className="relative mb-8"
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                 >
                     <div className="absolute -inset-4 bg-[var(--accent)]/15 rounded-full blur-2xl animate-pulse" />
-                    <div className="w-24 h-24 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-[2rem] flex items-center justify-center shadow-2xl relative">
-                        {isLoading && <Loader2 className="w-10 h-10 text-[var(--accent)] animate-spin" />}
-                        {isDone && <CheckCircle2 className="w-10 h-10 text-[var(--accent)]" />}
-                        {isError && <AlertCircle className="w-10 h-10 text-red-500" />}
-                        {!isLoading && !isDone && !isError && <ShieldCheck className="w-10 h-10 text-[var(--accent)]" />}
+                    <div className="w-20 h-20 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl flex items-center justify-center shadow-2xl relative">
+                        {isLoading && <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />}
+                        {isDone && <CheckCircle2 className="w-8 h-8 text-[var(--accent)]" />}
+                        {isError && <AlertCircle className="w-8 h-8 text-red-500" />}
+                        {!isLoading && !isDone && !isError && <ShieldCheck className="w-8 h-8 text-[var(--accent)]" />}
                     </div>
                 </motion.div>
 
                 <motion.h1
-                    className="text-4xl font-black mb-3 tracking-tight font-display text-center"
+                    className="text-3xl font-bold mb-3 tracking-tight font-display text-center"
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
@@ -232,7 +232,7 @@ export const VerificationPage: React.FC = () => {
                     Identity Verification
                 </motion.h1>
                 <motion.p
-                    className="text-[var(--text-secondary)] mb-10 text-center leading-relaxed max-w-xs"
+                    className="text-[var(--text-secondary)] mb-10 text-center leading-relaxed max-w-xs text-sm"
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2 }}
@@ -241,7 +241,7 @@ export const VerificationPage: React.FC = () => {
                         ? statusMsg
                         : isDone
                             ? 'Verification complete! Redirecting…'
-                            : 'Securely connect your wallet and verify your identity to access WLD-to-M-Pesa transfers.'}
+                            : 'Securely connect your wallet and verify your identity to access transfers.'}
                 </motion.p>
             </div>
 
@@ -301,7 +301,7 @@ export const VerificationPage: React.FC = () => {
                 <motion.button
                     onClick={handleFullAuth}
                     disabled={isLoading || isDone}
-                    className={`btn-mpesa h-16 group relative overflow-hidden ${isDone ? 'bg-emerald-600' : ''}`}
+                    className={`btn-mpesa h-14 group relative overflow-hidden ${isDone ? 'bg-emerald-600' : ''}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
@@ -314,11 +314,11 @@ export const VerificationPage: React.FC = () => {
                     ) : isDone ? (
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="w-5 h-5" />
-                            <span className="font-black">Verified!</span>
+                            <span className="font-bold">Verified!</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
-                            <span className="font-black">Verify with World ID</span>
+                            <span className="font-bold text-lg">Verify with World ID</span>
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </div>
                     )}

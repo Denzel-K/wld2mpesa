@@ -97,34 +97,34 @@ export default function ConfirmationPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in">
       {/* Header */}
-      <header className="bg-[var(--accent)] px-8 pt-16 pb-12 rounded-b-[4rem] relative overflow-hidden shadow-[0_20px_40px_var(--accent-glow)]">
+      <header className="bg-[var(--accent)] px-6 pt-12 pb-8 rounded-b-[2rem] relative overflow-hidden shadow-[0_20px_40px_var(--accent-glow)]">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-        <button onClick={() => setScreen('payment-form')} className="text-white/70 mb-6 flex items-center gap-2 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors">
+        <button onClick={() => setScreen('payment-form')} className="text-white/70 mb-4 flex items-center gap-2 font-bold uppercase tracking-widest text-[9px] hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Edit</span>
         </button>
-        <h2 className="text-white text-3xl font-black font-display tracking-tight">Final Confirmation</h2>
-        <p className="text-white/60 text-sm font-medium mt-1 uppercase tracking-wide">Review before broadcasting</p>
+        <h2 className="text-white text-2xl font-bold font-display tracking-tight">Final Confirmation</h2>
+        <p className="text-white/60 text-xs font-normal mt-1 uppercase tracking-wide">Review before broadcasting</p>
       </header>
 
-      <div className="flex-1 px-8 pt-8 pb-32 flex flex-col gap-6">
+      <div className="flex-1 px-6 pt-8 pb-32 flex flex-col gap-5">
 
         {/* Merchant info */}
-        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-6 shadow-xl">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-[var(--accent)]/10 rounded-3xl flex items-center justify-center border border-[var(--accent)]/20 shadow-lg">
-              {transactionType === 'send' || transactionType === 'pochi' ? <Phone className="w-8 h-8 text-[var(--accent)]" /> :
-                transactionType === 'paybill' ? <CreditCard className="w-8 h-8 text-[var(--accent)]" /> :
-                  <Store className="w-8 h-8 text-[var(--accent)]" />}
+        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-5 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center border border-[var(--accent)]/20 shadow-lg">
+              {transactionType === 'send' || transactionType === 'pochi' ? <Phone className="w-7 h-7 text-[var(--accent)]" /> :
+                transactionType === 'paybill' ? <CreditCard className="w-7 h-7 text-[var(--accent)]" /> :
+                  <Store className="w-7 h-7 text-[var(--accent)]" />}
             </div>
             <div>
-              <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.2em] mb-1">Recipient</p>
-              <p className="text-2xl font-black text-[var(--text-primary)] font-display tracking-tight">
+              <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-[0.2em] mb-1">Recipient</p>
+              <p className="text-xl font-bold text-[var(--text-primary)] font-display tracking-tight">
                 {transactionType === 'send' || transactionType === 'pochi' ? phoneNumber :
                   transactionType === 'paybill' ? `${tillNumber} (Acc: ${accountNumber})` :
                     `Till ${tillNumber}`}
               </p>
-              <p className="text-[10px] text-[var(--accent)] uppercase tracking-widest font-black mt-1">
+              <p className="text-[9px] text-[var(--accent)] uppercase tracking-widest font-bold mt-1">
                 {transactionType === 'send' ? 'M-Pesa Direct' :
                   transactionType === 'pochi' ? 'Pochi la Biashara' :
                     transactionType === 'paybill' ? 'Lipa na M-Pesa Paybill' :
@@ -135,8 +135,8 @@ export default function ConfirmationPage() {
         </div>
 
         {/* Amount breakdown */}
-        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-8 shadow-xl">
-          <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-6">
+        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-6 shadow-xl">
+          <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.25em] mb-4">
             Payment Summary
           </p>
           {[
@@ -152,10 +152,10 @@ export default function ConfirmationPage() {
             },
             { label: 'Total Dedicated (WLD)', value: formatWld(tx.wldAmount), bold: true, green: true },
           ].map(({ label, value, bold, green, breakdown }: any) => (
-            <div key={label} className="flex flex-col py-4 border-b border-[var(--border-color)]/50 last:border-0">
+            <div key={label} className="flex flex-col py-3.5 border-b border-[var(--border-color)]/50 last:border-0">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--text-secondary)] font-black uppercase tracking-tight">{label}</span>
-                <span className={`text-sm ${bold ? 'font-black' : 'font-bold'} ${green ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tight">{label}</span>
+                <span className={`text-base ${bold ? 'font-bold' : 'font-semibold'} ${green ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
                   {value}
                 </span>
               </div>
@@ -182,21 +182,21 @@ export default function ConfirmationPage() {
         {/* World ID option */}
         <button
           onClick={() => setUseWorldId((v) => !v)}
-          className={`card bg-[var(--bg-secondary)] border-[var(--border-color)] flex items-center gap-5 w-full text-left transition-all p-6 shadow-xl relative overflow-hidden ${useWorldId ? 'ring-2 ring-[var(--accent)] bg-[var(--accent)]/5' : ''
+          className={`card bg-[var(--bg-secondary)] border-[var(--border-color)] flex items-center gap-4 w-full text-left transition-all p-4 shadow-xl relative overflow-hidden ${useWorldId ? 'ring-2 ring-[var(--accent)] bg-[var(--accent)]/5' : ''
             }`}
         >
           {useWorldId && <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />}
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${useWorldId ? 'bg-[var(--accent)] shadow-[0_0_20px_var(--accent-glow)]' : 'bg-[var(--accent)]/10 border border-[var(--accent)]/20 shadow-lg'
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${useWorldId ? 'bg-[var(--accent)] shadow-[0_0_20px_var(--accent-glow)]' : 'bg-[var(--accent)]/10 border border-[var(--accent)]/20 shadow-lg'
             }`}>
-            <Shield className={`w-6 h-6 ${useWorldId ? 'text-white' : 'text-[var(--accent)]'}`} />
+            <Shield className={`w-5 h-5 ${useWorldId ? 'text-white' : 'text-[var(--accent)]'}`} />
           </div>
           <div className="flex-1 relative z-10">
-            <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">World ID Verification</p>
-            <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter mt-1">Optional Proof of Personhood</p>
+            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">World ID Verification</p>
+            <p className="text-[9px] text-[var(--text-secondary)] font-normal uppercase tracking-tighter mt-0.5">Optional Proof of Personhood</p>
           </div>
-          <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${useWorldId ? 'border-transparent bg-[var(--accent)]' : 'border-[var(--border-color)]'
+          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${useWorldId ? 'border-transparent bg-[var(--accent)]' : 'border-[var(--border-color)]'
             }`}>
-            {useWorldId && <span className="text-white text-xs font-black">✓</span>}
+            {useWorldId && <span className="text-white text-[10px] font-bold">✓</span>}
           </div>
         </button>
 
@@ -211,26 +211,26 @@ export default function ConfirmationPage() {
         <div className="flex-1" />
 
         {/* Pay button */}
-        <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-16 z-50">
+        <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-12 z-50">
           <button
-            className="btn-mpesa py-6 shadow-[0_20px_40px_var(--accent-glow)] h-20 group"
+            className="btn-mpesa py-5 shadow-[0_15px_30px_var(--accent-glow)] h-16 group"
             onClick={handlePay}
             disabled={loading}
           >
             {verifying ? (
-              <span className="flex items-center justify-center gap-4">
-                <Loader2 className="w-7 h-7 animate-spin" />
-                <span className="text-xl font-black">VERIFYING...</span>
+              <span className="flex items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="text-lg font-bold">VERIFYING...</span>
               </span>
             ) : loading ? (
-              <span className="flex items-center justify-center gap-4">
-                <Loader2 className="w-7 h-7 animate-spin" />
-                <span className="text-xl font-black">CONFIRMING...</span>
+              <span className="flex items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="text-lg font-bold">CONFIRMING...</span>
               </span>
             ) : (
-              <div className="flex items-center gap-4">
-                <span className="text-xl font-black">PAY {formatWld(tx.wldAmount)}</span>
-                <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-500" />
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold">PAY {formatWld(tx.wldAmount)}</span>
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />
               </div>
             )}
           </button>

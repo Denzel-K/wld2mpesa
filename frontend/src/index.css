@@ -66,36 +66,36 @@
 
   /* Premium M-Pesa Button */
   .btn-mpesa {
-    @apply w-full py-4 px-6 bg-[var(--accent)] text-white font-bold text-lg rounded-3xl shadow-[0_0_20px_var(--accent-glow)] active:scale-95 transition-all duration-300 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2;
+    @apply w-full py-3 px-6 bg-[var(--accent)] text-white font-semibold text-base rounded-2xl shadow-[0_0_20px_var(--accent-glow)] active:scale-95 transition-all duration-300 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2;
   }
-
+  
   /* Secondary Button */
   .btn-secondary {
-    @apply w-full py-4 px-6 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-bold text-lg rounded-3xl border border-[var(--border-color)] active:scale-95 transition-all duration-300;
+    @apply w-full py-3 px-6 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-semibold text-base rounded-2xl border border-[var(--border-color)] active:scale-95 transition-all duration-300;
   }
-
+  
   /* Ghost Button */
   .btn-ghost {
-    @apply w-full py-3 px-6 border-2 text-[var(--accent)] font-semibold text-base rounded-2xl transition-all duration-300;
+    @apply w-full py-2.5 px-6 border-2 text-[var(--accent)] font-semibold text-sm rounded-xl transition-all duration-300;
     border-color: color-mix(in srgb, var(--accent), transparent 80%);
   }
-
+  
   .btn-ghost:active {
     background-color: color-mix(in srgb, var(--accent), transparent 90%);
   }
-
+  
   /* Premium Card */
   .card {
-    @apply bg-[var(--card-bg)] backdrop-blur-xl rounded-3xl shadow-[var(--card-shadow)] p-6 border border-[var(--border-color)] transition-all duration-300;
+    @apply bg-[var(--card-bg)] backdrop-blur-xl rounded-2xl shadow-[var(--card-shadow)] p-5 border border-[var(--border-color)] transition-all duration-300;
   }
-
+  
   .card-interactive {
     @apply hover:shadow-[0_15px_40px_-10px_rgba(0, 0, 0, 0.3)] hover:-translate-y-1 cursor-pointer;
   }
-
+  
   /* Input field */
   .input-field {
-    @apply w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl px-5 py-4 text-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 transition-all duration-300;
+    @apply w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-base text-[var(--text-primary)] focus:outline-none focus:ring-2 transition-all duration-300;
   }
 
   .input-field:focus {

@@ -8,7 +8,6 @@ import {
     ShieldCheck,
     Globe,
     Cpu,
-    CheckCircle2,
     ArrowRight,
     Loader2,
     Sparkles
@@ -101,10 +100,10 @@ export const OnboardingPage: React.FC = () => {
             </AnimatePresence>
 
             {/* Header */}
-            <div className="flex justify-between items-center p-8 z-10">
+            <div className="flex justify-between items-center p-6 z-10">
                 <div className="flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-[var(--accent)]" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)]">Setup</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">Setup</span>
                 </div>
                 <ThemeToggle />
             </div>
@@ -120,13 +119,13 @@ export const OnboardingPage: React.FC = () => {
                         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                         className="flex flex-col items-center text-center max-w-sm"
                     >
-                        <div className="mb-12 relative">
+                        <div className="mb-10 relative">
                             <motion.div
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                                className="absolute -inset-4 border border-dashed border-[var(--accent)]/20 rounded-full"
+                                className="absolute -inset-3 border border-dashed border-[var(--accent)]/20 rounded-full"
                             />
-                            <div className="w-24 h-24 bg-[var(--card-bg)] backdrop-blur-2xl rounded-[2rem] border border-[var(--border-color)] flex items-center justify-center shadow-xl relative overflow-hidden">
+                            <div className="w-20 h-20 bg-[var(--card-bg)] backdrop-blur-2xl rounded-2xl border border-[var(--border-color)] flex items-center justify-center shadow-xl relative overflow-hidden">
                                 <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/5 to-transparent" />
                                 <div className="relative z-10 transition-transform duration-500 hover:scale-110">
                                     {slide.icon}
@@ -134,15 +133,15 @@ export const OnboardingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <span className="text-[var(--accent)] text-xs font-black uppercase tracking-widest mb-3">
+                        <span className="text-[var(--accent)] text-[10px] font-bold uppercase tracking-widest mb-2.5">
                             {slide.subtitle}
                         </span>
 
-                        <h2 className="text-4xl font-black mb-6 tracking-tight font-display leading-tight">
+                        <h2 className="text-3xl font-bold mb-4 tracking-tight font-display leading-tight">
                             {slide.title}
                         </h2>
 
-                        <p className="text-lg text-[var(--text-secondary)] leading-relaxed font-medium mb-4">
+                        <p className="text-base text-[var(--text-secondary)] leading-relaxed font-normal mb-4">
                             {slide.description}
                         </p>
 
@@ -156,15 +155,15 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* Custom Footer Navigation */}
-            <div className="px-8 pb-12 pt-8 z-10 flex flex-col items-center">
+            <div className="px-6 pb-10 pt-6 z-10 flex flex-col items-center">
                 {/* Visual Progress */}
-                <div className="flex gap-2.5 mb-10">
+                <div className="flex gap-2 mb-8">
                     {slides.map((_, i) => (
                         <div
                             key={i}
-                            className={`h-1.5 rounded-full transition-all duration-700 ${i === currentSlide
-                                    ? 'w-12 bg-[var(--accent)] shadow-[0_0_15px_var(--accent-glow)]'
-                                    : 'w-1.5 bg-[var(--border-color)]'
+                            className={`h-1 rounded-full transition-all duration-700 ${i === currentSlide
+                                    ? 'w-10 bg-[var(--accent)] shadow-[0_0_15px_var(--accent-glow)]'
+                                    : 'w-1 bg-[var(--border-color)]'
                                 }`}
                         />
                     ))}
@@ -174,20 +173,20 @@ export const OnboardingPage: React.FC = () => {
                     <button
                         onClick={next}
                         disabled={loading}
-                        className="btn-mpesa h-18 py-5 px-10 group relative overflow-hidden"
+                        className="btn-mpesa h-14 py-4 px-8 group relative overflow-hidden"
                     >
                         {loading ? (
                             <div className="flex items-center gap-3">
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                <span className="font-black">Configuring Account...</span>
+                                <span className="font-bold">Configuring Account...</span>
                             </div>
                         ) : (
                             <div className="flex items-center justify-between w-full">
-                                <span className="font-black text-xl">
+                                <span className="font-bold text-lg">
                                     {currentSlide === slides.length - 1 ? 'Start Using App' : 'Continue'}
                                 </span>
-                                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                                    <ArrowRight className="w-5 h-5 transform group-hover:translate-x-0.5 transition-transform" />
+                                <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                    <ArrowRight className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" />
                                 </div>
                             </div>
                         )}

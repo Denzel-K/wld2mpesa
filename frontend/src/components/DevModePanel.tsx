@@ -12,10 +12,10 @@ import { X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const LEVEL_STYLES = {
-  info:    'text-blue-400',
+  info:    'text-[var(--accent)]',
   warn:    'text-yellow-400',
   error:   'text-red-400',
-  success: 'text-green-400',
+  success: 'text-emerald-400',
 };
 
 export default function DevModePanel() {
@@ -28,20 +28,20 @@ export default function DevModePanel() {
   }, [simulationLogs]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-900 rounded-t-2xl shadow-2xl z-50 animate-slide-up max-h-64 flex flex-col">
+    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-950 rounded-t-2xl shadow-2xl z-50 animate-slide-up max-h-64 flex flex-col border-t border-[var(--border-color)]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs font-mono text-gray-300 font-semibold">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+          <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em] font-display">
             SIMULATION LOGS ({simulationLogs.length})
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={clearSimLogs} className="text-gray-500 hover:text-gray-300">
-            <Trash2 className="w-4 h-4" />
+          <button onClick={clearSimLogs} className="p-1.5 text-white/30 hover:text-white/60 transition-colors">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={toggleDevMode} className="text-gray-500 hover:text-gray-300">
+          <button onClick={toggleDevMode} className="p-1.5 text-white/30 hover:text-white/60 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

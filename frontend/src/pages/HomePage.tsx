@@ -56,19 +56,19 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-32">
       {/* Premium Header */}
-      <header className="bg-[var(--accent)] px-8 pt-16 pb-24 rounded-b-[4rem] relative overflow-hidden shadow-[0_20px_50px_var(--accent-glow)]">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/20 rounded-full -ml-16 -mb-16 blur-2xl" />
+      <header className="bg-[var(--accent)] px-6 pt-12 pb-16 rounded-b-[2rem] relative overflow-hidden shadow-[0_20px_40px_var(--accent-glow)]">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/20 rounded-full -ml-8 -mb-8 blur-2xl" />
 
-        <div className="flex items-center justify-between mb-10 relative z-10">
+        <div className="flex items-center justify-between mb-8 relative z-10">
           <div className="flex flex-col">
-            <span className="text-white/50 text-[10px] font-black tracking-[0.3em] uppercase mb-1">
+            <span className="text-white/50 text-[9px] font-bold tracking-[0.25em] uppercase mb-1">
               Global Fintech
             </span>
-            <h1 className="text-white text-3xl font-black font-display tracking-tight">WLD2Mpesa</h1>
+            <h1 className="text-white text-2xl font-bold font-display tracking-tight">WLD2Mpesa</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-white/10 rounded-full border border-white/20 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <div className="px-2.5 py-1 bg-white/10 rounded-full border border-white/20 text-white text-[9px] font-bold uppercase tracking-wider backdrop-blur-md">
               Secure
             </div>
           </div>
@@ -76,17 +76,17 @@ export default function HomePage() {
 
         {/* Balance Card (WLD + Selected Currency) */}
         <div className="relative z-10">
-          <p className="text-white/60 text-sm font-bold mb-2 uppercase tracking-wide">Combined Balance</p>
+          <p className="text-white/60 text-xs font-bold mb-1 uppercase tracking-wide">Combined Balance</p>
           <div className="flex items-baseline gap-2">
-            <h2 className="text-white text-5xl font-black font-display tracking-tight">
+            <h2 className="text-white text-4xl font-bold font-display tracking-tight">
               {rate && !rateLoading ? (
                 <span>{convertKesTo(1000, selectedCurrency).toFixed(2)}</span>
               ) : '0.00'}
             </h2>
-            <span className="text-white/80 font-black text-xl">{selectedCurrency}</span>
+            <span className="text-white/80 font-bold text-lg">{selectedCurrency}</span>
           </div>
-          <div className="mt-4 flex items-center gap-2">
-            <div className="px-3 py-1 bg-white/20 rounded-xl text-white text-[11px] font-black backdrop-blur-md border border-white/10">
+          <div className="mt-3 flex items-center gap-2">
+            <div className="px-2.5 py-1 bg-white/20 rounded-lg text-white text-[10px] font-bold backdrop-blur-md border border-white/10">
               ≈ {rate ? (1000 / rate.wldPriceKes).toFixed(4) : '0.0000'} WLD
             </div>
           </div>
@@ -94,22 +94,22 @@ export default function HomePage() {
       </header>
 
       {/* Action Grid */}
-      <div className="px-6 -mt-12 relative z-20">
-        <div className="card grid grid-cols-2 gap-5 p-5 shadow-2xl mb-8 border-[var(--border-color)]">
+      <div className="px-5 -mt-8 relative z-20">
+        <div className="card grid grid-cols-2 gap-4 p-4 shadow-xl mb-6 border-[var(--border-color)]">
           {ACTIONS.map((action) => (
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="group flex flex-col items-center p-5 rounded-[2rem] bg-[var(--bg-secondary)] hover:bg-[var(--accent)] transition-all duration-500 active:scale-95 border border-[var(--border-color)] hover:border-transparent hover:shadow-[0_10px_20px_var(--accent-glow)]"
+              className="group flex flex-col items-center p-4 rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--accent)] transition-all duration-500 active:scale-95 border border-[var(--border-color)] hover:border-transparent"
             >
               <div className={cn(
-                "w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500 text-white",
+                "w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500 text-white",
                 action.color
               )}>
-                <action.icon className="w-7 h-7" />
+                <action.icon className="w-6 h-6" />
               </div>
-              <span className="text-sm font-black text-[var(--text-primary)] group-hover:text-white transition-colors">{action.label}</span>
-              <span className="text-[10px] text-[var(--text-secondary)] mt-1 group-hover:text-white/70 transition-colors uppercase tracking-wider">{action.sub}</span>
+              <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-white transition-colors">{action.label}</span>
+              <span className="text-[9px] text-[var(--text-secondary)] mt-0.5 group-hover:text-white/70 transition-colors uppercase tracking-wider">{action.sub}</span>
             </button>
           ))}
         </div>
@@ -134,7 +134,7 @@ export default function HomePage() {
                 {rateError}
               </div>
             ) : rate ? (
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col items-start justify-start">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center border border-[var(--accent)]/20">
                     <TrendingUp className="w-6 h-6 text-[var(--accent)]" />
@@ -142,11 +142,11 @@ export default function HomePage() {
                   <div>
                     <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-wider">Spot Rate</p>
                     <p className="text-lg font-black text-[var(--text-primary)] font-display">
-                      1 WLD = {formatCurrency(rate.wldPriceKes, selectedCurrency)}
+                      1 WLD = {formatCurrency(convertKesTo(rate.wldPriceKes, selectedCurrency), selectedCurrency)}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right w-full mt-2">
                   <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-widest mb-1">Source</p>
                   <p className="text-[10px] font-black text-[var(--accent)] uppercase">{rate.source}</p>
                 </div>
@@ -249,18 +249,18 @@ export default function HomePage() {
       </div>
 
       {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-16 z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-12 z-50">
         <button
-          className="btn-mpesa py-6 shadow-[0_20px_40px_var(--accent-glow)] h-20 group"
+          className="btn-mpesa py-5 shadow-[0_15px_30px_var(--accent-glow)] h-16 group"
           onClick={() => setScreen('payment-form')}
           disabled={rateLoading}
         >
           {rateLoading ? (
-            <Loader2 className="w-7 h-7 animate-spin" />
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : (
-            <div className="flex items-center gap-4">
-              <span className="text-xl font-black">Transfer Assets</span>
-              <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-500" />
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold">Transfer Assets</span>
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />
             </div>
           )}
         </button>

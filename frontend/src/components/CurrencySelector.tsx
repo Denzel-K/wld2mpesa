@@ -15,16 +15,16 @@ export default function CurrencySelector() {
     const { selectedCurrency = 'KES', setSelectedCurrency } = usePaymentStore() as any;
 
     return (
-        <div className="flex p-1 bg-gray-100 rounded-2xl gap-1">
+        <div className="flex p-1 bg-[var(--bg-secondary)] rounded-2xl gap-1 border border-[var(--border-color)]">
             {CURRENCIES.map((curr) => (
                 <button
                     key={curr.code}
                     onClick={() => setSelectedCurrency?.(curr.code)}
                     className={cn(
-                        "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300",
+                        "flex-1 py-1.5 px-3 rounded-xl text-[10px] font-bold transition-all duration-300 uppercase tracking-wider",
                         selectedCurrency === curr.code
-                            ? "bg-white text-mpesa-green shadow-sm scale-100"
-                            : "text-gray-500 hover:text-gray-700 hover:bg-white/50 active:scale-95"
+                            ? "bg-[var(--accent)] text-white shadow-[0_5px_15px_var(--accent-glow)] scale-100"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 active:scale-95"
                     )}
                 >
                     {curr.code}
