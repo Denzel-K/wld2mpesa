@@ -2,7 +2,7 @@
  * rateService.ts — WLD/KES exchange rate provider
  *
  * Simulation: returns hardcoded rate with slight random variation
- * Production: fetches from CoinGecko API (free tier OK)
+ * Production: fetches from Kraken API (free, no key required)
  *
  * TODO: PRODUCTION - See TRANSITION_GUIDE.md Step 2
  */
@@ -44,10 +44,7 @@ class SimulatedRateService implements IRateService {
 
 class RealRateService implements IRateService {
   /**
-   * TODO: PRODUCTION - Fetches live WLD/KES rate from CoinGecko
-   *
-   * Diff from TRANSITION_GUIDE.md Step 2:
-   *   Remove the hardcoded return and uncomment the fetch below.
+   * Fetches live WLD/KES rate from Kraken API (free, no auth required)
    */
   async getWldKesRate(): Promise<RateData> {
     // 1. Check DB Cache first
@@ -65,34 +62,37 @@ class RealRateService implements IRateService {
       };
     }
 
-    // 2. Fetch fresh rates from CoinGecko
+    // 2. Fetch fresh rates from Kraken API
     try {
-      const headers: Record<string, string> = { 'Accept': 'application/json' };
-      if (config.COINGECKO_API_KEY && config.COINGECKO_API_KEY !== 'YOUR_COINGECKO_API_KEY') {
-        headers['x-cg-api-key'] = config.COINGECKO_API_KEY;
-      }
-
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=worldcoin-wld&vs_currencies=kes,usd',
-        { headers }
-      );
-
+      const response = await fetch('https://api.kraken.com/0/public/Ticker?pair=WLDUSD,USDKES');
+      
       if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        throw new Error(`Kraken API error: ${response.status}`);
       }
 
-      const data = await response.json() as Record<string, Record<string, number>>;
-      const wldData = data['worldcoin-wld'];
+      const data = await response.json() as any;
 
-      if (!wldData || !wldData.kes || !wldData.usd) {
-        throw new Error('Invalid response from CoinGecko');
+      if (!data.result) {
+        throw new Error('Invalid response from Kraken');
       }
+
+      // Kraken returns last trade prices
+      const wldUsdTicker = data.result['WLDUSD'] || data.result['WLDUSD.d'];
+      const usdKesTicker = data.result['USDKES'] || data.result['USDKES.d'];
+
+      if (!wldUsdTicker?.c || !usdKesTicker?.c) {
+        throw new Error('Missing WLD/USD or USD/KES data from Kraken');
+      }
+
+      const wldPriceUsd = parseFloat(wldUsdTicker.c[0]); // Close price
+      const usdKesRate = parseFloat(usdKesTicker.c[0]);
+      const wldPriceKes = wldPriceUsd * usdKesRate;
 
       const newRate: RateData = {
-        wldPriceKes: wldData.kes,
-        wldPriceUsd: wldData.usd,
-        usdKesRate: wldData.kes / wldData.usd,
-        source: 'coingecko',
+        wldPriceKes: parseFloat(wldPriceKes.toFixed(2)),
+        wldPriceUsd: parseFloat(wldPriceUsd.toFixed(4)),
+        usdKesRate: parseFloat(usdKesRate.toFixed(2)),
+        source: 'kraken',
         cachedAt: new Date().toISOString(),
       };
 
@@ -105,14 +105,18 @@ class RealRateService implements IRateService {
           source: newRate.source,
           fetchedAt: new Date(newRate.cachedAt),
         },
+      }).catch(() => {
+        // Ignore duplicate cache errors
       });
 
+      console.log('[RateService] Fetched rates from Kraken');
       return newRate;
     } catch (err) {
       console.error('[RateService] Failed to fetch live rates:', err);
 
       // Fallback to last known cache (even if expired) if available
       if (cached) {
+        console.warn('[RateService] Using stale cached rates');
         return {
           wldPriceKes: cached.wldPriceKes,
           wldPriceUsd: cached.wldPriceUsd,

@@ -32,6 +32,10 @@ services:
       - db_data:/app/data # Persist SQLite DB in a dedicated folder
     ports:
       - "3001:3001"
+    dns:  # Add explicit DNS servers for external API access
+      - 8.8.8.8      # Google DNS
+      - 8.8.4.4      # Google DNS (backup)
+      - 1.1.1.1      # Cloudflare DNS
     restart: unless-stopped
     logging:
       driver: json-file
@@ -60,6 +64,10 @@ services:
       - frontend_modules:/app/node_modules
     ports:
       - "3000:3000"
+    dns:  # Add explicit DNS servers for MiniKit communication
+      - 8.8.8.8      # Google DNS
+      - 8.8.4.4      # Google DNS (backup)
+      - 1.1.1.1      # Cloudflare DNS
     depends_on:
       - backend
     restart: unless-stopped

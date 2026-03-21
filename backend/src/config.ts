@@ -43,10 +43,6 @@ const WLD_SIGNING_KEY = optionalEnv('WLD_SIGNING_KEY', ''); // REQUIRED for Worl
 const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', 'wld2mpesa-login');
 const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', 'wld2mpesa-pay');
 
-// ─── Rate API ─────────────────────────────────────────────────────────────────
-// TODO: PRODUCTION - Get a CoinGecko API key (free tier works)
-const COINGECKO_API_KEY = optionalEnv('COINGECKO_API_KEY', '');
-
 // ─── Off-ramp: Yellow Card ────────────────────────────────────────────────────
 // TODO: PRODUCTION - Sign up at https://yellowcard.io/business
 const YELLOW_CARD_API_KEY = optionalEnv('YELLOW_CARD_API_KEY', '');
@@ -94,8 +90,6 @@ export const config = {
   WLD_SIGNING_KEY,
   WLD_LOGIN_ACTION_ID,
   WLD_PAY_ACTION_ID,
-
-  COINGECKO_API_KEY,
 
   YELLOW_CARD_API_KEY,
   YELLOW_CARD_SECRET,

@@ -29,6 +29,10 @@ services:
     # Backend is NOT exposed to host — nginx is the only public entry point
     expose:
       - "3001"
+    dns:  # Add explicit DNS servers for external API access
+      - 8.8.8.8      # Google DNS
+      - 8.8.4.4      # Google DNS (backup)
+      - 1.1.1.1      # Cloudflare DNS
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:3001/api/health" ]
@@ -55,6 +59,10 @@ services:
     container_name: wld2mpesa-frontend
     ports:
       - "${APP_PORT:-3000}:80"
+    dns:  # Add explicit DNS servers for external API access
+      - 8.8.8.8      # Google DNS
+      - 8.8.4.4      # Google DNS (backup)
+      - 1.1.1.1      # Cloudflare DNS
     depends_on:
       backend:
         condition: service_healthy
