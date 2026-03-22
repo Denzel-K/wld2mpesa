@@ -21,9 +21,9 @@ import {
 import CurrencySelector from '@/components/CurrencySelector';
 
 const ACTIONS = [
-  { id: 'send', label: 'Send Money', icon: Send, sub: 'To M-Pesa Number', color: 'bg-mpesa-green' },
-  { id: 'pochi', label: 'Pochi la Biashara', icon: User, sub: 'Small Business', color: 'bg-orange-500' },
-  { id: 'till', label: 'Till Number', icon: Store, sub: 'Buy Goods', color: 'bg-mpesa-green-dark' },
+  { id: 'send', label: 'Send Money', icon: Send, sub: 'To M-Pesa Number', color: 'bg-blue-600' },
+  { id: 'pochi', label: 'Pochi la Biashara', icon: User, sub: 'Small Business', color: 'bg-blue-600' },
+  { id: 'till', label: 'Till Number', icon: Store, sub: 'Buy Goods', color: 'bg-blue-600' },
   { id: 'paybill', label: 'Paybill', icon: CreditCard, sub: 'Bills & Utilities', color: 'bg-blue-600' },
 ];
 
@@ -103,10 +103,10 @@ export default function HomePage() {
               className="group flex flex-col items-center p-4 rounded-2xl bg-[var(--bg-secondary)] hover:bg-[var(--accent)] transition-all duration-500 active:scale-95 border border-[var(--border-color)] hover:border-transparent"
             >
               <div className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500 text-white",
+                "w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500 text-white",
                 action.color
               )}>
-                <action.icon className="w-6 h-6" />
+                <action.icon className="w-4 h-4" />
               </div>
               <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-white transition-colors">{action.label}</span>
               <span className="text-[9px] text-[var(--text-secondary)] mt-0.5 group-hover:text-white/70 transition-colors uppercase tracking-wider">{action.sub}</span>
@@ -136,8 +136,8 @@ export default function HomePage() {
             ) : rate ? (
               <div className="flex flex-col items-start justify-start">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center border border-[var(--accent)]/20">
-                    <TrendingUp className="w-6 h-6 text-[var(--accent)]" />
+                  <div className="w-8 h-8 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center border border-[var(--accent)]/20">
+                    <TrendingUp className="w-4 h-4 text-[var(--accent)]" />
                   </div>
                   <div>
                     <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-wider">Spot Rate</p>
@@ -152,28 +152,6 @@ export default function HomePage() {
                 </div>
               </div>
             ) : null}
-          </div>
-        </div>
-
-        {/* Security & Speed Trust Markers */}
-        <div className="mt-10 grid grid-cols-2 gap-5">
-          <div className="flex items-center gap-4 p-5 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm group hover:border-[var(--accent)]/50 transition-colors">
-            <div className="p-2 bg-[var(--accent)]/10 rounded-xl">
-              <Shield className="w-6 h-6 text-[var(--accent)]" />
-            </div>
-            <div>
-              <p className="text-xs font-black text-[var(--text-primary)] mb-0.5">Encrypted</p>
-              <p className="text-[10px] text-[var(--text-secondary)] font-bold">World ID 2.0</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-5 bg-[var(--bg-secondary)] rounded-3xl border border-[var(--border-color)] shadow-sm group hover:border-orange-500/50 transition-colors">
-            <div className="p-2 bg-orange-500/10 rounded-xl">
-              <Zap className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-xs font-black text-[var(--text-primary)] mb-0.5">Instant</p>
-              <p className="text-[10px] text-[var(--text-secondary)] font-bold">L2 Settlement</p>
-            </div>
           </div>
         </div>
 
@@ -246,24 +224,6 @@ export default function HomePage() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-12 z-50">
-        <button
-          className="btn-mpesa py-5 shadow-[0_15px_30px_var(--accent-glow)] h-16 group"
-          onClick={() => setScreen('payment-form')}
-          disabled={rateLoading}
-        >
-          {rateLoading ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
-          ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-bold">Transfer Assets</span>
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />
-            </div>
-          )}
-        </button>
       </div>
     </div>
   );

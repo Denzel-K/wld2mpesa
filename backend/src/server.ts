@@ -74,9 +74,6 @@ app.get('/api/health', (_req: Request, res: Response) => {
     status: 'ok',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    worldAppId: config.WLD_APP_ID,
-    worldLoginActionId: config.WLD_LOGIN_ACTION_ID,
-    worldPayActionId: config.WLD_PAY_ACTION_ID,
   });
 });
 

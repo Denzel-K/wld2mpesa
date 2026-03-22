@@ -93,20 +93,10 @@ router.post('/sync', async (req, res) => {
       // Determine if this is a staging App ID
       const isStagingApp = config.WLD_APP_ID.startsWith('app_staging_');
       
-      console.log(`\n--- [Verify] World ID Verification Start ---`);
-      console.log(`  Wallet: ${walletAddress}`);
-      console.log(`  Action: ${actionId}`);
-      console.log(`  App ID: ${config.WLD_APP_ID}`);
-      console.log(`  RP ID: ${config.WLD_RP_ID}`);
-      console.log(`  Staging Mode: ${isStagingApp}`);
-      
       let verifyBody: any;
       const context = rpContext || {};
 
       const signalHash = computeSignalHash(walletAddress);
-      console.log(`  Signal (raw): ${walletAddress}`);
-      console.log(`  Signal Hash:  ${signalHash}`);
-      console.log(`  v4Result:     ${JSON.stringify(v4Result, null, 2)}`);
 
       if (v4Result) {
         // v4 Pass-through: result from MiniKit.commandsAsync.verify
@@ -118,9 +108,6 @@ router.post('/sync', async (req, res) => {
             // only fall back to our computed hash if it's absent.
             const enrichedResponses = v4Result.responses.map((r: any) => {
                 const resolvedHash = r.signal_hash ?? signalHash;
-                console.log(`  Response[${r.identifier}] signal_hash: ${
-                    r.signal_hash ? `(from MiniKit) ${r.signal_hash}` : `(computed) ${signalHash}`
-                }`);
                 return { ...r, signal_hash: resolvedHash };
             });
             const { signal: _s, ...v4ResultClean } = v4Result;
@@ -171,13 +158,9 @@ router.post('/sync', async (req, res) => {
       delete verifyBody.commandPayload;
       delete verifyBody.finalPayload;
 
-      console.log(`[Verify] Request Body:`, JSON.stringify(verifyBody, null, 2));
-
       const rpId = context.rp_id || config.WLD_RP_ID || config.WLD_APP_ID;
       const verifyUrl = `https://developer.world.org/api/v4/verify/${rpId}${isStagingApp ? '?is_staging=true' : ''}`;
       
-      console.log(`[Verify] Request URL: ${verifyUrl}`);
-
       const verifyResponse = await fetch(verifyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,8 +168,6 @@ router.post('/sync', async (req, res) => {
       });
 
       const responseText = await verifyResponse.text();
-      console.log(`[Verify] Response Status: ${verifyResponse.status}`);
-      console.log(`[Verify] Response Body: ${responseText}`);
 
       if (!verifyResponse.ok) {
           return res.status(verifyResponse.status).json({

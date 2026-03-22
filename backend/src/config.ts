@@ -130,19 +130,6 @@ export const config = {
   CLOUDFLARE_ENABLED,
 } as const;
 
-// Log config state on startup
-console.log(`
-╔═══════════════════════════════════════════════════════╗
-║  WLD2Mpesa Backend                                  ║
-║  Mode: ${IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}  ║
-║  Port: ${PORT}                                         ║
-║  World App App ID: ${WLD_APP_ID}                       ║
-║  World ID 4.0 RP ID: ${WLD_RP_ID}                       ║
-║  World ID Login Action: ${WLD_LOGIN_ACTION_ID}         ║
-║  World ID Pay Action: ${WLD_PAY_ACTION_ID}             ║
-╚═══════════════════════════════════════════════════════╝
-`);
-
 // Warn about missing environment variables (will cause runtime failures)
 const requiredEnvVars = [
   'DATABASE_URL',
