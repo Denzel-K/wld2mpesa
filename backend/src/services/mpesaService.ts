@@ -102,27 +102,6 @@ export function createMpesaService(): IMpesaService {
 
 // ─── Re-include Simulated implementation for the factory ───────────────────────
 
-class SimulatedMpesaService implements IMpesaService {
-  private paymentStatuses = new Map<string, { status: MpesaPaymentStatus; receipt?: string }>();
-
-  async sendToTill(tillNumber: string, kesAmount: number, txnId: string): Promise<MpesaResult> {
-    const requestId = `SIM_B2B_${txnId}`;
-    const fakeReceipt = `RGX${Math.random().toString(36).slice(2, 11).toUpperCase()}`;
-    console.log(`[SIM] MpesaService: sending KES ${kesAmount} to Till ${tillNumber}`);
-    this.paymentStatuses.set(requestId, { status: 'PENDING' });
-    setTimeout(() => {
-      this.paymentStatuses.set(requestId, { status: 'SUCCESS', receipt: fakeReceipt });
-    }, config.SIM_MPESA_MS);
-    return { requestId, status: 'PENDING' };
-  }
-
-  async checkPaymentStatus(requestId: string): Promise<MpesaPaymentStatus> {
-    return this.paymentStatuses.get(requestId)?.status ?? 'PENDING';
-  }
-
-  getReceiptNumber(requestId: string): string | undefined {
-    return this.paymentStatuses.get(requestId)?.receipt;
-  }
-}
+// Simulated implementation removed to resolve tsc error.
 
 export const mpesaService = createMpesaService();

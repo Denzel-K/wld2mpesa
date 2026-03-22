@@ -4,7 +4,6 @@
  * Run with: npx tsx src/scripts/diagnoseNetwork.ts
  */
 
-import { execSync } from 'child_process';
 
 const APIs = [
   {
@@ -14,8 +13,8 @@ const APIs = [
     critical: true,
   },
   {
-    name: 'Kraken API',
-    url: 'https://api.kraken.com/0/public/Time',
+    name: 'Kotani Pay API',
+    url: 'https://sandbox-api.kotanipay.io/api/v1/health-check', // Kotani has specific health check endpoints
     method: 'GET',
     critical: true,
   },

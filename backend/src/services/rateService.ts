@@ -55,7 +55,7 @@ class RealRateService implements IRateService {
       const erResp = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
       if (!erResp.ok) throw new Error(`ExchangeRate-API error: ${erResp.status}`);
       const erData = await erResp.json() as any;
-      const usdKesRate = erData.rates?.['KES'] || 129.50; // Use last known if missing in JSON
+      const usdKesRate = erData.rates?.['KES'] || 135.00; // Use last known if missing in JSON
 
       const wldPriceKes = wldPriceUsd * usdKesRate;
 

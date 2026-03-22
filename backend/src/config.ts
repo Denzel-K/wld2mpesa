@@ -43,11 +43,16 @@ const WLD_SIGNING_KEY = optionalEnv('WLD_SIGNING_KEY', ''); // REQUIRED for Worl
 const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', 'wld2mpesa-login');
 const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', 'wld2mpesa-pay');
 
-// ─── Off-ramp: Yellow Card ────────────────────────────────────────────────────
-// TODO: PRODUCTION - Sign up at https://yellowcard.io/business
-const YELLOW_CARD_API_KEY = optionalEnv('YELLOW_CARD_API_KEY', '');
-const YELLOW_CARD_SECRET = optionalEnv('YELLOW_CARD_SECRET', '');
-const YELLOW_CARD_ENV = optionalEnv('YELLOW_CARD_ENV', 'sandbox'); // 'sandbox' | 'production'
+// ─── Off-ramp: Bitnob ─────────────────────────────────────────────────────────
+// TODO: PRODUCTION - Sign up at https://bitnob.com
+const BITNOB_API_KEY = optionalEnv('BITNOB_API_KEY', '');
+const BITNOB_ENV = optionalEnv('BITNOB_ENV', 'sandbox'); // 'sandbox' | 'production'
+
+// ─── DEX Swap (Uniswap V3 on World Chain) ────────────────────────────────────
+const UNISWAP_V3_ROUTER = '0x8ac7bee993bb44dab564ea4bc9ea67bf9eb5e743';
+const WLD_TOKEN = '0x2cFc85d8E48F8EAB294be644d9E256F01c2384a0';
+const USDC_TOKEN = '0x79A02482A8849733928120FE3c23eA97B068D2e3'; // Native USDC on World Chain
+const ADMIN_PRIVATE_KEY = optionalEnv('ADMIN_PRIVATE_KEY', '');
 
 // ─── M-Pesa Daraja ────────────────────────────────────────────────────────────
 // TODO: PRODUCTION - Register at https://developer.safaricom.co.ke
@@ -91,9 +96,12 @@ export const config = {
   WLD_LOGIN_ACTION_ID,
   WLD_PAY_ACTION_ID,
 
-  YELLOW_CARD_API_KEY,
-  YELLOW_CARD_SECRET,
-  YELLOW_CARD_ENV,
+  BITNOB_API_KEY,
+  BITNOB_ENV,
+  UNISWAP_V3_ROUTER,
+  WLD_TOKEN,
+  USDC_TOKEN,
+  ADMIN_PRIVATE_KEY,
 
   MPESA_CONSUMER_KEY,
   MPESA_CONSUMER_SECRET,
@@ -131,8 +139,8 @@ console.log(`
 // Warn about missing environment variables (will cause runtime failures)
 const requiredEnvVars = [
   'BACKEND_WALLET_ADDRESS',
-  'YELLOW_CARD_API_KEY',
-  'YELLOW_CARD_SECRET',
+  'KOTANI_API_KEY',
+  'KOTANI_SECRET',
   'MPESA_CONSUMER_KEY',
   'MPESA_CONSUMER_SECRET',
 ];

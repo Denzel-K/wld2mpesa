@@ -8,7 +8,6 @@ import { rateService } from './rateService';
 import { transactionStore } from './transactionStore';
 import { worldChainListener } from './worldChainListener';
 import { offrampService } from './offrampService';
-import { mpesaService } from './mpesaService';
 import type {
   IPaymentService,
   InitiatePaymentParams,
@@ -275,41 +274,49 @@ class RealPaymentService extends SimulatedPaymentService {
       await transactionStore.update(transactionId, { status: 'CONFIRMED' });
       log('Step 1 ✓ WLD confirmed');
 
-      // Step 2: Off-ramp via Yellow Card
-      log('Step 2: Initiating Yellow Card off-ramp...');
-      const swap = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
+      // Step 2: Off-ramp / Payout via Bitnob
+      log('Step 2: Initiating Bitnob M-Pesa payout...');
+      const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
       await transactionStore.update(transactionId, {
         status: 'OFFRAMP_INITIATED',
-        offrampId: swap.swapId
+        offrampId: payout.swapId
       });
 
-      // Poll/wait for Yellow Card completion (typically ~2-5 mins)
-      const ycStatus = await this.pollUntil(
-        () => offrampService.checkSwapStatus(swap.swapId),
+      // We use Bitnob to payout KES directly to the user/bill
+      log('Step 2 ✓ Payout initiated via Bitnob');
+
+      // Step 3: Local Liquidity Rebalancing (Automated DEX Swap)
+      // This is the rebalancing leg: WLD -> USDC
+      log('Step 3: Automated Rebalancing (WLD → USDC) on World Chain...');
+      try {
+        const { swapService } = await import('./swapService');
+        const swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
+        log(`Step 3 ✓ Rebalanced: ${swapHash}`);
+      } catch (swapErr) {
+        // We log but don't fail the user transaction if rebalancing fails
+        console.error('[REBALANCE] Failed:', swapErr);
+      }
+
+      // Step 4: Finalize
+      // Note: Bitnob handles the actual disbursement. We wait for their callback 
+      // or poll to mark it as SETTLED.
+      const bitnobStatus = await this.pollUntil(
+        () => offrampService.checkSwapStatus(payout.swapId),
         (s) => s === 'COMPLETED' || s === 'FAILED',
         180_000, // 3 min timeout
         10_000   // 10s interval
       );
 
-      if (ycStatus !== 'COMPLETED') {
-        throw new Error('Yellow Card off-ramp failed or timed out');
+      if (bitnobStatus !== 'COMPLETED') {
+        throw new Error('Bitnob payout failed or timed out');
       }
-      log('Step 2 ✓ Off-ramp completed');
 
-      // Step 3: M-Pesa Disbursement
-      log('Step 3: Initiating M-Pesa B2B disbursement...');
-      const destination = tx.transactionType === 'send' || tx.transactionType === 'pochi'
-        ? tx.phoneNumber!
-        : tx.tillNumber!;
-
-      const mpesa = await mpesaService.sendToTill(destination, tx.kesAmount, transactionId);
       await transactionStore.update(transactionId, {
-        status: 'MPESA_SENT',
-        mpesaConversationId: mpesa.requestId
+        status: 'SETTLED',
+        settledAt: new Date().toISOString(),
       });
 
-      // We DON'T wait here — we let the webhooks/markSettled handle the final step
-      log('Step 3 ✓ Disbursement initiated. Awaiting M-Pesa callback...');
+      log('Step 4 ✓ SETTLED');
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown production pipeline error';
