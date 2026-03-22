@@ -64,9 +64,12 @@ const MPESA_B2B_SHORTCODE = optionalEnv('MPESA_B2B_SHORTCODE', '600000');
 const MPESA_INITIATOR_NAME = optionalEnv('MPESA_INITIATOR_NAME', 'testapi');
 const MPESA_PASSKEY = optionalEnv('MPESA_PASSKEY', '');
 
-// ─── Backend URL (needed for M-Pesa callbacks) ────────────────────────────────
-// TODO: PRODUCTION - Set to your deployed Render/Railway URL
 const BACKEND_URL = optionalEnv('BACKEND_URL', 'http://localhost:3001');
+
+// ─── Redis & Cloudflare [Enterprise] ──────────────────────────────────────────
+const REDIS_URL = optionalEnv('REDIS_URL', 'redis://localhost:6379');
+const DATABASE_URL = optionalEnv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/wld2mpesa?schema=public');
+const CLOUDFLARE_ENABLED = optionalEnv('CLOUDFLARE_ENABLED', 'false') === 'true';
 
 // ─── Transaction log ──────────────────────────────────────────────────────────
 const TRANSACTION_LOG_PATH = optionalEnv('TRANSACTION_LOG_PATH', './data/transactions.json');
@@ -121,6 +124,10 @@ export const config = {
   SIM_BLOCK_CONFIRM_MS,
   SIM_OFFRAMP_MS,
   SIM_MPESA_MS,
+
+  REDIS_URL,
+  DATABASE_URL,
+  CLOUDFLARE_ENABLED,
 } as const;
 
 // Log config state on startup
@@ -138,9 +145,10 @@ console.log(`
 
 // Warn about missing environment variables (will cause runtime failures)
 const requiredEnvVars = [
+  'DATABASE_URL',
+  'REDIS_URL',
   'BACKEND_WALLET_ADDRESS',
-  'KOTANI_API_KEY',
-  'KOTANI_SECRET',
+  'BITNOB_API_KEY',
   'MPESA_CONSUMER_KEY',
   'MPESA_CONSUMER_SECRET',
 ];

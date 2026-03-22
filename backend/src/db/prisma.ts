@@ -1,14 +1,14 @@
-import { PrismaClient } from '../generated/prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/postgres_client/client';
+import { config } from '../config';
 
-// Load connection string from environment or use default literal
-const connectionString = process.env.DATABASE_URL || 'file:./data/wld2mpesa.db';
+const pool = new Pool({ connectionString: config.DATABASE_URL });
+const adapter = new PrismaPg(pool as any);
 
-const adapter = new PrismaBetterSqlite3({
-    url: connectionString
-});
-
+/**
+ * Prisma client instance — Standard PostgreSQL Implementation
+ */
 export const prisma = new PrismaClient({ adapter });
 
-// Log on initialization
-console.log(`[DB] Prisma Client initialized with SQLite at ${connectionString}`);
+console.log('[DB] Prisma Client initialized with PostgreSQL adapter ✓');

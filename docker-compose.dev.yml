@@ -23,7 +23,8 @@ services:
     command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npx tsx watch src/server.ts"
     environment:
       NODE_ENV: development
-      DATABASE_URL: "file:/app/data/dev.db"
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/wld2mpesa?schema=public
+      REDIS_URL: redis://redis:6379
       PORT: "3001"
       CORS_ORIGIN: "*"
       # Add any other overrides here; secrets go in backend/.env
@@ -31,9 +32,41 @@ services:
       - path: ./backend/.env
         required: false # Don't fail if .env doesn't exist yet
     volumes:
-      - ./backend:/app # Live source mount
+      - ./backend/src:/app/src # Live source mount
       - backend_modules:/app/node_modules # Isolated node_modules
-      - db_data:/app/data # Persist SQLite DB in a dedicated folder
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  db:
+    image: postgres:15-alpine
+    container_name: wld2mpesa-postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wld2mpesa
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  redis:
+    image: redis:7-alpine
+    container_name: wld2mpesa-redis-dev
+    ports:
+      - "6379:6379"
     restart: unless-stopped
     logging:
       driver: json-file

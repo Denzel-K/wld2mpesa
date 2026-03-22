@@ -253,7 +253,7 @@ docker compose down
 
 ## Transaction data (database)
 
-Transactions are now managed via **Prisma ORM** and stored in a **SQLite** database file.
+Transactions are now managed via **Prisma ORM** and stored in a **PostgreSQL** database.
 
 | Environment | Location |
 |-------------|----------|

@@ -25,7 +25,7 @@ The application follows a modern decoupled architecture:
 ├── backend          # Node.js/Express API
 │   ├── src/routes   # API endpoints
 │   ├── src/services # Business logic (Rates, User, M-Pesa)
-│   └── prisma       # Database schema (SQLite)
+│   └── prisma       # Database schema (PostgreSQL)
 ├── frontend         # Vite/React Application
 │   ├── src/pages    # View components (Verification, Home, etc.)
 │   ├── src/lib      # API clients and MiniKit wrappers

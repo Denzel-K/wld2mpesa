@@ -1,15 +1,14 @@
-// ─── Prisma Schema ────────────────────────────────────────────────────────────
-// WLD2Mpesa — 4 core models
-// Database: SQLite (swap to PostgreSQL later by changing provider + adapter)
+// Database: PostgreSQL
 // ──────────────────────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../src/generated/postgres_client"
+  engineType = "library"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────

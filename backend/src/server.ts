@@ -24,12 +24,15 @@ import { debugRouter } from './routes/debug.routes';
 import { idkitRouter } from './routes/idkit.routes';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { cloudflareMiddleware } from './middleware/cloudflareMiddleware';
 
 const app = express();
 
-// Trust the first proxy hop (ngrok, nginx, etc.)
-// Required so express-rate-limit can correctly identify clients via X-Forwarded-For
+// Trust the first proxy hop (ngrok, nginx, cloudflare, etc.)
 app.set('trust proxy', 1);
+
+// Attach Cloudflare real-IP extraction middleware
+app.use(cloudflareMiddleware);
 
 app.use(
   helmet({

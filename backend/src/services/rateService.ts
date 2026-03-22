@@ -10,6 +10,7 @@
 import type { IRateService, RateData } from '../types';
 
 import { prisma } from '../db/prisma';
+import { redisService } from './redisService';
 
 /** Rate cache — refreshed every 60 seconds in production */
 const CACHE_TTL_MS = 60_000;
@@ -22,19 +23,29 @@ class RealRateService implements IRateService {
    * Fetches live WLD/KES rate from Kraken API (free, no auth required)
    */
   async getWldKesRate(): Promise<RateData> {
-    // 1. Check DB Cache first
+    // 0. Check Redis Cache first (Ultra-fast)
+    const redisKey = 'rate:wld_kes';
+    const redisCached = await redisService.get(redisKey);
+    if (redisCached) {
+      return JSON.parse(redisCached) as RateData;
+    }
+
+    // 1. Check DB Cache (Secondary)
     const cached = await prisma.rateCache.findFirst({
       orderBy: { fetchedAt: 'desc' },
     });
 
     if (cached && Date.now() - cached.fetchedAt.getTime() < CACHE_TTL_MS) {
-      return {
+      const rate = {
         wldPriceKes: cached.wldPriceKes,
         wldPriceUsd: cached.wldPriceUsd,
         usdKesRate: cached.usdKesRate,
         source: cached.source,
         cachedAt: cached.fetchedAt.toISOString(),
       };
+      // Backfill Redis
+      await redisService.set(redisKey, JSON.stringify(rate), 60);
+      return rate;
     }
 
     // 2. Fetch fresh rates from APIs
@@ -79,6 +90,9 @@ class RealRateService implements IRateService {
       }).catch(() => {
         // Ignore duplicate cache errors
       });
+
+      // 4. Update Redis Cache (Ultra-fast)
+      await redisService.set(redisKey, JSON.stringify(newRate), 60);
 
       console.log(`[RateService] Live sync complete: WLD=$${wldPriceUsd}, USD/KES=${usdKesRate}`);
       return newRate;
