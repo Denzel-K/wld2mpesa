@@ -27,7 +27,7 @@ import {
 
 const FEE_PERCENT = 0.5;
 
-type Step = 'amount' | 'details' | 'confirm';
+type Step = 'details' | 'amount' | 'confirm';
 
 export default function PaymentFormPage() {
   const {
@@ -38,7 +38,7 @@ export default function PaymentFormPage() {
     walletAddress,
   } = usePaymentStore();
 
-  const [step, setStep] = useState<Step>('amount');
+  const [step, setStep] = useState<Step>('details');
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,13 +76,7 @@ export default function PaymentFormPage() {
   useEffect(() => { setLocalError(null); }, [kesAmount, tillNumber, step, phoneNumber, accountNumber]);
 
   const handleNext = async () => {
-    if (step === 'amount') {
-      if (!isValidKesAmount(kes)) {
-        setLocalError('Enter an amount between KSh 10 and KSh 150,000');
-        return;
-      }
-      setStep('details');
-    } else if (step === 'details') {
+    if (step === 'details') {
       if (transactionType === 'paybill') {
         if (!/^\d{5,7}$/.test(tillNumber)) {
           setLocalError('Paybill must be 5–7 digits');
@@ -102,6 +96,12 @@ export default function PaymentFormPage() {
           setLocalError('Till number must be 5–6 digits');
           return;
         }
+      }
+      setStep('amount');
+    } else if (step === 'amount') {
+      if (!isValidKesAmount(kes)) {
+        setLocalError('Enter an amount between KSh 10 and KSh 150,000');
+        return;
       }
       setStep('confirm');
     } else {
@@ -147,7 +147,7 @@ export default function PaymentFormPage() {
       {/* Premium Header */}
       <header className="px-6 pt-12 pb-6 flex items-center justify-between bg-[var(--bg-primary)]/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-[var(--border-color)]">
         <button
-          onClick={() => step === 'amount' ? setScreen('home') : setStep(step === 'details' ? 'amount' : 'details')}
+          onClick={() => step === 'details' ? setScreen('home') : setStep(step === 'amount' ? 'details' : 'amount')}
           className="w-10 h-10 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-primary)] hover:border-[var(--accent)] transition-all border border-[var(--border-color)] active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -155,8 +155,8 @@ export default function PaymentFormPage() {
         <div className="flex flex-col items-center">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-secondary)] mb-2">{getStepTitle()}</h2>
           <div className="flex gap-1.5 mt-1">
-            <div className={cn("h-1 rounded-full transition-all duration-500", step === 'amount' ? "w-6 bg-[var(--accent)]" : "w-1.5 bg-[var(--text-secondary)]/20")} />
             <div className={cn("h-1 rounded-full transition-all duration-500", step === 'details' ? "w-6 bg-[var(--accent)]" : "w-1.5 bg-[var(--text-secondary)]/20")} />
+            <div className={cn("h-1 rounded-full transition-all duration-500", step === 'amount' ? "w-6 bg-[var(--accent)]" : "w-1.5 bg-[var(--text-secondary)]/20")} />
             <div className={cn("h-1 rounded-full transition-all duration-500", step === 'confirm' ? "w-6 bg-[var(--accent)]" : "w-1.5 bg-[var(--text-secondary)]/20")} />
           </div>
         </div>
@@ -369,7 +369,7 @@ export default function PaymentFormPage() {
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-lg font-bold">
-                  {step === 'amount' ? 'Continue' : step === 'details' ? 'Review Details' : 'Initialize Transfer'}
+                  {step === 'details' ? 'Continue' : step === 'amount' ? 'Review Details' : 'Initialize Transfer'}
                 </span>
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />
               </div>

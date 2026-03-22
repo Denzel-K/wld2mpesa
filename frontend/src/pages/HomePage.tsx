@@ -31,8 +31,8 @@ export default function HomePage() {
   const {
     rate, rateLoading, rateError,
     setScreen,
-    selectedCurrency, setTransactionType,
-    walletAddress
+    selectedCurrency, setSelectedCurrency, setTransactionType,
+    walletAddress, userName
   } = usePaymentStore();
 
   const [history, setHistory] = useState<any[]>([]);
@@ -56,38 +56,64 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-32">
       {/* Premium Header */}
-      <header className="bg-[var(--accent)] px-6 pt-12 pb-16 rounded-b-[2rem] relative overflow-hidden shadow-[0_20px_40px_var(--accent-glow)]">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/20 rounded-full -ml-8 -mb-8 blur-2xl" />
+      <header className="bg-[var(--accent)] px-6 pt-12 pb-16 rounded-b-[3rem] relative overflow-hidden shadow-[0_25px_50px_var(--accent-glow)]">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/20 rounded-full -ml-12 -mb-12 blur-2xl" />
 
-        <div className="flex items-center justify-between mb-8 relative z-10">
+        <div className="flex items-center justify-between mb-10 relative z-10">
           <div className="flex flex-col">
-            <span className="text-white/50 text-[9px] font-bold tracking-[0.25em] uppercase mb-1">
-              Global Fintech
+            <span className="text-white/60 text-[10px] font-black tracking-[0.3em] uppercase mb-1">
+              Welcome back
             </span>
-            <h1 className="text-white text-2xl font-bold font-display tracking-tight">WLD2Mpesa</h1>
+            <h1 className="text-white text-3xl font-black font-display tracking-tight">
+              {userName ? userName.split(' ')[0] : 'WLD2Mpesa'}
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="px-2.5 py-1 bg-white/10 rounded-full border border-white/20 text-white text-[9px] font-bold uppercase tracking-wider backdrop-blur-md">
-              Secure
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
+              <Shield className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
 
-        {/* Balance Card (WLD + Selected Currency) */}
-        <div className="relative z-10">
-          <p className="text-white/60 text-xs font-bold mb-1 uppercase tracking-wide">Combined Balance</p>
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-white text-4xl font-bold font-display tracking-tight">
-              {rate && !rateLoading ? (
-                <span>{convertKesTo(1000, selectedCurrency).toFixed(2)}</span>
-              ) : '0.00'}
-            </h2>
-            <span className="text-white/80 font-bold text-lg">{selectedCurrency}</span>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="px-2.5 py-1 bg-white/20 rounded-lg text-white text-[10px] font-bold backdrop-blur-md border border-white/10">
-              ≈ {rate ? (1000 / rate.wldPriceKes).toFixed(4) : '0.0000'} WLD
+        {/* Redesigned Balance Card (3 Columns) */}
+        <div className="relative z-10 bg-white/10 backdrop-blur-2xl rounded-[2.5rem] p-6 border border-white/20 shadow-2xl">
+          <div className="flex items-center justify-between gap-4">
+            {/* Column 1: WLD (Prominent) */}
+            <div className="flex-1 flex flex-col">
+              <span className="text-white/60 text-[9px] font-black uppercase tracking-widest mb-1.5">WLD Balance</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-white text-2xl font-black font-display tracking-tight">
+                  {rate ? (1000 / rate.wldPriceKes).toFixed(2) : '0.00'}
+                </span>
+                <span className="text-white/60 text-[10px] font-black">WLD</span>
+              </div>
+            </div>
+
+            {/* Column 2: Currency Dropdown (Subtle) */}
+            <div className="flex flex-col items-center px-4 border-x border-white/10">
+               <span className="text-white/40 text-[8px] font-black uppercase tracking-widest mb-2">Rates</span>
+               <select 
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg text-white text-[10px] font-black px-2 py-1 outline-none appearance-none cursor-pointer"
+               >
+                 <option value="KES">KES</option>
+                 <option value="USD">USD</option>
+                 <option value="EUR">EUR</option>
+                 <option value="GBP">GBP</option>
+               </select>
+            </div>
+
+            {/* Column 3: KES Equivalent (Prominent) */}
+            <div className="flex-1 flex flex-col items-end">
+              <span className="text-white/60 text-[9px] font-black uppercase tracking-widest mb-1.5">{selectedCurrency} Value</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-white text-2xl font-black font-display tracking-tight">
+                  {rate && !rateLoading ? convertKesTo(0, selectedCurrency, rate.usdKesRate).toFixed(2) : '0.00'}
+                </span>
+                <span className="text-white/60 text-[10px] font-black">{selectedCurrency}</span>
+              </div>
             </div>
           </div>
         </div>

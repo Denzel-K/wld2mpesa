@@ -17,6 +17,7 @@ model User {
   id                String   @id @default(uuid())
   walletAddress     String   @unique @map("wallet_address")
   nullifierHash     String?  @unique @map("nullifier_hash")
+  name              String?
   verificationLevel String?  @map("verification_level") // "orb" | "device"
   isVerified        Boolean  @default(false) @map("is_verified")
   onboarded         Boolean  @default(false)

@@ -79,6 +79,7 @@ export interface User {
   id: string;
   walletAddress: string;
   nullifierHash?: string | null;
+  name?: string | null;
   verificationLevel?: string | null;
   isVerified: boolean;
   onboarded: boolean;

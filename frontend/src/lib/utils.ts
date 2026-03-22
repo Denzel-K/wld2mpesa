@@ -10,18 +10,22 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-/** Format currency amount: (1000, 'KES') → "KSh 1,000" */
+/** Format currency amount */
 export function formatCurrency(amount: number, currency: string = 'KES'): string {
-  if (currency === 'KES') {
-    return `KSh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  }
   const symbols: Record<string, string> = {
+    KES: 'KSh',
     USD: '$',
     EUR: '€',
-    YEN: '¥',
+    GBP: '£',
+    JPY: '¥',
+    ZAR: 'R',
+    NGN: '₦',
+    UGX: 'USh',
+    TZS: 'TSh',
   };
-  return `${symbols[currency] || currency} ${amount.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
+  const symbol = symbols[currency] || currency;
+  return `${symbol} ${amount.toLocaleString(undefined, {
+    minimumFractionDigits: currency === 'KES' ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
 }
@@ -43,18 +47,26 @@ export function shortTxId(txId: string): string {
   return `${txId.slice(0, 8)}...${txId.slice(-4)}`;
 }
 
-/** Fixed rates for demo/simulation */
-const DEMO_RATES: Record<string, number> = {
-  USD: 129.20,
-  EUR: 150.30,
-  YEN: 0.83,
-};
-
-/** Convert KES to target currency (simulated) */
-export function convertKesTo(kesAmount: number, targetCurrency: string): number {
+/** Convert KES to target currency using base USD rate */
+export function convertKesTo(kesAmount: number, targetCurrency: string, usdKesRate: number = 135): number {
   if (!targetCurrency || targetCurrency === 'KES') return kesAmount;
-  const rate = DEMO_RATES[targetCurrency] || 1;
-  return kesAmount / rate;
+  
+  // Real-ish conversion using common mid-market rates as fallback
+  // if not USD/EUR which we often have live.
+  const ratesToUsd: Record<string, number> = {
+    USD: 1,
+    EUR: 0.92,
+    GBP: 0.79,
+    JPY: 151,
+    ZAR: 19,
+    NGN: 1400,
+    UGX: 3800,
+    TZS: 2500,
+  };
+  
+  const usdAmount = kesAmount / usdKesRate;
+  const targetRate = ratesToUsd[targetCurrency] || 1;
+  return usdAmount * targetRate;
 }
 
 /** Get Safaricom M-Pesa transaction fees for sending money (2024/2025 table) */

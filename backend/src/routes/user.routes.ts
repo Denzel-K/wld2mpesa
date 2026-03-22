@@ -205,10 +205,23 @@ router.post('/sync', async (req, res) => {
         return res.status(400).json({ error: 'Invalid World ID proof' });
     }
 
+    // 1b. Capture Name from Metadata (if available)
+    let name = '';
+    if (v4Result?.responses?.[0]?.name) {
+        name = v4Result.responses[0].name;
+    } else if (v4Result?.name) {
+        name = v4Result.name;
+    } else if (worldIdProof?.name) {
+        name = worldIdProof.name;
+    } else {
+        name = `Verified User ${nullifierHash.slice(0, 6)}`;
+    }
+
     // 2. Create or Update User
     const user = await userStore.createOrUpdate({
         walletAddress,
         nullifierHash: nullifierHash,
+        name: name,
         verificationLevel: verificationLevel,
         isVerified: true
     });

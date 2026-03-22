@@ -14,6 +14,7 @@ class UserStore {
             id: pu.id,
             walletAddress: pu.walletAddress,
             nullifierHash: pu.nullifierHash,
+            name: (pu as any).name,
             verificationLevel: pu.verificationLevel,
             isVerified: pu.isVerified,
             onboarded: pu.onboarded,
@@ -39,6 +40,7 @@ class UserStore {
     async createOrUpdate(data: {
         walletAddress: string;
         nullifierHash?: string;
+        name?: string;
         verificationLevel?: string;
         isVerified?: boolean;
         onboarded?: boolean;

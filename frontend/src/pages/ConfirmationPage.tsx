@@ -21,7 +21,6 @@ export default function ConfirmationPage() {
     addSimLog, setLoading, loading, setError, error,
   } = usePaymentStore();
 
-  const [useWorldId, setUseWorldId] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
   if (!pendingTransaction) {
@@ -38,22 +37,20 @@ export default function ConfirmationPage() {
     addSimLog('info', `Starting payment for ${tx.transactionId}`);
 
     try {
-      // Step 1: Optional World ID verification
+      // Step 1: Mandatory World ID verification
       let worldIdProof = undefined;
-      if (useWorldId) {
-        setVerifying(true);
-        addSimLog('info', 'Requesting World ID proof…');
-        const proof = await verifyWithWorldId(PAY_ACTION_ID, tx.transactionId);
-        setVerifying(false);
-        if (!proof) {
-          setError('World ID verification cancelled or failed');
-          addSimLog('error', 'World ID verification failed');
-          setLoading(false);
-          return;
-        }
-        worldIdProof = proof;
-        addSimLog('success', 'World ID proof obtained');
+      setVerifying(true);
+      addSimLog('info', 'Requesting World ID proof…');
+      const proof = await verifyWithWorldId(PAY_ACTION_ID, tx.transactionId);
+      setVerifying(false);
+      if (!proof) {
+        setError('World ID verification cancelled or failed');
+        addSimLog('error', 'World ID verification failed');
+        setLoading(false);
+        return;
       }
+      worldIdProof = proof;
+      addSimLog('success', 'World ID proof obtained');
 
       // Step 2: MiniKit pay() — triggers native World App confirmation
       setScreen('processing');
@@ -179,26 +176,19 @@ export default function ConfirmationPage() {
           <span className="text-[10px] font-black text-[var(--text-primary)] font-mono tracking-widest">{shortTxId(tx.transactionId)}</span>
         </div>
 
-        {/* World ID option */}
-        <button
-          onClick={() => setUseWorldId((v) => !v)}
-          className={`card bg-[var(--bg-secondary)] border-[var(--border-color)] flex items-center gap-4 w-full text-left transition-all p-4 shadow-xl relative overflow-hidden ${useWorldId ? 'ring-2 ring-[var(--accent)] bg-[var(--accent)]/5' : ''
-            }`}
-        >
-          {useWorldId && <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${useWorldId ? 'bg-[var(--accent)] shadow-[0_0_20px_var(--accent-glow)]' : 'bg-[var(--accent)]/10 border border-[var(--accent)]/20 shadow-lg'
-            }`}>
-            <Shield className={`w-5 h-5 ${useWorldId ? 'text-white' : 'text-[var(--accent)]'}`} />
+        {/* Security Badge */}
+        <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] flex items-center gap-4 p-4 shadow-xl opacity-80 ring-1 ring-[var(--accent)]/20">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--accent)]/10 border border-[var(--accent)]/20 shadow-lg">
+            <Shield className="w-5 h-5 text-[var(--accent)]" />
           </div>
-          <div className="flex-1 relative z-10">
-            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">World ID Verification</p>
-            <p className="text-[9px] text-[var(--text-secondary)] font-normal uppercase tracking-tighter mt-0.5">Optional Proof of Personhood</p>
+          <div className="flex-1">
+            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">World ID Protected</p>
+            <p className="text-[9px] text-[var(--text-secondary)] font-normal uppercase tracking-tighter mt-0.5">Verification required for settlement</p>
           </div>
-          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${useWorldId ? 'border-transparent bg-[var(--accent)]' : 'border-[var(--border-color)]'
-            }`}>
-            {useWorldId && <span className="text-white text-[10px] font-bold">✓</span>}
+          <div className="w-6 h-6 rounded-full bg-[var(--accent)]/10 flex items-center justify-center">
+            <span className="text-[var(--accent)] text-[10px] font-bold">✓</span>
           </div>
-        </button>
+        </div>
 
         {/* Error */}
         {error && (

@@ -22,7 +22,7 @@ type Step = 'idle' | 'wallet-auth' | 'world-id' | 'syncing' | 'done' | 'error';
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const VerificationPage: React.FC = () => {
-    const { setScreen, setWalletAddress, setWorldIdVerified, setOnboarded } = usePaymentStore();
+    const { setScreen, setWalletAddress, setUserName, setWorldIdVerified, setOnboarded } = usePaymentStore();
     const [step, setStep] = useState<Step>('idle');
     const [error, setError] = useState<string | null>(null);
     const [statusMsg, setStatusMsg] = useState<string>('');
@@ -87,6 +87,7 @@ export const VerificationPage: React.FC = () => {
             const user = await api.fetchUser(walletAddress);
             if (user?.isVerified) {
                 setWorldIdVerified(true);
+                setUserName(user.name || null);
                 setOnboarded(user.onboarded);
                 setStep('done');
                 setTimeout(() => {
@@ -133,6 +134,7 @@ export const VerificationPage: React.FC = () => {
                 actionId: LOGIN_ACTION_ID 
             });
             setWorldIdVerified(true);
+            setUserName(user.name || null);
             setOnboarded(user.onboarded);
             setStep('done');
             setTimeout(() => {
