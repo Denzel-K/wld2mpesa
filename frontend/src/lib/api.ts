@@ -77,6 +77,7 @@ export interface User {
   name?: string | null;
   isVerified: boolean;
   onboarded: boolean;
+  balanceWld?: string;
 }
 
 // ─── API functions ────────────────────────────────────────────────────────────

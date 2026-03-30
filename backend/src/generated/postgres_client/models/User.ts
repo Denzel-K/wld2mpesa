@@ -28,6 +28,7 @@ export type UserMinAggregateOutputType = {
   id: string | null
   walletAddress: string | null
   nullifierHash: string | null
+  name: string | null
   verificationLevel: string | null
   isVerified: boolean | null
   onboarded: boolean | null
@@ -39,6 +40,7 @@ export type UserMaxAggregateOutputType = {
   id: string | null
   walletAddress: string | null
   nullifierHash: string | null
+  name: string | null
   verificationLevel: string | null
   isVerified: boolean | null
   onboarded: boolean | null
@@ -50,6 +52,7 @@ export type UserCountAggregateOutputType = {
   id: number
   walletAddress: number
   nullifierHash: number
+  name: number
   verificationLevel: number
   isVerified: number
   onboarded: number
@@ -63,6 +66,7 @@ export type UserMinAggregateInputType = {
   id?: true
   walletAddress?: true
   nullifierHash?: true
+  name?: true
   verificationLevel?: true
   isVerified?: true
   onboarded?: true
@@ -74,6 +78,7 @@ export type UserMaxAggregateInputType = {
   id?: true
   walletAddress?: true
   nullifierHash?: true
+  name?: true
   verificationLevel?: true
   isVerified?: true
   onboarded?: true
@@ -85,6 +90,7 @@ export type UserCountAggregateInputType = {
   id?: true
   walletAddress?: true
   nullifierHash?: true
+  name?: true
   verificationLevel?: true
   isVerified?: true
   onboarded?: true
@@ -169,6 +175,7 @@ export type UserGroupByOutputType = {
   id: string
   walletAddress: string
   nullifierHash: string | null
+  name: string | null
   verificationLevel: string | null
   isVerified: boolean
   onboarded: boolean
@@ -201,6 +208,7 @@ export type UserWhereInput = {
   id?: Prisma.StringFilter<"User"> | string
   walletAddress?: Prisma.StringFilter<"User"> | string
   nullifierHash?: Prisma.StringNullableFilter<"User"> | string | null
+  name?: Prisma.StringNullableFilter<"User"> | string | null
   verificationLevel?: Prisma.StringNullableFilter<"User"> | string | null
   isVerified?: Prisma.BoolFilter<"User"> | boolean
   onboarded?: Prisma.BoolFilter<"User"> | boolean
@@ -213,6 +221,7 @@ export type UserOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   walletAddress?: Prisma.SortOrder
   nullifierHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  name?: Prisma.SortOrderInput | Prisma.SortOrder
   verificationLevel?: Prisma.SortOrderInput | Prisma.SortOrder
   isVerified?: Prisma.SortOrder
   onboarded?: Prisma.SortOrder
@@ -228,6 +237,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
+  name?: Prisma.StringNullableFilter<"User"> | string | null
   verificationLevel?: Prisma.StringNullableFilter<"User"> | string | null
   isVerified?: Prisma.BoolFilter<"User"> | boolean
   onboarded?: Prisma.BoolFilter<"User"> | boolean
@@ -240,6 +250,7 @@ export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   walletAddress?: Prisma.SortOrder
   nullifierHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  name?: Prisma.SortOrderInput | Prisma.SortOrder
   verificationLevel?: Prisma.SortOrderInput | Prisma.SortOrder
   isVerified?: Prisma.SortOrder
   onboarded?: Prisma.SortOrder
@@ -257,6 +268,7 @@ export type UserScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"User"> | string
   walletAddress?: Prisma.StringWithAggregatesFilter<"User"> | string
   nullifierHash?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  name?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   verificationLevel?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isVerified?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   onboarded?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
@@ -268,6 +280,7 @@ export type UserCreateInput = {
   id?: string
   walletAddress: string
   nullifierHash?: string | null
+  name?: string | null
   verificationLevel?: string | null
   isVerified?: boolean
   onboarded?: boolean
@@ -280,6 +293,7 @@ export type UserUncheckedCreateInput = {
   id?: string
   walletAddress: string
   nullifierHash?: string | null
+  name?: string | null
   verificationLevel?: string | null
   isVerified?: boolean
   onboarded?: boolean
@@ -292,6 +306,7 @@ export type UserUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -304,6 +319,7 @@ export type UserUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -316,6 +332,7 @@ export type UserCreateManyInput = {
   id?: string
   walletAddress: string
   nullifierHash?: string | null
+  name?: string | null
   verificationLevel?: string | null
   isVerified?: boolean
   onboarded?: boolean
@@ -327,6 +344,7 @@ export type UserUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -338,6 +356,7 @@ export type UserUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -349,6 +368,7 @@ export type UserCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   walletAddress?: Prisma.SortOrder
   nullifierHash?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   verificationLevel?: Prisma.SortOrder
   isVerified?: Prisma.SortOrder
   onboarded?: Prisma.SortOrder
@@ -360,6 +380,7 @@ export type UserMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   walletAddress?: Prisma.SortOrder
   nullifierHash?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   verificationLevel?: Prisma.SortOrder
   isVerified?: Prisma.SortOrder
   onboarded?: Prisma.SortOrder
@@ -371,6 +392,7 @@ export type UserMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   walletAddress?: Prisma.SortOrder
   nullifierHash?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   verificationLevel?: Prisma.SortOrder
   isVerified?: Prisma.SortOrder
   onboarded?: Prisma.SortOrder
@@ -419,6 +441,7 @@ export type UserCreateWithoutTransactionsInput = {
   id?: string
   walletAddress: string
   nullifierHash?: string | null
+  name?: string | null
   verificationLevel?: string | null
   isVerified?: boolean
   onboarded?: boolean
@@ -430,6 +453,7 @@ export type UserUncheckedCreateWithoutTransactionsInput = {
   id?: string
   walletAddress: string
   nullifierHash?: string | null
+  name?: string | null
   verificationLevel?: string | null
   isVerified?: boolean
   onboarded?: boolean
@@ -457,6 +481,7 @@ export type UserUpdateWithoutTransactionsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -468,6 +493,7 @@ export type UserUncheckedUpdateWithoutTransactionsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   walletAddress?: Prisma.StringFieldUpdateOperationsInput | string
   nullifierHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verificationLevel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   onboarded?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -510,6 +536,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   id?: boolean
   walletAddress?: boolean
   nullifierHash?: boolean
+  name?: boolean
   verificationLevel?: boolean
   isVerified?: boolean
   onboarded?: boolean
@@ -523,6 +550,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   walletAddress?: boolean
   nullifierHash?: boolean
+  name?: boolean
   verificationLevel?: boolean
   isVerified?: boolean
   onboarded?: boolean
@@ -534,6 +562,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   walletAddress?: boolean
   nullifierHash?: boolean
+  name?: boolean
   verificationLevel?: boolean
   isVerified?: boolean
   onboarded?: boolean
@@ -545,6 +574,7 @@ export type UserSelectScalar = {
   id?: boolean
   walletAddress?: boolean
   nullifierHash?: boolean
+  name?: boolean
   verificationLevel?: boolean
   isVerified?: boolean
   onboarded?: boolean
@@ -552,7 +582,7 @@ export type UserSelectScalar = {
   lastSeenAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "walletAddress" | "nullifierHash" | "verificationLevel" | "isVerified" | "onboarded" | "createdAt" | "lastSeenAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "walletAddress" | "nullifierHash" | "name" | "verificationLevel" | "isVerified" | "onboarded" | "createdAt" | "lastSeenAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   transactions?: boolean | Prisma.User$transactionsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -569,6 +599,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     id: string
     walletAddress: string
     nullifierHash: string | null
+    name: string | null
     verificationLevel: string | null
     isVerified: boolean
     onboarded: boolean
@@ -1001,6 +1032,7 @@ export interface UserFieldRefs {
   readonly id: Prisma.FieldRef<"User", 'String'>
   readonly walletAddress: Prisma.FieldRef<"User", 'String'>
   readonly nullifierHash: Prisma.FieldRef<"User", 'String'>
+  readonly name: Prisma.FieldRef<"User", 'String'>
   readonly verificationLevel: Prisma.FieldRef<"User", 'String'>
   readonly isVerified: Prisma.FieldRef<"User", 'Boolean'>
   readonly onboarded: Prisma.FieldRef<"User", 'Boolean'>

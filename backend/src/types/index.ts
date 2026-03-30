@@ -185,6 +185,7 @@ export interface IWorldChainListener {
     expectedAmount: bigint,
     txHash: string
   ): Promise<boolean>;
+  getWldBalance(walletAddress: string): Promise<string>;
 }
 
 // ─── Rate service ─────────────────────────────────────────────────────────────

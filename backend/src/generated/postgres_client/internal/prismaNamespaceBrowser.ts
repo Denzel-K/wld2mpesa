@@ -77,6 +77,7 @@ export const UserScalarFieldEnum = {
   id: 'id',
   walletAddress: 'walletAddress',
   nullifierHash: 'nullifierHash',
+  name: 'name',
   verificationLevel: 'verificationLevel',
   isVerified: 'isVerified',
   onboarded: 'onboarded',

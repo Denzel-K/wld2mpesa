@@ -5,17 +5,15 @@
 import { useState, useEffect } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { formatCurrency, convertKesTo, cn } from '@/lib/utils';
-import { fetchTransactionHistory } from '@/lib/api';
+import { fetchTransactionHistory, fetchUser } from '@/lib/api';
 import {
   Loader2,
   Send,
   Store,
   CreditCard,
   User,
-  ChevronRight,
   TrendingUp,
   Shield,
-  Zap,
   History
 } from 'lucide-react';
 import CurrencySelector from '@/components/CurrencySelector';
@@ -32,7 +30,7 @@ export default function HomePage() {
     rate, rateLoading, rateError,
     setScreen,
     selectedCurrency, setSelectedCurrency, setTransactionType,
-    walletAddress, userName
+    walletAddress, userName, balanceWld, setBalanceWld
   } = usePaymentStore();
 
   const [history, setHistory] = useState<any[]>([]);
@@ -45,6 +43,13 @@ export default function HomePage() {
         .then(setHistory)
         .catch(console.error)
         .finally(() => setHistoryLoading(false));
+      
+      // Also fetch user explicitly to ensure balance changes are reflected
+      fetchUser(walletAddress).then(user => {
+        if (user?.balanceWld) {
+          setBalanceWld(user.balanceWld);
+        }
+      }).catch(console.error);
     }
   }, [walletAddress]);
 
@@ -76,15 +81,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Redesigned Balance Card (3 Columns) */}
-        <div className="relative z-10 bg-white/10 backdrop-blur-2xl rounded-[2.5rem] p-6 border border-white/20 shadow-2xl">
+        {/* Balance Card (3 Columns) */}
+        <div className="relative z-20 bg-white/10 backdrop-blur-2xl rounded-[1.5rem] py-6 px-4 border border-white/20 shadow-2xl">
           <div className="flex items-center justify-between gap-4">
             {/* Column 1: WLD (Prominent) */}
             <div className="flex-1 flex flex-col">
               <span className="text-white/60 text-[9px] font-black uppercase tracking-widest mb-1.5">WLD Balance</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-white text-2xl font-black font-display tracking-tight">
-                  {rate ? (1000 / rate.wldPriceKes).toFixed(2) : '0.00'}
+                <span className="text-white text-xl font-black font-display tracking-tight">
+                  {balanceWld ? parseFloat(balanceWld).toFixed(2) : '0.00'}
                 </span>
                 <span className="text-white/60 text-[10px] font-black">WLD</span>
               </div>
@@ -109,8 +114,10 @@ export default function HomePage() {
             <div className="flex-1 flex flex-col items-end">
               <span className="text-white/60 text-[9px] font-black uppercase tracking-widest mb-1.5">{selectedCurrency} Value</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-white text-2xl font-black font-display tracking-tight">
-                  {rate && !rateLoading ? convertKesTo(0, selectedCurrency, rate.usdKesRate).toFixed(2) : '0.00'}
+                <span className="text-white text-xl font-black font-display tracking-tight">
+                  {rate && !rateLoading && balanceWld 
+                    ? convertKesTo(parseFloat(balanceWld) * rate.wldPriceKes, selectedCurrency, rate.usdKesRate).toFixed(2) 
+                    : '0.00'}
                 </span>
                 <span className="text-white/60 text-[10px] font-black">{selectedCurrency}</span>
               </div>

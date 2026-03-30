@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { userStore } from '../services/userStore';
+import { worldChainListener } from '../services/worldChainListener';
 import { config } from '../config';
 import { validateNonce } from './nonce.routes';
 import { hashToField } from '@worldcoin/idkit-core/hashing';
@@ -33,7 +34,9 @@ router.get('/:walletAddress', async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
     }
 
-    return res.json(user);
+    const balanceWld = await worldChainListener.getWldBalance(walletAddress);
+
+    return res.json({ ...user, balanceWld });
 });
 
 /**
@@ -66,7 +69,9 @@ router.post('/complete-siwe', async (req, res) => {
     // In simulation mode skip SIWE signature verification
     // In production you would call verifySiweMessage from @worldcoin/minikit-js here
     const user = await userStore.createOrUpdate({ walletAddress });
-    return res.json({ walletAddress, user });
+    const balanceWld = await worldChainListener.getWldBalance(walletAddress);
+
+    return res.json({ walletAddress, user: { ...user, balanceWld } });
 });
 
 /**
@@ -226,7 +231,9 @@ router.post('/sync', async (req, res) => {
         isVerified: true
     });
 
-    return res.json(user);
+    const balanceWld = await worldChainListener.getWldBalance(walletAddress);
+
+    return res.json({ ...user, balanceWld });
 });
 
 /**

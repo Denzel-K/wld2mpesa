@@ -61,6 +61,7 @@ interface PaymentState {
   // MiniKit / User state
   walletAddress: string | null;
   userName: string | null;
+  balanceWld: string | null;
   worldIdVerified: boolean;
   onboarded: boolean;
 
@@ -104,6 +105,7 @@ interface PaymentActions {
   // MiniKit / User
   setWalletAddress: (address: string | null) => void;
   setUserName: (name: string | null) => void;
+  setBalanceWld: (balance: string | null) => void;
   setWorldIdVerified: (verified: boolean) => void;
   setOnboarded: (onboarded: boolean) => void;
 
@@ -137,6 +139,7 @@ const initialState: PaymentState = {
   transactionType: 'till',
   walletAddress: null,
   userName: null,
+  balanceWld: null,
   worldIdVerified: false,
   onboarded: false,
 };
@@ -202,6 +205,7 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
   // MiniKit / User
   setWalletAddress: (walletAddress) => set({ walletAddress }),
   setUserName: (userName) => set({ userName }),
+  setBalanceWld: (balanceWld) => set({ balanceWld }),
   setWorldIdVerified: (worldIdVerified) => set({ worldIdVerified }),
   setOnboarded: (onboarded) => set({ onboarded }),
 
