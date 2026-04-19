@@ -10,6 +10,7 @@
 
 import { createPublicClient, http, Hash, Hex, defineChain, formatUnits, isAddress } from 'viem';
 import { config } from '../config';
+import { logger, maskWalletAddress } from '../utils/logger';
 import type { IWorldChainListener } from '../types';
 
 // World Chain Configuration (L2)
@@ -60,7 +61,8 @@ class RealWorldChainListener implements IWorldChainListener {
     });
 
     try {
-      console.log(`[WorldChain] Waiting for receipt: ${txHash}`);
+      const maskedHash = `${txHash.slice(0, 10)}...${txHash.slice(-6)}`;
+      logger.blockchainTx('pending', `Waiting for transaction receipt`, txHash);
 
       const receipt = await client.waitForTransactionReceipt({
         hash: txHash as Hash,
@@ -69,11 +71,19 @@ class RealWorldChainListener implements IWorldChainListener {
       });
 
       if (receipt.status !== 'success') {
-        console.error(`[WorldChain] Transaction failed: ${txHash}`);
+        logger.error('BLOCKCHAIN', `Transaction failed on-chain`, undefined, {
+          txHash: maskedHash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed.toString(),
+        });
         return false;
       }
 
-      console.log(`[WorldChain] Transaction confirmed: ${txHash}. Verifying WLD Transfer to ${toAddress} with amount ${expectedAmount}...`);
+      logger.blockchainTx('pending', `Transaction confirmed, verifying WLD transfer`, txHash, {
+        to: maskWalletAddress(toAddress),
+        blockNumber: receipt.blockNumber,
+        confirmations: 1,
+      });
 
       // Verify WLD contract was involved
       const wldLog = receipt.logs.find(
@@ -81,13 +91,21 @@ class RealWorldChainListener implements IWorldChainListener {
       );
 
       if (!wldLog) {
-        console.error(`[WorldChain] WLD Transfer log not found in receipt for ${txHash}`);
+        logger.error('BLOCKCHAIN', `WLD transfer not found in transaction logs`, undefined, {
+          txHash: maskedHash,
+          contractFound: false,
+        });
         return false;
       }
 
+      logger.blockchainTx('success', `WLD transfer verified`, txHash, {
+        to: maskWalletAddress(toAddress),
+        amount: formatUnits(expectedAmount, 18) + ' WLD',
+      });
+
       return true;
     } catch (err) {
-      console.error(`[WorldChain] Error waiting for transaction ${txHash}:`, err);
+      logger.error('BLOCKCHAIN', `Error verifying transaction`, undefined, err);
       return false;
     }
   }
@@ -102,15 +120,29 @@ class RealWorldChainListener implements IWorldChainListener {
     });
 
     try {
+      logger.debug('BLOCKCHAIN', `Fetching WLD balance`, undefined, {
+        wallet: maskWalletAddress(walletAddress),
+      });
+      
       const balanceBigInt = await client.readContract({
         address: WLD_CONTRACT,
         abi: erc20BalanceOfAbi,
         functionName: 'balanceOf',
         args: [walletAddress as Hex]
       });
-      return formatUnits(balanceBigInt as bigint, 18);
+      
+      const balance = formatUnits(balanceBigInt as bigint, 18);
+      logger.info('BLOCKCHAIN', 'Balance fetched: [REDACTED] WLD', undefined, {
+        wallet: maskWalletAddress(walletAddress),
+        balanceWld: '[REDACTED]',
+      });
+      
+      return balance;
     } catch (err) {
-      console.error(`[WorldChain] Error fetching balance for ${walletAddress}:`, err);
+      logger.error('BLOCKCHAIN', `Failed to fetch balance`, undefined, {
+        wallet: maskWalletAddress(walletAddress),
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
       // Fallback for simulation/testing so UI looks good
       return "24.09";
     }

@@ -14,7 +14,8 @@ import {
   User,
   TrendingUp,
   Shield,
-  History
+  History,
+  LogOut
 } from 'lucide-react';
 import CurrencySelector from '@/components/CurrencySelector';
 
@@ -30,7 +31,8 @@ export default function HomePage() {
     rate, rateLoading, rateError,
     setScreen,
     selectedCurrency, setSelectedCurrency, setTransactionType,
-    walletAddress, userName, balanceWld, setBalanceWld
+    walletAddress, userName, balanceWld, setBalanceWld,
+    logout
   } = usePaymentStore();
 
   const [history, setHistory] = useState<any[]>([]);
@@ -58,6 +60,10 @@ export default function HomePage() {
     setScreen('payment-form');
   };
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-32">
       {/* Premium Header */}
@@ -78,6 +84,13 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
               <Shield className="w-5 h-5 text-white" />
             </div>
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl hover:bg-white/20 transition-colors active:scale-95"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5 text-white" />
+            </button>
           </div>
         </div>
 

@@ -6,6 +6,7 @@
 
 import { ethers } from 'ethers';
 import { config } from '../config';
+import { logger, maskWalletAddress, formatAmount } from '../utils/logger';
 
 // Minimal ABIs
 const ERC20_ABI = [
@@ -34,37 +35,47 @@ export class SwapService {
    * @param amountWld String representation of WLD amount (e.g. "1.5")
    */
   async swapWldForUsdc(amountWld: string): Promise<string> {
-    console.log(`[SwapService] Swapping ${amountWld} WLD for USDC...`);
+    const operationId = `swap-${Date.now()}`;
+    
+    logger.dexOperation(operationId, 'Starting swap', amountWld, 'WLD');
 
-    const wldContract = new ethers.Contract(config.WLD_TOKEN, ERC20_ABI, this.wallet);
-    const routerContract = new ethers.Contract(config.UNISWAP_V3_ROUTER, ROUTER_ABI, this.wallet);
+    try {
+      const wldContract = new ethers.Contract(config.WLD_TOKEN, ERC20_ABI, this.wallet);
+      const routerContract = new ethers.Contract(config.UNISWAP_V3_ROUTER, ROUTER_ABI, this.wallet);
 
-    const amountIn = ethers.parseUnits(amountWld, 18);
+      const amountIn = ethers.parseUnits(amountWld, 18);
 
-    // 1. Approve router to spend WLD
-    console.log(' - Approving Router...');
-    const approveTx = await wldContract.approve(config.UNISWAP_V3_ROUTER, amountIn);
-    await approveTx.wait();
+      // 1. Approve router to spend WLD
+      logger.dexOperation(operationId, 'Approving router to spend WLD', amountWld, 'WLD');
+      const approveTx = await wldContract.approve(config.UNISWAP_V3_ROUTER, amountIn);
+      logger.debug('DEX', `Approval tx sent: ${approveTx.hash.slice(0, 10)}...`, operationId);
+      await approveTx.wait();
+      logger.dexOperation(operationId, 'Router approval confirmed', amountWld, 'WLD');
 
-    // 2. Execute Swap (exactInputSingle)
-    // Fee tier: 1% (10000) is standard for WLD/USDC on many pools, but 0.3% (3000) also common.
-    // We'll use 1% based on research.
-    console.log(' - Executing Swap...');
-    const params = {
-      tokenIn: config.WLD_TOKEN,
-      tokenOut: config.USDC_TOKEN,
-      fee: 10000, // 1%
-      recipient: this.wallet.address,
-      amountIn: amountIn,
-      amountOutMinimum: 0, // In production, add slippage protection!
-      sqrtPriceLimitX96: 0,
-    };
+      // 2. Execute Swap (exactInputSingle)
+      // Fee tier: 1% (10000) is standard for WLD/USDC on many pools
+      logger.dexOperation(operationId, 'Executing swap on Uniswap V3', amountWld, 'WLD');
+      const params = {
+        tokenIn: config.WLD_TOKEN,
+        tokenOut: config.USDC_TOKEN,
+        fee: 10000, // 1%
+        recipient: this.wallet.address,
+        amountIn: amountIn,
+        amountOutMinimum: 0, // In production, add slippage protection!
+        sqrtPriceLimitX96: 0,
+      };
 
-    const swapTx = await routerContract.exactInputSingle(params);
-    const receipt = await swapTx.wait();
+      const swapTx = await routerContract.exactInputSingle(params);
+      logger.debug('DEX', `Swap tx sent: ${swapTx.hash.slice(0, 10)}...`, operationId);
+      const receipt = await swapTx.wait();
 
-    console.log(`✅ Swap completed: ${receipt.hash}`);
-    return receipt.hash;
+      logger.dexOperation(operationId, 'Swap completed successfully', amountWld, 'WLD', receipt.hash);
+      
+      return receipt.hash;
+    } catch (err) {
+      logger.error('DEX', `Swap failed`, operationId, err);
+      throw err;
+    }
   }
 }
 

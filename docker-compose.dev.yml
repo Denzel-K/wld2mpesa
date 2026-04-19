@@ -15,16 +15,13 @@ services:
     image: node:22-alpine
     container_name: wld2mpesa-backend
     working_dir: /app
-    # network_mode: host — uses the host machine's network stack directly.
-    # This bypasses Docker's internal DNS stub (127.0.0.11) which fails to
-    # resolve external domains like developer.world.org on many Linux setups.
-    # Side-effects: `ports:` and `dns:` are not needed (ignored in host mode).
-    network_mode: host
+    ports:
+      - "3001:3001"
     command: sh -c "npm install && npx prisma generate && npx prisma migrate dev --name init && npx tsx watch src/server.ts"
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wld2mpesa?schema=public
-      REDIS_URL: redis://localhost:6379
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/wld2mpesa?schema=public
+      REDIS_URL: redis://redis:6379
       PORT: "3001"
       CORS_ORIGIN: "*"
       # Add any other overrides here; secrets go in backend/.env
@@ -34,9 +31,13 @@ services:
     volumes:
       - ./backend:/app # Live source mount
       - backend_modules:/app/node_modules # Isolated node_modules
+      - backend_generated:/app/.generated # Isolated Prisma generated files
     depends_on:
       - db
       - redis
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
     logging:
       driver: json-file
@@ -47,14 +48,14 @@ services:
   db:
     image: postgres:15-alpine
     container_name: wld2mpesa-postgres-dev
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: wld2mpesa
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     logging:
       driver: json-file
@@ -66,7 +67,7 @@ services:
     image: redis:7-alpine
     container_name: wld2mpesa-redis-dev
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data_dev:/data
     restart: unless-stopped
@@ -82,9 +83,11 @@ services:
     container_name: wld2mpesa-frontend
     working_dir: /app
     command: sh -c "npm install && npx vite --host 0.0.0.0 --port 3000"
+    ports:
+      - "3000:3000"
     environment:
-      # Backend is on the host network — reach it via host's loopback
-      VITE_PROXY_TARGET: http://localhost:3001
+      # Backend is on host network — reach via host.docker.internal
+      VITE_PROXY_TARGET: http://backend:3001
       VITE_WLD_APP_ID: app_ac9f43a974959b04b11b081c3740f932
       # Polling is required for file-watching inside Docker bind mounts on Linux
       CHOKIDAR_USEPOLLING: "true"
@@ -95,8 +98,6 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_modules:/app/node_modules
-    # ports: not needed — host network mode exposes port 3000 directly
-    network_mode: host
     depends_on:
       - backend
     restart: unless-stopped
@@ -108,6 +109,7 @@ services:
 
 volumes:
   backend_modules:
+  backend_generated:
   frontend_modules:
   postgres_data_dev:
   redis_data_dev:

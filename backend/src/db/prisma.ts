@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/postgres_client/client';
+import { PrismaClient } from '../../.generated/postgres_client/client';
 import { config } from '../config';
 
 const pool = new Pool({ connectionString: config.DATABASE_URL });

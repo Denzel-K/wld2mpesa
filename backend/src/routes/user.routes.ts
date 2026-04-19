@@ -5,6 +5,8 @@ import { config } from '../config';
 import { validateNonce } from './nonce.routes';
 import { hashToField } from '@worldcoin/idkit-core/hashing';
 import { isAddress, getAddress } from 'viem';
+import { logger, maskWalletAddress } from '../utils/logger';
+import { prisma } from '../db/prisma';
 
 /**
  * Compute the signal_hash expected by the Worldcoin v4 verify API.
@@ -250,6 +252,59 @@ router.post('/:walletAddress/onboard', async (req, res) => {
 
     await userStore.markOnboarded(walletAddress);
     return res.json({ success: true });
+});
+
+/**
+ * POST /api/user/logout
+ * Logout endpoint - clears any server-side session context
+ * Since auth is stateless (SIWE + World ID), this primarily updates
+ * the user's lastSeen timestamp and allows for any cleanup
+ * 
+ * Query param: ?resetOnboarding=true - resets onboarded flag so user
+ * sees onboarding slides again (useful for demos/testing)
+ */
+router.post('/logout', async (req, res) => {
+    const { walletAddress, resetOnboarding } = req.body;
+
+    if (!walletAddress) {
+        return res.status(400).json({ error: 'Missing walletAddress' });
+    }
+
+    try {
+        const user = await userStore.findByWallet(walletAddress);
+        
+        if (user) {
+            if (resetOnboarding) {
+                // Reset onboarding status so user sees slides again
+                await prisma.user.update({
+                    where: { walletAddress },
+                    data: { onboarded: false }
+                });
+                logger.info('API', 'User logged out (onboarding reset)', undefined, {
+                    wallet: maskWalletAddress(walletAddress),
+                });
+            } else {
+                // Just update lastSeen
+                await userStore.createOrUpdate({ walletAddress });
+                logger.info('API', 'User logged out', undefined, {
+                    wallet: maskWalletAddress(walletAddress),
+                });
+            }
+        }
+
+        return res.json({ 
+            success: true, 
+            message: resetOnboarding ? 'Logged out (onboarding reset)' : 'Logged out successfully',
+            walletAddress: maskWalletAddress(walletAddress),
+            onboardingReset: !!resetOnboarding
+        });
+    } catch (err) {
+        logger.error('API', 'Logout error', undefined, {
+            wallet: maskWalletAddress(walletAddress),
+            error: err instanceof Error ? err.message : 'Unknown error'
+        });
+        return res.status(500).json({ error: 'Logout failed' });
+    }
 });
 
 export const userRouter = router;

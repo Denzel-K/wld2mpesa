@@ -3,7 +3,7 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/postgres_client"
+  output   = "../.generated/postgres_client"
   engineType = "library"
 }
 

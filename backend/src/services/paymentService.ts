@@ -8,6 +8,7 @@ import { rateService } from './rateService';
 import { transactionStore } from './transactionStore';
 import { worldChainListener } from './worldChainListener';
 import { offrampService } from './offrampService';
+import { logger, maskPhoneNumber, maskWalletAddress, formatTransactionType, formatAmount } from '../utils/logger';
 import type {
   IPaymentService,
   InitiatePaymentParams,
@@ -106,7 +107,19 @@ class SimulatedPaymentService implements IPaymentService {
     };
 
     await transactionStore.save(tx);
-    console.log(`[SIM] ${transactionType} initiated: ${tx.id} | KES ${kesAmount} → ${wldAmount} WLD`);
+    
+    // Log payment initiation with masked sensitive data
+    const recipient = transactionType === 'send' || transactionType === 'pochi'
+      ? maskPhoneNumber(phoneNumber)
+      : transactionType === 'paybill'
+      ? `Paybill ${tillNumber} (Acct: ${accountNumber?.slice(0, 3)}...)`
+      : `Till ${tillNumber}`;
+    
+    logger.paymentInitiated(tx.id, transactionType, kesAmount, recipient);
+    logger.info('PAYMENT', `Rate: 1 WLD = ${formatAmount(rate.wldPriceKes)} | Fee: ${formatAmount(feeKes)}`, tx.id, {
+      wldAmount: `${wldAmount} WLD`,
+      payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
+    });
 
     return {
       transactionId: tx.id,
@@ -135,7 +148,11 @@ class SimulatedPaymentService implements IPaymentService {
       confirmedAt: new Date().toISOString(),
     });
 
-    console.log(`[SIM] Payment confirmed: ${transactionId} — txHash ${txHash}`);
+    logger.info('PAYMENT', `Payment confirmed on-chain`, transactionId, {
+      txHash: txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-6)}` : 'N/A',
+    });
+    
+    logger.pipelineStep(transactionId, 1, 4, '✓ WLD payment confirmed on World Chain');
     void this.processPaymentPipeline(transactionId);
 
     return {
@@ -149,24 +166,34 @@ class SimulatedPaymentService implements IPaymentService {
     const tx = await transactionStore.get(transactionId);
     if (!tx) return;
 
-    const log = (msg: string) => console.log(`[PIPELINE:${transactionId}] ${msg}`);
+    const log = (step: number, msg: string) => logger.pipelineStep(transactionId, step, 4, msg);
 
     try {
-      log('Step 1: Waiting for WLD confirmation…');
+      log(1, 'Waiting for WLD confirmation…');
       await sleep(config.SIM_BLOCK_CONFIRM_MS);
       await transactionStore.update(transactionId, { status: 'CONFIRMED' });
-      log('Step 1 ✓ WLD received');
+      log(1, '✓ WLD received');
 
-      log('Step 2: Off-ramp WLD → KES…');
+      // Step 2: DEX Swap (WLD → USDC) for rebalancing
+      log(2, 'Rebalancing liquidity (WLD → USDC)...');
+      await sleep(config.SIM_OFFRAMP_MS / 2); // Simulate swap time
+      await transactionStore.update(transactionId, { status: 'SWAP_COMPLETED' });
+      log(2, '✓ DEX swap completed');
+
+      // Step 3: Off-ramp via Bitnob
+      log(3, `Off-ramp: ${formatTransactionType(tx.transactionType)} via Bitnob...`);
       await transactionStore.update(transactionId, { status: 'OFFRAMP_INITIATED' });
-      await sleep(config.SIM_OFFRAMP_MS);
-      log('Step 2 ✓ Off-ramp completed');
+      await sleep(config.SIM_OFFRAMP_MS / 2);
+      log(3, '✓ Bitnob payout queued');
 
       const destination = tx.transactionType === 'send' || tx.transactionType === 'pochi'
-        ? tx.phoneNumber!
-        : tx.tillNumber!;
+        ? maskPhoneNumber(tx.phoneNumber)
+        : tx.transactionType === 'paybill'
+        ? `Paybill ${tx.tillNumber}`
+        : `Till ${tx.tillNumber}`;
 
-      log(`Step 3: Sending KES ${tx.kesAmount} to ${tx.transactionType} ${destination}…`);
+      // Step 4: Final disbursement
+      log(4, `Sending ${formatAmount(tx.kesAmount)} to ${destination}…`);
       await transactionStore.update(transactionId, { status: 'MPESA_SENT' });
       await sleep(config.SIM_MPESA_MS);
 
@@ -178,10 +205,16 @@ class SimulatedPaymentService implements IPaymentService {
         settledAt: new Date().toISOString(),
       });
 
-      log(`Step 4 ✓ SETTLED — Receipt: ${receiptNumber}`);
+      log(4, `✓ SETTLED — Receipt: ${receiptNumber}`);
+      logger.info('PAYMENT', `Transaction completed successfully`, transactionId, {
+        receiptNumber,
+        kesAmount: formatAmount(tx.kesAmount),
+        destination,
+      });
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown pipeline error';
+      logger.error('PAYMENT', `Pipeline failed: ${msg}`, transactionId, err);
       await this.failTransaction(transactionId, msg);
     }
   }
@@ -206,8 +239,8 @@ class SimulatedPaymentService implements IPaymentService {
   }
 
   private buildSteps(tx: Transaction): TransactionStep[] {
-    const statusOrder: Transaction['status'][] = ['CONFIRMED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
-    const stepKeys = ['WLD_RECEIVED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
+    const statusOrder: Transaction['status'][] = ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
+    const stepKeys = ['WLD_RECEIVED', 'DEX_SWAP', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
     const currentIdx = statusOrder.indexOf(tx.status);
     return stepKeys.map((key, i) => makeStep(key, i <= currentIdx && currentIdx !== -1));
   }
@@ -218,7 +251,7 @@ class SimulatedPaymentService implements IPaymentService {
       mpesaReceiptNumber: mpesaReceipt,
       settledAt: new Date().toISOString(),
     });
-    console.log(`[PaymentService] Transaction ${transactionId} SETTLED with receipt ${mpesaReceipt}`);
+    logger.info('PAYMENT', `Transaction SETTLED`, transactionId, { mpesaReceipt });
   }
 
   async markFailed(transactionId: string, reason: string): Promise<void> {
@@ -227,7 +260,7 @@ class SimulatedPaymentService implements IPaymentService {
       failureReason: reason,
       failedAt: new Date().toISOString(),
     });
-    console.warn(`[PaymentService] Transaction ${transactionId} FAILED: ${reason}`);
+    logger.userError(transactionId, 'TXN_FAILED', 'Transaction failed - funds will be returned', reason);
   }
 
   private async failTransaction(transactionId: string, reason: string): Promise<void> {
@@ -258,11 +291,11 @@ class RealPaymentService extends SimulatedPaymentService {
     const tx = await transactionStore.get(transactionId);
     if (!tx || !tx.txHash) return;
 
-    const log = (msg: string) => console.log(`[PROD-PIPELINE:${transactionId}] ${msg}`);
+    const log = (step: number, msg: string) => logger.pipelineStep(transactionId, step, 4, msg);
 
     try {
       // Step 1: Verify WLD on-chain
-      log('Step 1: Verifying WLD transfer on World Chain...');
+      log(1, 'Verifying WLD transfer on World Chain...');
       const amountBigInt = BigInt(Math.floor(parseFloat(tx.wldAmount) * 1e18));
       const confirmed = await worldChainListener.waitForWldTransfer(
         tx.payToAddress,
@@ -270,44 +303,57 @@ class RealPaymentService extends SimulatedPaymentService {
         tx.txHash
       );
 
-      if (!confirmed) throw new Error('On-chain WLD transfer could not be verified');
+      if (!confirmed) {
+        logger.userError(transactionId, 'BLOCKCHAIN_CONFIRM_FAILED', 
+          'Payment could not be verified on the blockchain', 
+          'On-chain WLD transfer could not be verified');
+        throw new Error('On-chain WLD transfer could not be verified');
+      }
+      
       await transactionStore.update(transactionId, { status: 'CONFIRMED' });
-      log('Step 1 ✓ WLD confirmed');
+      log(1, '✓ WLD confirmed on World Chain');
 
-      // Step 2: Off-ramp / Payout via Bitnob
-      log('Step 2: Initiating Bitnob M-Pesa payout...');
+      // Step 2: Local Liquidity Rebalancing (Automated DEX Swap)
+      // Swap WLD -> USDC to prepare liquidity for off-ramp
+      log(2, 'Rebalancing liquidity (WLD → USDC)...');
+      let swapHash: string | null = null;
+      try {
+        const { swapService } = await import('./swapService');
+        swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
+        logger.dexOperation(transactionId, 'Swap completed', tx.wldAmount, 'WLD', swapHash);
+        log(2, `✓ Rebalanced: ${swapHash.slice(0, 10)}...${swapHash.slice(-6)}`);
+      } catch (swapErr) {
+        // Log but continue - we can still try off-ramp with existing liquidity
+        const errorMsg = swapErr instanceof Error ? swapErr.message : 'Unknown error';
+        logger.warn('DEX', 'Rebalancing failed (continuing with existing liquidity)', transactionId, { error: errorMsg });
+      }
+
+      // Step 3: Off-ramp / Payout via Bitnob
+      // Now that we have USDC liquidity, initiate the payout
+      log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob...`);
       const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
       await transactionStore.update(transactionId, {
         status: 'OFFRAMP_INITIATED',
         offrampId: payout.swapId
       });
 
-      // We use Bitnob to payout KES directly to the user/bill
-      log('Step 2 ✓ Payout initiated via Bitnob');
-
-      // Step 3: Local Liquidity Rebalancing (Automated DEX Swap)
-      // This is the rebalancing leg: WLD -> USDC
-      log('Step 3: Automated Rebalancing (WLD → USDC) on World Chain...');
-      try {
-        const { swapService } = await import('./swapService');
-        const swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
-        log(`Step 3 ✓ Rebalanced: ${swapHash}`);
-      } catch (swapErr) {
-        // We log but don't fail the user transaction if rebalancing fails
-        console.error('[REBALANCE] Failed:', swapErr);
-      }
+      log(3, `✓ Bitnob payout queued [${payout.swapId.slice(0, 8)}...]`);
 
       // Step 4: Finalize
       // Note: Bitnob handles the actual disbursement. We wait for their callback 
       // or poll to mark it as SETTLED.
+      log(4, 'Waiting for Bitnob to complete disbursement...');
       const bitnobStatus = await this.pollUntil(
-        () => offrampService.checkSwapStatus(payout.swapId),
+        () => offrampService.checkSwapStatus(payout.swapId, transactionId),
         (s) => s === 'COMPLETED' || s === 'FAILED',
         180_000, // 3 min timeout
         10_000   // 10s interval
       );
 
       if (bitnobStatus !== 'COMPLETED') {
+        logger.userError(transactionId, 'BITNOB_PAYOUT_FAILED', 
+          'MPESA disbursement failed - your WLD will be refunded',
+          'Bitnob payout failed or timed out');
         throw new Error('Bitnob payout failed or timed out');
       }
 
@@ -316,11 +362,20 @@ class RealPaymentService extends SimulatedPaymentService {
         settledAt: new Date().toISOString(),
       });
 
-      log('Step 4 ✓ SETTLED');
+      log(4, '✓ SETTLED - Funds sent to recipient');
+      logger.info('PAYMENT', 'Transaction completed successfully', transactionId, {
+        kesAmount: formatAmount(tx.kesAmount),
+        swapHash: swapHash ? `${swapHash.slice(0, 10)}...${swapHash.slice(-6)}` : 'skipped',
+        destination: tx.transactionType === 'send' || tx.transactionType === 'pochi'
+          ? maskPhoneNumber(tx.phoneNumber)
+          : tx.transactionType === 'paybill'
+          ? `Paybill ${tx.tillNumber}`
+          : `Till ${tx.tillNumber}`,
+      });
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown production pipeline error';
-      console.error(`[PROD-PIPELINE:${transactionId}] CRITICAL FAILURE:`, err);
+      logger.error('PAYMENT', `Pipeline critical failure: ${msg}`, transactionId, err);
       await this.markFailed(transactionId, msg);
     }
   }

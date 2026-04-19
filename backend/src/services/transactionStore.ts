@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma';
 import type { Transaction, TransactionStatus } from '../types';
-import { Transaction as PrismaTransaction } from '../generated/postgres_client/client';
+import { Transaction as PrismaTransaction } from '../../.generated/postgres_client/client';
 
 /**
  * TransactionStore — Prisma-backed transaction store (PostgreSQL)

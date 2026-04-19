@@ -58,7 +58,7 @@ export interface TransactionStep {
 
 export interface TransactionStatus {
   transactionId: string;
-  status: 'INITIATED' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'OFFRAMP_INITIATED' | 'MPESA_SENT' | 'SETTLED' | 'FAILED';
+  status: 'INITIATED' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'SWAP_COMPLETED' | 'OFFRAMP_INITIATED' | 'MPESA_SENT' | 'SETTLED' | 'FAILED';
   kesAmount: number;
   transactionType: 'send' | 'paybill' | 'pochi' | 'till';
   tillNumber?: string | null;
@@ -78,6 +78,12 @@ export interface User {
   isVerified: boolean;
   onboarded: boolean;
   balanceWld?: string;
+}
+
+export interface WalletBalance {
+  walletAddress: string;
+  balanceWld: string;
+  balanceWei: string;
 }
 
 // ─── API functions ────────────────────────────────────────────────────────────
@@ -171,6 +177,29 @@ export async function fetchTransactionHistory(walletAddress: string): Promise<Tr
   return res as TransactionStatus[];
 }
 
+/**
+ * Fetch WLD balance for a wallet address.
+ */
+export async function fetchBalance(walletAddress: string): Promise<WalletBalance> {
+  const res = await apiFetch(`/payment/balance/${walletAddress}`);
+  return res as WalletBalance;
+}
+
+/**
+ * Logout user - notifies backend of session end
+ * @param resetOnboarding - if true, resets onboarded flag so user sees onboarding slides again
+ */
+export async function logoutUser(
+  walletAddress: string, 
+  resetOnboarding = false
+): Promise<{ success: boolean; message: string; onboardingReset?: boolean }> {
+  const res = await apiFetch('/user/logout', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress, resetOnboarding }),
+  });
+  return res as { success: boolean; message: string; onboardingReset?: boolean };
+}
+
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, options?: RequestInit): Promise<unknown> {
@@ -202,3 +231,4 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
+

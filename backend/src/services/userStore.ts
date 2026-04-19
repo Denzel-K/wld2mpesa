@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma';
 import type { User } from '../types';
-import { User as PrismaUser } from '../generated/postgres_client/client';
+import { User as PrismaUser } from '../../.generated/postgres_client/client';
 
 /**
  * UserStore — User management via Prisma (PostgreSQL)

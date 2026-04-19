@@ -11,6 +11,7 @@ export type TransactionStatus =
   | 'INITIATED'
   | 'PENDING_CONFIRMATION'
   | 'CONFIRMED'
+  | 'SWAP_COMPLETED'      // DEX swap (WLD → USDC) done
   | 'OFFRAMP_INITIATED'
   | 'MPESA_SENT'
   | 'SETTLED'
@@ -151,7 +152,7 @@ export interface TransactionStatusResult {
 
 export interface IOfframpService {
   initiateSwap(wldAmount: string, kesAmount: number, txnId: string): Promise<SwapResult>;
-  checkSwapStatus(swapId: string): Promise<SwapStatus>;
+  checkSwapStatus(swapId: string, reference?: string): Promise<SwapStatus>;
 }
 
 export interface SwapResult {

@@ -10,6 +10,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { paymentService } from '../services/paymentService';
 import { transactionStore } from '../services/transactionStore';
+import { worldChainListener } from '../services/worldChainListener';
 
 export const paymentRouter = Router();
 
@@ -112,6 +113,26 @@ paymentRouter.get('/history/:walletAddress', asyncHandler(async (req: Request, r
 
   const history = await transactionStore.getAll(walletAddress);
   res.json(history);
+}));
+
+/**
+ * GET /api/payment/balance/:walletAddress
+ *
+ * Returns WLD balance for a specific wallet address.
+ */
+paymentRouter.get('/balance/:walletAddress', asyncHandler(async (req: Request, res: Response) => {
+  const { walletAddress } = req.params;
+  if (!walletAddress) {
+    res.status(400).json({ error: 'Missing walletAddress' });
+    return;
+  }
+
+  const balance = await worldChainListener.getWldBalance(walletAddress);
+  res.json({
+    walletAddress,
+    balanceWld: balance,
+    balanceWei: (BigInt(parseFloat(balance) * 1e18)).toString(),
+  });
 }));
 
 // ─── Helper ───────────────────────────────────────────────────────────────────

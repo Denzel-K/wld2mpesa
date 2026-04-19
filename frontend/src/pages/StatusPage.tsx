@@ -14,16 +14,36 @@ import type { TransactionStatus } from '@/lib/api';
 
 const POLL_INTERVAL_MS = 3000;
 
+// Status order for progress calculation
+const STATUS_ORDER = [
+  'INITIATED',
+  'PENDING_CONFIRMATION',
+  'CONFIRMED',
+  'SWAP_COMPLETED',
+  'OFFRAMP_INITIATED',
+  'MPESA_SENT',
+  'SETTLED',
+];
+
+const getProgressPercent = (status: string): number => {
+  const idx = STATUS_ORDER.indexOf(status);
+  if (idx === -1) return 0;
+  return Math.round((idx / (STATUS_ORDER.length - 1)) * 100);
+};
+
 const getStepLabels = (type: string) => {
   const isSend = type === 'send' || type === 'pochi';
   const isPaybill = type === 'paybill';
 
   return {
     WLD_RECEIVED: 'WLD received on World Chain',
-    OFFRAMP_INITIATED: 'Converting WLD → KES',
-    MPESA_SENT: isSend ? 'Sending to M-Pesa Number' :
-      isPaybill ? 'Sending to M-Pesa Paybill' :
-        'Sending to M-Pesa Till',
+    DEX_SWAP: 'Rebalancing liquidity (WLD → USDC)',
+    OFFRAMP_INITIATED: isSend ? 'Off-ramping to M-Pesa' :
+      isPaybill ? 'Off-ramping to Paybill' :
+        'Off-ramping to Till',
+    MPESA_SENT: isSend ? 'Sending KES to recipient' :
+      isPaybill ? 'Sending KES to Paybill' :
+        'Sending KES to Till',
     SETTLED: 'Payment complete!',
   };
 };
@@ -82,6 +102,7 @@ export default function StatusPage() {
 
   const kes = parseFloat(kesAmount) || 0;
   const steps = transactionStatus?.steps ?? [];
+  const progressPercent = getProgressPercent(transactionStatus?.status ?? 'INITIATED');
 
   return (
     <div className="flex flex-col min-h-screen animate-fade-in bg-[var(--bg-primary)]">
@@ -95,9 +116,19 @@ export default function StatusPage() {
               : <CheckCircle2 className="w-8 h-8 text-white" />
             }
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-white text-3xl font-black font-display tracking-tight">Processing Payment</h2>
             <p className="text-white/60 text-xs font-black uppercase tracking-[0.2em] mt-1">1–5 minutes · Stay on this screen</p>
+            {/* Progress bar */}
+            <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="text-white/80 text-[10px] font-bold uppercase tracking-wider mt-2">
+              {progressPercent}% complete
+            </p>
           </div>
         </div>
       </header>

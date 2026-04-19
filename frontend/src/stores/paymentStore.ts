@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import type { RateData, InitiatePaymentResponse, TransactionStatus } from '@/lib/api';
+import { logoutUser } from '@/lib/api';
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 
@@ -208,6 +209,43 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
   setBalanceWld: (balanceWld) => set({ balanceWld }),
   setWorldIdVerified: (worldIdVerified) => set({ worldIdVerified }),
   setOnboarded: (onboarded) => set({ onboarded }),
+
+  /**
+   * Logout - clears all auth state and returns to welcome screen
+   * Notifies backend and clears all local auth state
+   * Also resets onboarding status so user sees welcome slides again
+   */
+  logout: async () => {
+    const { walletAddress } = get();
+    
+    // Notify backend of logout with onboarding reset (best effort)
+    if (walletAddress) {
+      try {
+        await logoutUser(walletAddress, true); // resetOnboarding = true
+      } catch (err) {
+        console.warn('[logout] Backend logout failed (non-critical):', err);
+      }
+    }
+    
+    // Clear all auth state
+    set({
+      screen: 'welcome',
+      walletAddress: null,
+      userName: null,
+      balanceWld: null,
+      worldIdVerified: false,
+      onboarded: false,
+      kesAmount: '',
+      tillNumber: '',
+      phoneNumber: '',
+      accountNumber: '',
+      businessName: '',
+      pendingTransaction: null,
+      transactionStatus: null,
+      error: null,
+      simulationLogs: [],
+    });
+  },
 
   // Global
   setLoading: (loading) => set({ loading }),

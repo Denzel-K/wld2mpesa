@@ -44,8 +44,11 @@ const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', 'wld2mpesa-login'
 const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', 'wld2mpesa-pay');
 
 // ─── Off-ramp: Bitnob ─────────────────────────────────────────────────────────
-// TODO: PRODUCTION - Sign up at https://bitnob.com
+// Sign up at https://bitnob.com/ → Developer → API Keys
+// For HMAC authentication, you need both Client ID and Secret Key
 const BITNOB_API_KEY = optionalEnv('BITNOB_API_KEY', '');
+const BITNOB_CLIENT_ID = optionalEnv('BITNOB_CLIENT_ID', '');
+const BITNOB_SECRET_KEY = optionalEnv('BITNOB_SECRET_KEY', '');
 const BITNOB_ENV = optionalEnv('BITNOB_ENV', 'sandbox'); // 'sandbox' | 'production'
 
 // ─── DEX Swap (Uniswap V3 on World Chain) ────────────────────────────────────
@@ -100,6 +103,8 @@ export const config = {
   WLD_PAY_ACTION_ID,
 
   BITNOB_API_KEY,
+  BITNOB_CLIENT_ID,
+  BITNOB_SECRET_KEY,
   BITNOB_ENV,
   UNISWAP_V3_ROUTER,
   WLD_TOKEN,
@@ -134,6 +139,8 @@ export const config = {
 const requiredEnvVars = [
   'DATABASE_URL',
   'REDIS_URL',
+  'BITNOB_CLIENT_ID',
+  'BITNOB_SECRET_KEY',
   'BACKEND_WALLET_ADDRESS',
   'BITNOB_API_KEY',
   'MPESA_CONSUMER_KEY',
