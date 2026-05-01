@@ -39,7 +39,7 @@ export default function SuccessPage() {
             <CheckCircle2 className="w-8 h-8 text-[var(--accent)]" />
           </div>
         </div>
-        <h2 className="text-white text-2xl font-bold font-display tracking-tight">Payment Sent!</h2>
+        <h2 className="text-white text-xl font-bold font-display tracking-tight">Payment Sent!</h2>
         <p className="text-white/60 text-xs mt-2 font-bold uppercase tracking-[0.2em]">
           {getSuccessMessage()}
         </p>
@@ -48,7 +48,7 @@ export default function SuccessPage() {
       <div className="flex-1 px-6 pt-8 pb-12 flex flex-col gap-5 w-full max-w-md">
         {/* Amount card */}
         <div className="card text-center py-8 bg-[var(--bg-secondary)] border-[var(--border-color)] shadow-xl">
-          <p className="text-4xl font-bold text-[var(--text-primary)] font-display tracking-tighter">{formatKes(kes)}</p>
+          <p className="text-3xl font-bold text-[var(--text-primary)] font-display tracking-tighter">{formatKes(kes)}</p>
           <p className="text-[var(--text-secondary)] text-xs mt-2 font-normal">{getRecipientLabel()}</p>
           {pendingTransaction?.wldAmount && (
             <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--accent)]/10 rounded-full border border-[var(--accent)]/20">
@@ -65,7 +65,7 @@ export default function SuccessPage() {
             <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.25em] mb-2">
               M-Pesa Receipt
             </p>
-            <p className="text-2xl font-bold font-mono text-[var(--text-primary)] tracking-tight">
+            <p className="text-xl font-bold font-mono text-[var(--text-primary)] tracking-tight">
               {transactionStatus.mpesaReceiptNumber}
             </p>
             <p className="text-[9px] text-[var(--accent)] font-bold uppercase tracking-widest mt-1.5">

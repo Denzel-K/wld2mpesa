@@ -61,6 +61,11 @@ model Transaction {
   // Failure
   failureReason String? @map("failure_reason")
 
+  // Refund tracking
+  refundStatus String? @map("refund_status") // REFUND_INITIATED | REFUNDED | REFUND_FAILED
+  refundTxHash String? @map("refund_tx_hash")
+  refundAt     DateTime? @map("refund_at")
+
   // Audit payloads (stored as JSON strings)
   miniKitPayload String? @map("minikit_payload")
   worldIdProof   String? @map("world_id_proof")

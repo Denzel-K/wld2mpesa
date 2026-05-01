@@ -14,6 +14,7 @@ import ConfirmationPage from './pages/ConfirmationPage';
 import StatusPage from './pages/StatusPage';
 import SuccessPage from './pages/SuccessPage';
 import FailurePage from './pages/FailurePage';
+import ResolutionPage from './pages/ResolutionPage';
 import { VerificationPage } from './pages/VerificationPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { WelcomePage } from './pages/WelcomePage';
@@ -100,6 +101,8 @@ export default function App() {
         return <SuccessPage />;
       case 'failure':
         return <FailurePage />;
+      case 'resolution':
+        return <ResolutionPage />;
       default:
         return <WelcomePage />;
     }

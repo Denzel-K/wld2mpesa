@@ -68,6 +68,25 @@ export interface TransactionStatus {
   settledAt?: string | null;
   failureReason?: string | null;
   steps: TransactionStep[];
+  refundStatus?: 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_FAILED' | null;
+  refundTxHash?: string | null;
+  refundAt?: string | null;
+}
+
+export interface TransactionDetail extends TransactionStatus {
+  wldAmount?: string | null;
+  feeWld?: string | null;
+  feeKes?: number | null;
+  wldRate?: string | null;
+  txHash?: string | null;
+  offrampId?: string | null;
+  mpesaConversationId?: string | null;
+  createdAt?: string | null;
+  confirmedAt?: string | null;
+  offrampAt?: string | null;
+  mpesaSentAt?: string | null;
+  walletAddress?: string | null;
+  payToAddress?: string | null;
 }
 
 export interface User {
@@ -183,6 +202,28 @@ export async function fetchTransactionHistory(walletAddress: string): Promise<Tr
 export async function fetchBalance(walletAddress: string): Promise<WalletBalance> {
   const res = await apiFetch(`/payment/balance/${walletAddress}`);
   return res as WalletBalance;
+}
+
+/**
+ * Fetch full transaction detail for the modal view.
+ */
+export async function fetchTransactionDetail(transactionId: string): Promise<TransactionDetail> {
+  const res = await apiFetch(`/payment/transaction/${transactionId}`);
+  return res as TransactionDetail;
+}
+
+/**
+ * Initiate a refund for a failed or stuck transaction.
+ */
+export async function initiateRefund(
+  transactionId: string,
+  walletAddress: string
+): Promise<{ success: boolean; message: string; refundStatus: string }> {
+  const res = await apiFetch(`/payment/${transactionId}/refund`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+  return res as { success: boolean; message: string; refundStatus: string };
 }
 
 /**

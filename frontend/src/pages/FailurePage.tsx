@@ -43,7 +43,7 @@ export default function FailurePage() {
             <XCircle className="w-8 h-8 text-red-500" />
           </div>
         </div>
-        <h2 className="text-white text-2xl font-bold font-display tracking-tight">Payment Failed</h2>
+        <h2 className="text-white text-xl font-bold font-display tracking-tight">Payment Failed</h2>
         <p className="text-white/60 text-xs mt-2 font-bold uppercase tracking-[0.2em] text-center px-10">
           Your WLD has not been deducted
         </p>
@@ -95,7 +95,7 @@ export default function FailurePage() {
           onClick={() => setScreen('payment-form')}
         >
           <RotateCcw className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-700" />
-          <span className="text-lg font-bold">Try Again</span>
+          <span className="text-sm font-bold uppercase tracking-widest">Try Again</span>
         </button>
 
         <button

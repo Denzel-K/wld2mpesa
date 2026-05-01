@@ -168,12 +168,12 @@ export default function PaymentFormPage() {
         {/* Step 1: Amount */}
         {step === 'amount' && (
           <div className="animate-slide-up">
-            <h1 className="text-3xl font-bold font-display text-[var(--text-primary)] mb-3 tracking-tight">How much?</h1>
-            <p className="text-[var(--text-secondary)] text-base mb-8 font-normal">Enter the amount you want to transfer.</p>
+            <h1 className="text-2xl font-bold font-display text-[var(--text-primary)] mb-2 tracking-tight">How much?</h1>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 font-normal">Enter the amount you want to transfer.</p>
 
             <div className="relative mb-8">
               <div className="flex items-baseline gap-3 mb-3">
-                <span className="text-3xl font-bold text-[var(--accent)] font-display tracking-tight">KSh</span>
+                <span className="text-2xl font-bold text-[var(--accent)] font-display tracking-tight">KSh</span>
                 <input
                   ref={inputRef}
                   type="number"
@@ -181,7 +181,7 @@ export default function PaymentFormPage() {
                   placeholder="0"
                   value={kesAmount}
                   onChange={(e) => setKesAmount(e.target.value)}
-                  className="w-full bg-transparent text-6xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/10"
+                  className="w-full bg-transparent text-4xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/10"
                 />
               </div>
 
@@ -222,8 +222,8 @@ export default function PaymentFormPage() {
         {/* Step 2: Details */}
         {step === 'details' && (
           <div className="animate-slide-up">
-            <h1 className="text-3xl font-bold font-display text-[var(--text-primary)] mb-3 tracking-tight">Who to?</h1>
-            <p className="text-[var(--text-secondary)] text-base mb-8 font-normal">Enter the recipient's details.</p>
+            <h1 className="text-2xl font-bold font-display text-[var(--text-primary)] mb-2 tracking-tight">Who to?</h1>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 font-normal">Enter the recipient's details.</p>
 
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-4 p-4 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)] transition-all shadow-lg">
@@ -242,7 +242,7 @@ export default function PaymentFormPage() {
                       setTillNumber(val.slice(0, 7));
                     }
                   }}
-                  className="w-full bg-transparent text-2xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
+                  className="w-full bg-transparent text-xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
                 />
               </div>
 
@@ -254,7 +254,7 @@ export default function PaymentFormPage() {
                     placeholder="Account Number"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full bg-transparent text-2xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
+                    className="w-full bg-transparent text-xl font-bold font-display text-[var(--text-primary)] focus:outline-none placeholder:text-[var(--text-secondary)]/20"
                   />
                 </div>
               )}
@@ -265,15 +265,15 @@ export default function PaymentFormPage() {
         {/* Step 3: Confirm */}
         {step === 'confirm' && (
           <div className="animate-slide-up">
-            <h1 className="text-3xl font-bold font-display text-[var(--text-primary)] mb-3 tracking-tight">Review</h1>
-            <p className="text-[var(--text-secondary)] text-base mb-8 font-normal">Check all details before proceeding.</p>
+            <h1 className="text-2xl font-bold font-display text-[var(--text-primary)] mb-2 tracking-tight">Review</h1>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 font-normal">Check all details before proceeding.</p>
 
             <div className="card p-0 overflow-hidden mb-6 border-[var(--border-color)] shadow-xl">
               <div className="bg-[var(--accent)] p-6 text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                 <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/60 mb-1.5 relative z-10">Total to Pay</p>
                 <div className="flex items-baseline gap-2 relative z-10">
-                  <h2 className="text-4xl font-bold font-display tracking-tight">{formatWld(conversion?.wldAmount || 0)}</h2>
+                  <h2 className="text-3xl font-bold font-display tracking-tight">{formatWld(conversion?.wldAmount || 0)}</h2>
                 </div>
               </div>
 
@@ -368,7 +368,7 @@ export default function PaymentFormPage() {
               <Loader2 className="w-6 h-6 animate-spin" />
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold">
+                <span className="text-sm font-bold uppercase tracking-widest">
                   {step === 'details' ? 'Continue' : step === 'amount' ? 'Review Details' : 'Initialize Transfer'}
                 </span>
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />

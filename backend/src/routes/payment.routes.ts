@@ -135,6 +135,94 @@ paymentRouter.get('/balance/:walletAddress', asyncHandler(async (req: Request, r
   });
 }));
 
+/**
+ * GET /api/payment/transaction/:transactionId
+ *
+ * Returns full transaction detail for the modal view.
+ * Includes all pipeline steps, timestamps, amounts, and audit info.
+ */
+paymentRouter.get('/transaction/:transactionId', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionId } = req.params;
+  if (!transactionId) {
+    res.status(400).json({ error: 'Missing transactionId' });
+    return;
+  }
+
+  const tx = await transactionStore.get(transactionId);
+  if (!tx) {
+    res.status(404).json({ error: 'Transaction not found' });
+    return;
+  }
+
+  const statusResult = await paymentService.getTransactionStatus(transactionId);
+
+  res.json({
+    ...statusResult,
+    wldAmount: tx.wldAmount,
+    feeWld: tx.feeWld,
+    feeKes: tx.feeKes,
+    wldRate: tx.wldRate,
+    txHash: tx.txHash,
+    offrampId: tx.offrampId,
+    mpesaConversationId: tx.mpesaConversationId,
+    createdAt: tx.createdAt,
+    confirmedAt: tx.confirmedAt,
+    offrampAt: tx.offrampAt,
+    mpesaSentAt: tx.mpesaSentAt,
+    walletAddress: tx.walletAddress,
+    payToAddress: tx.payToAddress,
+    refundStatus: tx.refundStatus ?? null,
+    refundTxHash: tx.refundTxHash ?? null,
+  });
+}));
+
+/**
+ * POST /api/payment/:transactionId/refund
+ *
+ * Initiates an automatic WLD refund for FAILED or stuck transactions.
+ * Conflict resolution entry point — marks transaction for refund processing.
+ */
+paymentRouter.post('/:transactionId/refund', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionId } = req.params;
+  const { walletAddress } = req.body;
+
+  if (!transactionId || !walletAddress) {
+    res.status(400).json({ error: 'Missing transactionId or walletAddress' });
+    return;
+  }
+
+  const tx = await transactionStore.get(transactionId);
+  if (!tx) {
+    res.status(404).json({ error: 'Transaction not found' });
+    return;
+  }
+
+  if (tx.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+    res.status(403).json({ error: 'Unauthorized: wallet address mismatch' });
+    return;
+  }
+
+  const refundEligibleStatuses = ['FAILED', 'PENDING_CONFIRMATION', 'CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED'];
+  if (!refundEligibleStatuses.includes(tx.status)) {
+    res.status(400).json({ error: `Transaction in status ${tx.status} is not eligible for refund` });
+    return;
+  }
+
+  if (tx.refundStatus === 'REFUNDED') {
+    res.status(400).json({ error: 'Refund already processed for this transaction' });
+    return;
+  }
+
+  await paymentService.initiateRefund(transactionId, walletAddress);
+
+  res.json({
+    success: true,
+    transactionId,
+    message: 'Refund initiated. WLD will be returned to your wallet within 1–5 minutes.',
+    refundStatus: 'REFUND_INITIATED',
+  });
+}));
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 function asyncHandler(

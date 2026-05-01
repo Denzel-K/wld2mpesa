@@ -6,7 +6,7 @@
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE';
+export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE' | 'REFUND' | 'RECONCILIATION' | 'SECURITY';
 
 interface LogEntry {
   timestamp: string;
@@ -202,6 +202,79 @@ class Logger {
    */
   userError(transactionId: string | undefined, code: string, message: string, technicalDetails?: string): void {
     this.error('PAYMENT', `Error [${code}]: ${message}`, transactionId, technicalDetails ? { technical: technicalDetails } : undefined);
+  }
+
+  /**
+   * Structured audit event — immutable record of a significant pipeline event.
+   * All fields are sanitized. Suitable for compliance and reconciliation.
+   */
+  auditEvent(
+    transactionId: string,
+    event: string,
+    phase: 'INITIATION' | 'BLOCKCHAIN' | 'DEX_SWAP' | 'OFFRAMP' | 'MPESA' | 'SETTLEMENT' | 'REFUND' | 'FAILURE',
+    details: Record<string, unknown>
+  ): void {
+    this.info('RECONCILIATION', `[AUDIT] ${event}`, transactionId, {
+      phase,
+      event,
+      ...details,
+    });
+  }
+
+  /**
+   * Log refund initiation
+   */
+  refundInitiated(transactionId: string, walletAddress: string, wldAmount: string, reason: string): void {
+    this.info('REFUND', `Refund initiated: ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`, transactionId, {
+      wldAmount,
+      wallet: maskWalletAddress(walletAddress),
+      reason,
+      refundStatus: 'REFUND_INITIATED',
+    });
+  }
+
+  /**
+   * Log successful refund completion
+   */
+  refundCompleted(transactionId: string, walletAddress: string, wldAmount: string, refundTxHash?: string): void {
+    this.info('REFUND', `Refund completed: ${wldAmount} WLD returned`, transactionId, {
+      wldAmount,
+      wallet: maskWalletAddress(walletAddress),
+      refundTxHash: refundTxHash ? `${refundTxHash.slice(0, 10)}...${refundTxHash.slice(-6)}` : 'N/A',
+      refundStatus: 'REFUNDED',
+    });
+  }
+
+  /**
+   * Log refund failure — requires manual intervention
+   */
+  refundFailed(transactionId: string, walletAddress: string, wldAmount: string, reason: string): void {
+    this.error('REFUND', `Refund FAILED — manual intervention required: ${wldAmount} WLD`, transactionId, {
+      wallet: maskWalletAddress(walletAddress),
+      wldAmount,
+      reason,
+      refundStatus: 'REFUND_FAILED',
+      escalation: 'MANUAL_REVIEW',
+    });
+  }
+
+  /**
+   * Log reconciliation alert — discrepancy between expected and actual state
+   */
+  reconciliationAlert(transactionId: string, field: string, expected: unknown, actual: unknown): void {
+    this.warn('RECONCILIATION', `State discrepancy detected: ${field}`, transactionId, {
+      field,
+      expected,
+      actual,
+      action: 'INVESTIGATE',
+    });
+  }
+
+  /**
+   * Log security event (unauthorized access, suspicious pattern)
+   */
+  securityEvent(event: string, details: Record<string, unknown>): void {
+    this.warn('SECURITY', `[SECURITY] ${event}`, undefined, details);
   }
 }
 

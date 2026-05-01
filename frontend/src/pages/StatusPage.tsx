@@ -117,7 +117,7 @@ export default function StatusPage() {
             }
           </div>
           <div className="flex-1">
-            <h2 className="text-white text-3xl font-black font-display tracking-tight">Processing Payment</h2>
+            <h2 className="text-white text-xl font-black font-display tracking-tight">Processing Payment</h2>
             <p className="text-white/60 text-xs font-black uppercase tracking-[0.2em] mt-1">1–5 minutes · Stay on this screen</p>
             {/* Progress bar */}
             <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
@@ -139,7 +139,7 @@ export default function StatusPage() {
         <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-6 shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-3xl font-bold text-[var(--text-primary)] font-display tracking-tight">{formatKes(kes)}</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)] font-display tracking-tight">{formatKes(kes)}</p>
               <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-2.5">
                 Recipient: {transactionType === 'send' || transactionType === 'pochi' ? phoneNumber :
                   transactionType === 'paybill' ? `Paybill ${tillNumber}` :

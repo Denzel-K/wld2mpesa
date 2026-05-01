@@ -51,9 +51,6 @@ function calculateWldAmount(
   return { wldAmount, feeWld, feeKes };
 }
 
-function makeStep(step: string, done = false): TransactionStep {
-  return { step, timestamp: new Date().toISOString(), done };
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -239,10 +236,34 @@ class SimulatedPaymentService implements IPaymentService {
   }
 
   private buildSteps(tx: Transaction): TransactionStep[] {
-    const statusOrder: Transaction['status'][] = ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
-    const stepKeys = ['WLD_RECEIVED', 'DEX_SWAP', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'];
-    const currentIdx = statusOrder.indexOf(tx.status);
-    return stepKeys.map((key, i) => makeStep(key, i <= currentIdx && currentIdx !== -1));
+    const steps: TransactionStep[] = [
+      {
+        step: 'WLD_RECEIVED',
+        timestamp: tx.confirmedAt ?? tx.createdAt,
+        done: ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'DEX_SWAP',
+        timestamp: tx.confirmedAt ?? tx.createdAt,
+        done: ['SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'OFFRAMP_INITIATED',
+        timestamp: tx.offrampAt ?? tx.confirmedAt ?? tx.createdAt,
+        done: ['OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'MPESA_SENT',
+        timestamp: tx.mpesaSentAt ?? tx.offrampAt ?? tx.createdAt,
+        done: ['MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'SETTLED',
+        timestamp: tx.settledAt ?? tx.createdAt,
+        done: tx.status === 'SETTLED',
+      },
+    ];
+    return steps;
   }
 
   async markSettled(transactionId: string, mpesaReceipt: string): Promise<void> {
@@ -265,6 +286,52 @@ class SimulatedPaymentService implements IPaymentService {
 
   private async failTransaction(transactionId: string, reason: string): Promise<void> {
     await this.markFailed(transactionId, reason);
+  }
+
+  async initiateRefund(transactionId: string, walletAddress: string): Promise<void> {
+    const tx = await transactionStore.get(transactionId);
+    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
+
+    logger.refundInitiated(transactionId, walletAddress, tx.wldAmount, tx.failureReason || 'User-requested conflict resolution');
+    logger.auditEvent(transactionId, 'REFUND_REQUESTED', 'REFUND', {
+      wallet: maskWalletAddress(walletAddress),
+      wldAmount: tx.wldAmount,
+      kesAmount: formatAmount(tx.kesAmount),
+      originalStatus: tx.status,
+    });
+
+    await transactionStore.update(transactionId, {
+      status: 'FAILED',
+      failureReason: tx.failureReason || 'Refund requested',
+      failedAt: tx.failedAt || new Date().toISOString(),
+      refundStatus: 'REFUND_INITIATED',
+      refundAt: new Date().toISOString(),
+    });
+
+    void this.processRefundPipeline(transactionId, walletAddress, tx.wldAmount);
+  }
+
+  private async processRefundPipeline(transactionId: string, walletAddress: string, wldAmount: string): Promise<void> {
+    logger.pipelineStep(transactionId, 0, 1, `Processing refund of ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`);
+
+    try {
+      await sleep(config.SIM_BLOCK_CONFIRM_MS || 3000);
+
+      await transactionStore.update(transactionId, { refundStatus: 'REFUNDED' });
+      logger.refundCompleted(transactionId, walletAddress, wldAmount);
+      logger.auditEvent(transactionId, 'REFUND_COMPLETED', 'REFUND', {
+        wallet: maskWalletAddress(walletAddress),
+        wldAmount,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown refund error';
+      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
+      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
+      logger.userError(transactionId, 'REFUND_FAILED',
+        'Automatic refund could not be processed. Please contact support.',
+        msg
+      );
+    }
   }
 
   protected async pollUntil<T>(

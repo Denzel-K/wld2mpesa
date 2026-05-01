@@ -100,7 +100,7 @@ export default function ConfirmationPage() {
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Edit</span>
         </button>
-        <h2 className="text-white text-2xl font-bold font-display tracking-tight">Final Confirmation</h2>
+        <h2 className="text-white text-xl font-bold font-display tracking-tight">Final Confirmation</h2>
         <p className="text-white/60 text-xs font-normal mt-1 uppercase tracking-wide">Review before broadcasting</p>
       </header>
 
@@ -116,7 +116,7 @@ export default function ConfirmationPage() {
             </div>
             <div>
               <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-[0.2em] mb-1">Recipient</p>
-              <p className="text-xl font-bold text-[var(--text-primary)] font-display tracking-tight">
+              <p className="text-base font-bold text-[var(--text-primary)] font-display tracking-tight">
                 {transactionType === 'send' || transactionType === 'pochi' ? phoneNumber :
                   transactionType === 'paybill' ? `${tillNumber} (Acc: ${accountNumber})` :
                     `Till ${tillNumber}`}
@@ -152,7 +152,7 @@ export default function ConfirmationPage() {
             <div key={label} className="flex flex-col py-3.5 border-b border-[var(--border-color)]/50 last:border-0">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tight">{label}</span>
-                <span className={`text-base ${bold ? 'font-bold' : 'font-semibold'} ${green ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                <span className={`text-sm ${bold ? 'font-bold' : 'font-semibold'} ${green ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
                   {value}
                 </span>
               </div>
@@ -210,16 +210,16 @@ export default function ConfirmationPage() {
             {verifying ? (
               <span className="flex items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin" />
-                <span className="text-lg font-bold">VERIFYING...</span>
+                <span className="text-sm font-bold uppercase tracking-widest">VERIFYING...</span>
               </span>
             ) : loading ? (
               <span className="flex items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin" />
-                <span className="text-lg font-bold">CONFIRMING...</span>
+                <span className="text-sm font-bold uppercase tracking-widest">CONFIRMING...</span>
               </span>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold">PAY {formatWld(tx.wldAmount)}</span>
+                <span className="text-sm font-bold uppercase tracking-widest">PAY {formatWld(tx.wldAmount)}</span>
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-500" />
               </div>
             )}

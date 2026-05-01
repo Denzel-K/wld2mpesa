@@ -59,6 +59,11 @@ export interface Transaction {
 
   failureReason?: string | null;
 
+  // Refund tracking
+  refundStatus?: 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_FAILED' | null;
+  refundTxHash?: string | null;
+  refundAt?: string | null;
+
   // miniKit payload (stored for audit)
   miniKitPayload?: any;
   userId?: string | null;
@@ -100,6 +105,7 @@ export interface IPaymentService {
   processPaymentPipeline(transactionId: string): Promise<void>;
   markSettled(transactionId: string, mpesaReceipt: string): Promise<void>;
   markFailed(transactionId: string, reason: string): Promise<void>;
+  initiateRefund(transactionId: string, walletAddress: string): Promise<void>;
 }
 
 export interface InitiatePaymentParams {
@@ -146,6 +152,9 @@ export interface TransactionStatusResult {
   settledAt?: string | null;
   failureReason?: string | null;
   steps: TransactionStep[];
+  refundStatus?: 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_FAILED' | null;
+  refundTxHash?: string | null;
+  refundAt?: string | null;
 }
 
 // ─── Off-ramp service ─────────────────────────────────────────────────────────

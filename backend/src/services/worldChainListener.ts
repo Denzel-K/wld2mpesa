@@ -143,8 +143,7 @@ class RealWorldChainListener implements IWorldChainListener {
         wallet: maskWalletAddress(walletAddress),
         error: err instanceof Error ? err.message : 'Unknown error',
       });
-      // Fallback for simulation/testing so UI looks good
-      return "24.09";
+      return "0";
     }
   }
 }

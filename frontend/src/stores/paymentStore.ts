@@ -21,7 +21,8 @@ export type AppScreen =
   | 'processing'
   | 'status'
   | 'success'
-  | 'failure';
+  | 'failure'
+  | 'resolution';
 
 export type TransactionType = 'send' | 'paybill' | 'pochi' | 'till';
 
@@ -72,6 +73,9 @@ interface PaymentState {
 
   // Multi-currency display
   selectedCurrency: string;
+
+  // Resolution flow
+  selectedTransactionId: string | null;
 }
 
 interface PaymentActions {
@@ -111,9 +115,11 @@ interface PaymentActions {
   setOnboarded: (onboarded: boolean) => void;
 
   // Global
+  logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setSelectedCurrency: (currency: string) => void;
+  setSelectedTransactionId: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -137,6 +143,7 @@ const initialState: PaymentState = {
   loading: false,
   error: null,
   selectedCurrency: 'KES',
+  selectedTransactionId: null,
   transactionType: 'till',
   walletAddress: null,
   userName: null,
@@ -251,5 +258,6 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setSelectedCurrency: (selectedCurrency) => set({ selectedCurrency }),
+  setSelectedTransactionId: (selectedTransactionId) => set({ selectedTransactionId }),
   reset: () => set({ ...initialState }),
 }));

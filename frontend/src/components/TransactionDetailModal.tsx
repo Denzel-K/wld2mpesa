@@ -1,0 +1,381 @@
+/**
+ * TransactionDetailModal.tsx — Full transaction detail modal
+ *
+ * For SETTLED: shows complete pipeline journey (all steps + timestamps + amounts).
+ * For non-settled: shows conflict resolution options + auto-refund.
+ */
+
+import { useState, useEffect } from 'react';
+import { usePaymentStore } from '@/stores/paymentStore';
+import { fetchTransactionDetail, initiateRefund } from '@/lib/api';
+import type { TransactionDetail } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
+import {
+  X, CheckCircle2, Clock, AlertCircle, Loader2,
+  Send, Store, CreditCard, User, ArrowLeftRight,
+  Shield, Zap, AlertTriangle, RotateCcw, ExternalLink, Copy
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface Props {
+  transactionId: string;
+  onClose: () => void;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  INITIATED: 'Initiated',
+  PENDING_CONFIRMATION: 'Pending Blockchain Confirmation',
+  CONFIRMED: 'WLD Confirmed On-Chain',
+  SWAP_COMPLETED: 'DEX Swap Completed',
+  OFFRAMP_INITIATED: 'Off-ramp to Bitnob Initiated',
+  MPESA_SENT: 'KES Sent to Recipient',
+  SETTLED: 'Fully Settled',
+  FAILED: 'Failed',
+};
+
+const PIPELINE_STAGES = [
+  { key: 'WLD_RECEIVED', label: 'WLD Received', icon: Shield, phase: 'Blockchain' },
+  { key: 'DEX_SWAP', label: 'DEX Swap (WLD → USDC)', icon: ArrowLeftRight, phase: 'Liquidity' },
+  { key: 'OFFRAMP_INITIATED', label: 'Bitnob Off-ramp', icon: Zap, phase: 'Off-ramp' },
+  { key: 'MPESA_SENT', label: 'M-Pesa Disbursement', icon: Send, phase: 'Payout' },
+  { key: 'SETTLED', label: 'Settlement Complete', icon: CheckCircle2, phase: 'Done' },
+];
+
+function typeIcon(type: string) {
+  if (type === 'paybill') return CreditCard;
+  if (type === 'send') return Send;
+  if (type === 'till') return Store;
+  return User;
+}
+
+function typeColor(type: string) {
+  if (type === 'paybill') return 'bg-blue-600';
+  if (type === 'till') return 'bg-purple-600';
+  if (type === 'pochi') return 'bg-orange-500';
+  return 'bg-[var(--accent)]';
+}
+
+function recipientLabel(tx: TransactionDetail): string {
+  if (tx.transactionType === 'send' || tx.transactionType === 'pochi') return tx.phoneNumber ?? 'Unknown';
+  if (tx.transactionType === 'paybill') return `${tx.tillNumber} • Acct: ${tx.accountNumber}`;
+  return tx.tillNumber ?? 'Unknown';
+}
+
+function shortHash(hash: string): string {
+  if (hash.length < 14) return hash;
+  return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
+}
+
+export default function TransactionDetailModal({ transactionId, onClose }: Props) {
+  const { walletAddress, setScreen, setSelectedTransactionId } = usePaymentStore();
+  const [detail, setDetail] = useState<TransactionDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundDone, setRefundDone] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchTransactionDetail(transactionId)
+      .then(setDetail)
+      .catch((e) => setError(e?.message ?? 'Failed to load transaction'))
+      .finally(() => setLoading(false));
+  }, [transactionId]);
+
+  const handleRefund = async () => {
+    if (!walletAddress || !detail) return;
+    setRefundLoading(true);
+    setRefundError(null);
+    try {
+      await initiateRefund(transactionId, walletAddress);
+      setRefundDone(true);
+      setDetail((d) => d ? { ...d, refundStatus: 'REFUND_INITIATED' } : d);
+    } catch (e: any) {
+      setRefundError(e?.message ?? 'Refund request failed. Please contact support.');
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  const handleResolve = () => {
+    setSelectedTransactionId(transactionId);
+    setScreen('resolution');
+    onClose();
+  };
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const isSettled = detail?.status === 'SETTLED';
+  const isFailed = detail?.status === 'FAILED';
+  const isStuck = !isSettled && !isFailed && detail != null;
+  const canRefund = (isFailed || isStuck) && detail?.refundStatus == null && !refundDone;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md bg-[var(--bg-primary)] rounded-t-3xl max-h-[92vh] overflow-y-auto border-t border-[var(--border-color)] shadow-2xl animate-slide-up-sheet">
+
+        {/* Header */}
+        <div className="sticky top-0 bg-[var(--bg-primary)] z-10 px-5 pt-4 pb-3 border-b border-[var(--border-color)] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {detail && (
+              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center text-white', typeColor(detail.transactionType))}>
+                {(() => { const Icon = typeIcon(detail.transactionType); return <Icon className="w-4 h-4" />; })()}
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">Transaction Details</p>
+              <p className="text-[9px] text-[var(--text-secondary)] font-bold mt-0.5 font-mono">
+                {shortHash(transactionId)}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors">
+            <X className="w-4 h-4 text-[var(--text-secondary)]" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-3 text-[var(--text-secondary)]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs font-bold uppercase tracking-widest">Loading...</span>
+          </div>
+        ) : error ? (
+          <div className="m-5 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-bold text-center">{error}</div>
+        ) : detail ? (
+          <div className="px-5 pt-4 pb-8 space-y-4">
+
+            {/* Status Badge */}
+            <div className={cn(
+              'flex items-center gap-3 px-4 py-3 rounded-2xl border',
+              isSettled ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' :
+                isFailed ? 'bg-red-500/10 border-red-500/30' :
+                  'bg-orange-500/10 border-orange-500/30'
+            )}>
+              {isSettled ? <CheckCircle2 className="w-5 h-5 text-[var(--accent)] flex-shrink-0" /> :
+                isFailed ? <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" /> :
+                  <Loader2 className="w-5 h-5 text-orange-500 animate-spin flex-shrink-0" />}
+              <div>
+                <p className={cn('text-[10px] font-black uppercase tracking-widest',
+                  isSettled ? 'text-[var(--accent)]' : isFailed ? 'text-red-500' : 'text-orange-500'
+                )}>
+                  {STATUS_LABELS[detail.status] ?? detail.status}
+                </p>
+                {detail.refundStatus && (
+                  <p className="text-[9px] text-orange-400 font-bold mt-0.5 uppercase tracking-wide">
+                    Refund: {detail.refundStatus.replace(/_/g, ' ')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Amount Summary */}
+            <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-4 space-y-2.5">
+              <Row label="Recipient" value={recipientLabel(detail)} />
+              <Row label="KES Amount" value={formatCurrency(detail.kesAmount, 'KES')} bold accent />
+              {detail.wldAmount && <Row label="WLD Paid" value={`${parseFloat(detail.wldAmount).toFixed(6)} WLD`} />}
+              {detail.feeKes != null && <Row label="Total Fees" value={formatCurrency(detail.feeKes, 'KES')} />}
+              {detail.wldRate && <Row label="Rate Used" value={`1 WLD = KSh ${parseFloat(detail.wldRate).toFixed(2)}`} />}
+            </div>
+
+            {/* Pipeline Journey */}
+            <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-4">
+              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">Transaction Journey</p>
+              <div className="relative">
+                <div className="absolute left-[13px] top-2 bottom-2 w-px bg-[var(--border-color)]" />
+                {PIPELINE_STAGES.map(({ key, label, icon: Icon, phase }, idx) => {
+                  const stepData = detail.steps?.find((s) => s.step === key);
+                  const done = stepData?.done ?? false;
+                  const isActive = !done && (detail.steps?.filter((s) => s.done).length ?? 0) === idx;
+                  return (
+                    <div key={key} className="flex items-start gap-3 mb-3 last:mb-0 relative">
+                      <div className={cn(
+                        'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 z-10 border transition-all',
+                        done ? 'bg-[var(--accent)] border-[var(--accent)] shadow-[0_0_10px_var(--accent-glow)]' :
+                          isActive ? 'bg-orange-500/20 border-orange-500' :
+                            'bg-[var(--bg-primary)] border-[var(--border-color)]'
+                      )}>
+                        {done ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> :
+                          isActive ? <Loader2 className="w-3.5 h-3.5 text-orange-500 animate-spin" /> :
+                            <Icon className="w-3.5 h-3.5 text-[var(--text-secondary)]/30" />}
+                      </div>
+                      <div className="pt-0.5 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={cn('text-[10px] font-bold uppercase tracking-wide truncate',
+                            done ? 'text-[var(--accent)]' :
+                              isActive ? 'text-orange-400' :
+                                'text-[var(--text-secondary)]/40'
+                          )}>{label}</p>
+                          <span className={cn('text-[8px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0',
+                            done ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[var(--border-color)] text-[var(--text-secondary)]/40'
+                          )}>{phase}</span>
+                        </div>
+                        {stepData?.timestamp && (
+                          <p className="text-[9px] text-[var(--text-secondary)] font-bold mt-0.5 opacity-60">
+                            {new Date(stepData.timestamp).toLocaleString('en-KE', { hour12: true })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Technical Details */}
+            <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-4 space-y-2">
+              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-3">Audit Trail</p>
+              {detail.createdAt && <TimestampRow label="Initiated" value={detail.createdAt} />}
+              {detail.confirmedAt && <TimestampRow label="Blockchain Confirmed" value={detail.confirmedAt} />}
+              {detail.offrampAt && <TimestampRow label="Off-ramp Started" value={detail.offrampAt} />}
+              {detail.mpesaSentAt && <TimestampRow label="M-Pesa Sent" value={detail.mpesaSentAt} />}
+              {detail.settledAt && <TimestampRow label="Settled" value={detail.settledAt} />}
+              {detail.txHash && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">On-Chain Tx</span>
+                  <button
+                    onClick={() => copyToClipboard(detail.txHash!, 'txHash')}
+                    className="flex items-center gap-1.5 text-[9px] font-black text-[var(--accent)] font-mono hover:opacity-70 transition-opacity"
+                  >
+                    {shortHash(detail.txHash)}
+                    {copied === 'txHash' ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </div>
+              )}
+              {detail.mpesaReceiptNumber && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">M-Pesa Receipt</span>
+                  <button
+                    onClick={() => copyToClipboard(detail.mpesaReceiptNumber!, 'receipt')}
+                    className="flex items-center gap-1.5 text-[9px] font-black text-[var(--accent)] font-mono hover:opacity-70 transition-opacity"
+                  >
+                    {detail.mpesaReceiptNumber}
+                    {copied === 'receipt' ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </div>
+              )}
+              {detail.offrampId && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Bitnob ID</span>
+                  <span className="text-[9px] font-black text-[var(--text-primary)] font-mono">{shortHash(detail.offrampId)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Ref ID</span>
+                <button
+                  onClick={() => copyToClipboard(transactionId, 'txId')}
+                  className="flex items-center gap-1.5 text-[9px] font-black text-[var(--text-primary)] font-mono hover:opacity-70 transition-opacity"
+                >
+                  {shortHash(transactionId)}
+                  {copied === 'txId' ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Failure Reason */}
+            {isFailed && detail.failureReason && (
+              <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl space-y-1.5">
+                <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">Failure Reason</p>
+                <p className="text-xs text-red-400 font-normal leading-relaxed">{detail.failureReason}</p>
+              </div>
+            )}
+
+            {/* Refund Status Banner */}
+            {(refundDone || detail.refundStatus === 'REFUND_INITIATED') && (
+              <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-start gap-3">
+                <RotateCcw className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-wide">Refund In Progress</p>
+                  <p className="text-[9px] text-orange-300 font-normal mt-0.5">
+                    WLD is being returned to your wallet. This may take 1–5 minutes.
+                  </p>
+                </div>
+              </div>
+            )}
+            {detail.refundStatus === 'REFUNDED' && (
+              <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Completed</p>
+                  <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">
+                    {detail.wldAmount ? `${parseFloat(detail.wldAmount).toFixed(4)} WLD` : 'WLD'} returned to your wallet.
+                  </p>
+                </div>
+              </div>
+            )}
+            {detail.refundStatus === 'REFUND_FAILED' && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Refund Failed</p>
+                  <p className="text-[9px] text-red-300 font-normal mt-0.5">
+                    Automatic refund could not be processed. Use Conflict Resolution below.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              {canRefund && (
+                <button
+                  onClick={handleRefund}
+                  disabled={refundLoading}
+                  className="w-full py-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {refundLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing Refund...</>
+                    : <><RotateCcw className="w-4 h-4" /> Auto-Refund WLD</>}
+                </button>
+              )}
+              {refundError && (
+                <p className="text-[9px] text-red-400 font-bold text-center px-2">{refundError}</p>
+              )}
+              {(isFailed || isStuck) && (
+                <button
+                  onClick={handleResolve}
+                  className="w-full py-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:border-[var(--accent)] transition-all active:scale-95"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Conflict Resolution Centre
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, bold, accent }: { label: string; value: string; bold?: boolean; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-0.5">
+      <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">{label}</span>
+      <span className={cn(
+        'text-right',
+        bold ? 'text-sm font-black' : 'text-[10px] font-bold',
+        accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
+      )}>{value}</span>
+    </div>
+  );
+}
+
+function TimestampRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-0.5">
+      <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">{label}</span>
+      <span className="text-[9px] font-bold text-[var(--text-primary)] tabular-nums">
+        {new Date(value).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short', hour12: true })}
+      </span>
+    </div>
+  );
+}

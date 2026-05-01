@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma';
 import type { Transaction, TransactionStatus } from '../types';
-import { Transaction as PrismaTransaction } from '../../.generated/postgres_client/client';
+import type { Transaction as PrismaTransaction } from '../../.generated/postgres_client/client';
 
 /**
  * TransactionStore — Prisma-backed transaction store (PostgreSQL)
@@ -31,6 +31,9 @@ class TransactionStore {
       mpesaConversationId: pt.mpesaConversationId,
       mpesaReceiptNumber: pt.mpesaReceiptNumber,
       failureReason: pt.failureReason,
+      refundStatus: (pt.refundStatus as any) ?? null,
+      refundTxHash: pt.refundTxHash ?? null,
+      refundAt: pt.refundAt?.toISOString() ?? null,
       miniKitPayload: pt.miniKitPayload ? JSON.parse(pt.miniKitPayload) : undefined,
       worldIdProof: pt.worldIdProof ? JSON.parse(pt.worldIdProof) : undefined,
       createdAt: pt.createdAt.toISOString(),
@@ -64,6 +67,9 @@ class TransactionStore {
         mpesaConversationId: tx.mpesaConversationId,
         mpesaReceiptNumber: tx.mpesaReceiptNumber,
         failureReason: tx.failureReason,
+        refundStatus: tx.refundStatus ?? null,
+        refundTxHash: tx.refundTxHash ?? null,
+        refundAt: tx.refundAt ? new Date(tx.refundAt) : null,
         miniKitPayload: tx.miniKitPayload ? JSON.stringify(tx.miniKitPayload) : null,
         worldIdProof: tx.worldIdProof ? JSON.stringify(tx.worldIdProof) : null,
         createdAt: new Date(tx.createdAt),
@@ -110,6 +116,9 @@ class TransactionStore {
     if (updates.mpesaSentAt !== undefined) data.mpesaSentAt = updates.mpesaSentAt ? new Date(updates.mpesaSentAt) : null;
     if (updates.settledAt !== undefined) data.settledAt = updates.settledAt ? new Date(updates.settledAt) : null;
     if (updates.failedAt !== undefined) data.failedAt = updates.failedAt ? new Date(updates.failedAt) : null;
+    if (updates.refundStatus !== undefined) data.refundStatus = updates.refundStatus ?? null;
+    if (updates.refundTxHash !== undefined) data.refundTxHash = updates.refundTxHash ?? null;
+    if (updates.refundAt !== undefined) data.refundAt = updates.refundAt ? new Date(updates.refundAt) : null;
 
     await prisma.transaction.update({
       where: { id },
