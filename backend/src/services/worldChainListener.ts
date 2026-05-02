@@ -26,7 +26,7 @@ const worldchain = defineChain({
   },
 });
 
-const WLD_CONTRACT = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003' as Hex;
+const WLD_CONTRACT = config.WLD_CONTRACT_ADDRESS as Hex;
 const erc20BalanceOfAbi = [{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}] as const;
 
 // ─── Simulated implementation ─────────────────────────────────────────────────

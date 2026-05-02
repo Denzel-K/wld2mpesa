@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { paymentService } from '../services/paymentService';
 import { transactionStore } from '../services/transactionStore';
 import { worldChainListener } from '../services/worldChainListener';
+import { logger, maskWalletAddress } from '../utils/logger';
 
 export const paymentRouter = Router();
 
@@ -220,6 +221,75 @@ paymentRouter.post('/:transactionId/refund', asyncHandler(async (req: Request, r
     transactionId,
     message: 'Refund initiated. WLD will be returned to your wallet within 1–5 minutes.',
     refundStatus: 'REFUND_INITIATED',
+  });
+}));
+
+/**
+ * POST /api/payment/:transactionId/cancel
+ * Cancels an INITIATED transaction. No WLD was ever sent — safe to void.
+ */
+paymentRouter.post('/:transactionId/cancel', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionId } = req.params;
+  const { walletAddress } = req.body;
+  if (!transactionId || !walletAddress) {
+    res.status(400).json({ error: 'Missing transactionId or walletAddress' });
+    return;
+  }
+  const tx = await transactionStore.get(transactionId);
+  if (!tx) { res.status(404).json({ error: 'Transaction not found' }); return; }
+  if (tx.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+    res.status(403).json({ error: 'Unauthorized: wallet address mismatch' });
+    return;
+  }
+  if (tx.status !== 'INITIATED') {
+    res.status(400).json({ error: `Cannot cancel a transaction in status ${tx.status}. Only INITIATED transactions can be cancelled.` });
+    return;
+  }
+  await transactionStore.update(transactionId, {
+    status: 'FAILED',
+    failureReason: 'Cancelled by user — no WLD was transferred',
+    failedAt: new Date().toISOString(),
+  });
+  logger.info('PAYMENT', 'Transaction cancelled by user (INITIATED — no WLD transferred)', transactionId, {
+    wallet: maskWalletAddress(walletAddress),
+  });
+  res.json({ success: true, transactionId, message: 'Transaction cancelled. No WLD was deducted from your wallet.' });
+}));
+
+/**
+ * POST /api/payment/:transactionId/retry
+ * Re-kicks the payment pipeline for stuck transactions.
+ * Eligible: PENDING_CONFIRMATION, CONFIRMED, SWAP_COMPLETED, OFFRAMP_INITIATED, MPESA_SENT
+ * WLD was already transferred — we attempt to complete the disbursement pipeline.
+ */
+paymentRouter.post('/:transactionId/retry', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionId } = req.params;
+  const { walletAddress } = req.body;
+  if (!transactionId || !walletAddress) {
+    res.status(400).json({ error: 'Missing transactionId or walletAddress' });
+    return;
+  }
+  const tx = await transactionStore.get(transactionId);
+  if (!tx) { res.status(404).json({ error: 'Transaction not found' }); return; }
+  if (tx.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+    res.status(403).json({ error: 'Unauthorized: wallet address mismatch' });
+    return;
+  }
+  const retryEligible = ['PENDING_CONFIRMATION', 'CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT'];
+  if (!retryEligible.includes(tx.status)) {
+    res.status(400).json({ error: `Transaction in status ${tx.status} is not eligible for retry.` });
+    return;
+  }
+  logger.info('PAYMENT', 'Pipeline retry requested by user', transactionId, {
+    wallet: maskWalletAddress(walletAddress),
+    currentStatus: tx.status,
+  });
+  void paymentService.processPaymentPipeline(transactionId);
+  res.json({
+    success: true,
+    transactionId,
+    message: 'Pipeline retry initiated. Your transaction is being re-processed.',
+    currentStatus: tx.status,
   });
 }));
 

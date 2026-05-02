@@ -85,19 +85,25 @@ export function getMpesaFees(amount: number): number {
   return 108; // For amounts above 20,000 up to 250,000
 }
 
+/** Platform fee percentage — must match backend config.FEE_PERCENT */
+export const PLATFORM_FEE_PERCENT = 5;
+/** Gas buffer in KES absorbed into fee — covers World Chain L2 ETH gas for DEX swap */
+export const GAS_BUFFER_KES = 10;
+
 /** Calculate WLD amount from KES, rate, and fee */
 export function calculateWldAmount(
   kesAmount: number,
   wldPriceKes: number,
-  feePercent: number = 0.5
-): { wldAmount: number; feeKes: number; safaricomFee: number; ourFee: number; feeWld: number; netKes: number } {
-  const ourFee = (kesAmount * feePercent) / 100;
+  feePercent: number = PLATFORM_FEE_PERCENT,
+  gasBufferKes: number = GAS_BUFFER_KES
+): { wldAmount: number; feeKes: number; safaricomFee: number; ourFee: number; feeWld: number; netKes: number; gasBuffer: number } {
+  const ourFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
-  const feeKes = ourFee + safaricomFee;
-  const netKes = kesAmount + feeKes; // user pays total = amount + fees
+  const feeKes = parseFloat((ourFee + safaricomFee + gasBufferKes).toFixed(2));
+  const netKes = kesAmount + feeKes;
   const wldAmount = netKes / wldPriceKes;
   const feeWld = feeKes / wldPriceKes;
-  return { wldAmount, feeKes, safaricomFee, ourFee, feeWld, netKes };
+  return { wldAmount, feeKes, safaricomFee, ourFee, feeWld, netKes, gasBuffer: gasBufferKes };
 }
 
 /** Format relative time: "2 minutes ago" */

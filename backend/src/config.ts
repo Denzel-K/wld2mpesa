@@ -53,7 +53,7 @@ const BITNOB_ENV = optionalEnv('BITNOB_ENV', 'sandbox'); // 'sandbox' | 'product
 
 // ─── DEX Swap (Uniswap V3 on World Chain) ────────────────────────────────────
 const UNISWAP_V3_ROUTER = '0x8ac7bee993bb44dab564ea4bc9ea67bf9eb5e743';
-const WLD_TOKEN = '0x2cFc85d8E48F8EAB294be644d9E256F01c2384a0';
+const WLD_TOKEN = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003'; // Canonical WLD on World Chain (same as WLD_CONTRACT_ADDRESS)
 const USDC_TOKEN = '0x79A02482A8849733928120FE3c23eA97B068D2e3'; // Native USDC on World Chain
 const ADMIN_PRIVATE_KEY = optionalEnv('ADMIN_PRIVATE_KEY', '');
 
@@ -78,9 +78,16 @@ const CLOUDFLARE_ENABLED = optionalEnv('CLOUDFLARE_ENABLED', 'false') === 'true'
 const TRANSACTION_LOG_PATH = optionalEnv('TRANSACTION_LOG_PATH', './data/transactions.json');
 
 // ─── Fee config ───────────────────────────────────────────────────────────────
-const FEE_PERCENT = optionalEnvNumber('FEE_PERCENT', 0.5);
+// Platform fee: 5% covers operational costs, DEX swap slippage, and gas buffer
+const FEE_PERCENT = optionalEnvNumber('FEE_PERCENT', 5);
 const MIN_KES_AMOUNT = optionalEnvNumber('MIN_KES_AMOUNT', 10);
 const MAX_KES_AMOUNT = optionalEnvNumber('MAX_KES_AMOUNT', 150000);
+// Gas buffer: absorbs backend ETH spend for DEX swap + blockchain ops (~KSh 6-15/tx on World Chain L2)
+const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 10);
+
+// ─── WLD Contract (World Chain mainnet) ───────────────────────────────────────
+// Canonical WLD ERC-20 contract on World Chain — single source of truth
+const WLD_CONTRACT_ADDRESS = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
 
 // ─── Simulation delays (realistic mock timings) ───────────────────────────────
 const SIM_BLOCK_CONFIRM_MS = 5000;   // 5s for "block confirmation" (real: ~30s)
@@ -123,8 +130,10 @@ export const config = {
   TRANSACTION_LOG_PATH,
 
   FEE_PERCENT,
+  GAS_BUFFER_KES,
   MIN_KES_AMOUNT,
   MAX_KES_AMOUNT,
+  WLD_CONTRACT_ADDRESS,
 
   SIM_BLOCK_CONFIRM_MS,
   SIM_OFFRAMP_MS,

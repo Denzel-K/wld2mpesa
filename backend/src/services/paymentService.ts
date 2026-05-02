@@ -40,15 +40,16 @@ function getMpesaFees(amount: number): number {
 function calculateWldAmount(
   kesAmount: number,
   wldPriceKes: number,
-  feePercent: number
-): { wldAmount: string; feeWld: string; feeKes: number } {
-  const ourFee = (kesAmount * feePercent) / 100;
+  feePercent: number,
+  gasBufferKes: number = 0
+): { wldAmount: string; feeWld: string; feeKes: number; platformFee: number; safaricomFee: number; gasBuffer: number } {
+  const platformFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
-  const feeKes = parseFloat((ourFee + safaricomFee).toFixed(2));
+  const feeKes = parseFloat((platformFee + safaricomFee + gasBufferKes).toFixed(2));
   const totalKes = kesAmount + feeKes;
   const wldAmount = parseFloat((totalKes / wldPriceKes).toFixed(6)).toString();
   const feeWld = parseFloat((feeKes / wldPriceKes).toFixed(6)).toString();
-  return { wldAmount, feeWld, feeKes };
+  return { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer: gasBufferKes };
 }
 
 
@@ -78,10 +79,11 @@ class SimulatedPaymentService implements IPaymentService {
 
     // Fetch rate
     const rate = await rateService.getWldKesRate();
-    const { wldAmount, feeWld, feeKes } = calculateWldAmount(
+    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer } = calculateWldAmount(
       kesAmount,
       rate.wldPriceKes,
-      config.FEE_PERCENT
+      config.FEE_PERCENT,
+      config.GAS_BUFFER_KES
     );
 
     // Create transaction
@@ -113,9 +115,16 @@ class SimulatedPaymentService implements IPaymentService {
       : `Till ${tillNumber}`;
     
     logger.paymentInitiated(tx.id, transactionType, kesAmount, recipient);
-    logger.info('PAYMENT', `Rate: 1 WLD = ${formatAmount(rate.wldPriceKes)} | Fee: ${formatAmount(feeKes)}`, tx.id, {
+    logger.info('PAYMENT', `Rate: 1 WLD = ${formatAmount(rate.wldPriceKes)} | Total fee: KSh ${formatAmount(feeKes)}`, tx.id, {
       wldAmount: `${wldAmount} WLD`,
       payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
+      feeBreakdown: {
+        platformFee: `KSh ${formatAmount(platformFee)} (${config.FEE_PERCENT}%)`,
+        safaricomFee: `KSh ${formatAmount(safaricomFee)}`,
+        gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
+        totalFeeKes: `KSh ${formatAmount(feeKes)}`,
+        totalFeeWld: `${feeWld} WLD`,
+      },
     });
 
     return {
@@ -314,21 +323,52 @@ class SimulatedPaymentService implements IPaymentService {
   private async processRefundPipeline(transactionId: string, walletAddress: string, wldAmount: string): Promise<void> {
     logger.pipelineStep(transactionId, 0, 1, `Processing refund of ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`);
 
-    try {
-      await sleep(config.SIM_BLOCK_CONFIRM_MS || 3000);
+    if (!config.ADMIN_PRIVATE_KEY) {
+      const msg = 'ADMIN_PRIVATE_KEY not configured — on-chain refund cannot be executed';
+      logger.error('REFUND', msg, transactionId);
+      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
+      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
+      logger.userError(transactionId, 'REFUND_FAILED',
+        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
+        msg
+      );
+      return;
+    }
 
-      await transactionStore.update(transactionId, { refundStatus: 'REFUNDED' });
-      logger.refundCompleted(transactionId, walletAddress, wldAmount);
+    try {
+      const { ethers } = await import('ethers');
+      const provider = new ethers.JsonRpcProvider(config.WORLD_CHAIN_RPC_URL);
+      const signer = new ethers.Wallet(config.ADMIN_PRIVATE_KEY, provider);
+
+      const erc20Abi = ['function transfer(address to, uint256 amount) public returns (bool)'];
+      const wldContract = new ethers.Contract(config.WLD_CONTRACT_ADDRESS, erc20Abi, signer);
+
+      const amountWei = ethers.parseUnits(wldAmount, 18);
+      logger.info('REFUND', `Sending ${wldAmount} WLD on-chain to ${maskWalletAddress(walletAddress)}`, transactionId);
+
+      const tx = await wldContract.transfer(walletAddress, amountWei);
+      logger.info('REFUND', `Refund tx broadcast: ${tx.hash.slice(0, 12)}...${tx.hash.slice(-6)}`, transactionId);
+
+      const receipt = await tx.wait(1);
+      const refundTxHash: string = receipt?.hash ?? tx.hash;
+
+      await transactionStore.update(transactionId, {
+        refundStatus: 'REFUNDED',
+        refundTxHash,
+        refundAt: new Date().toISOString(),
+      });
+      logger.refundCompleted(transactionId, walletAddress, wldAmount, refundTxHash);
       logger.auditEvent(transactionId, 'REFUND_COMPLETED', 'REFUND', {
         wallet: maskWalletAddress(walletAddress),
         wldAmount,
+        refundTxHash: `${refundTxHash.slice(0, 12)}...${refundTxHash.slice(-6)}`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown refund error';
       await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
       logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
       logger.userError(transactionId, 'REFUND_FAILED',
-        'Automatic refund could not be processed. Please contact support.',
+        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
         msg
       );
     }
@@ -360,58 +400,74 @@ class RealPaymentService extends SimulatedPaymentService {
 
     const log = (step: number, msg: string) => logger.pipelineStep(transactionId, step, 4, msg);
 
+    // Statuses considered already past blockchain confirmation
+    const PAST_CONFIRMATION = ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT'];
+    const PAST_SWAP = ['SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT'];
+    const PAST_OFFRAMP = ['MPESA_SENT'];
+
     try {
-      // Step 1: Verify WLD on-chain
-      log(1, 'Verifying WLD transfer on World Chain...');
-      const amountBigInt = BigInt(Math.floor(parseFloat(tx.wldAmount) * 1e18));
-      const confirmed = await worldChainListener.waitForWldTransfer(
-        tx.payToAddress,
-        amountBigInt,
-        tx.txHash
-      );
+      // Step 1: Verify WLD on-chain (skip if already confirmed)
+      if (PAST_CONFIRMATION.includes(tx.status)) {
+        log(1, `↩ Skipping blockchain confirmation — status already: ${tx.status}`);
+      } else {
+        log(1, 'Verifying WLD transfer on World Chain...');
+        const amountBigInt = BigInt(Math.floor(parseFloat(tx.wldAmount) * 1e18));
+        const confirmed = await worldChainListener.waitForWldTransfer(
+          tx.payToAddress,
+          amountBigInt,
+          tx.txHash
+        );
 
-      if (!confirmed) {
-        logger.userError(transactionId, 'BLOCKCHAIN_CONFIRM_FAILED', 
-          'Payment could not be verified on the blockchain', 
-          'On-chain WLD transfer could not be verified');
-        throw new Error('On-chain WLD transfer could not be verified');
+        if (!confirmed) {
+          logger.userError(transactionId, 'BLOCKCHAIN_CONFIRM_FAILED',
+            'Payment could not be verified on the blockchain',
+            'On-chain WLD transfer could not be verified');
+          throw new Error('On-chain WLD transfer could not be verified');
+        }
+
+        await transactionStore.update(transactionId, { status: 'CONFIRMED' });
+        log(1, '✓ WLD confirmed on World Chain');
       }
-      
-      await transactionStore.update(transactionId, { status: 'CONFIRMED' });
-      log(1, '✓ WLD confirmed on World Chain');
 
-      // Step 2: Local Liquidity Rebalancing (Automated DEX Swap)
-      // Swap WLD -> USDC to prepare liquidity for off-ramp
-      log(2, 'Rebalancing liquidity (WLD → USDC)...');
+      // Step 2: Local Liquidity Rebalancing (skip if already done)
       let swapHash: string | null = null;
-      try {
-        const { swapService } = await import('./swapService');
-        swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
-        logger.dexOperation(transactionId, 'Swap completed', tx.wldAmount, 'WLD', swapHash);
-        log(2, `✓ Rebalanced: ${swapHash.slice(0, 10)}...${swapHash.slice(-6)}`);
-      } catch (swapErr) {
-        // Log but continue - we can still try off-ramp with existing liquidity
-        const errorMsg = swapErr instanceof Error ? swapErr.message : 'Unknown error';
-        logger.warn('DEX', 'Rebalancing failed (continuing with existing liquidity)', transactionId, { error: errorMsg });
+      if (PAST_SWAP.includes(tx.status)) {
+        log(2, `↩ Skipping DEX swap — status already: ${tx.status}`);
+      } else {
+        log(2, 'Rebalancing liquidity (WLD → USDC)...');
+        try {
+          const { swapService } = await import('./swapService');
+          swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
+          logger.dexOperation(transactionId, 'Swap completed', tx.wldAmount, 'WLD', swapHash);
+          log(2, `✓ Rebalanced: ${swapHash.slice(0, 10)}...${swapHash.slice(-6)}`);
+        } catch (swapErr) {
+          const errorMsg = swapErr instanceof Error ? swapErr.message : 'Unknown error';
+          logger.warn('DEX', 'Rebalancing failed (continuing with existing liquidity)', transactionId, { error: errorMsg });
+        }
       }
 
-      // Step 3: Off-ramp / Payout via Bitnob
-      // Now that we have USDC liquidity, initiate the payout
-      log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob...`);
-      const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
-      await transactionStore.update(transactionId, {
-        status: 'OFFRAMP_INITIATED',
-        offrampId: payout.swapId
-      });
-
-      log(3, `✓ Bitnob payout queued [${payout.swapId.slice(0, 8)}...]`);
+      // Step 3: Off-ramp / Payout via Bitnob (skip if already initiated)
+      let payoutSwapId: string = tx.offrampId ?? '';
+      if (PAST_OFFRAMP.includes(tx.status) && tx.offrampId) {
+        log(3, `↩ Skipping off-ramp initiation — already initiated: ${tx.offrampId.slice(0, 8)}...`);
+        payoutSwapId = tx.offrampId;
+      } else {
+        log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob...`);
+        const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
+        payoutSwapId = payout.swapId;
+        await transactionStore.update(transactionId, {
+          status: 'OFFRAMP_INITIATED',
+          offrampId: payoutSwapId
+        });
+        log(3, `✓ Bitnob payout queued [${payoutSwapId.slice(0, 8)}...]`);
+      }
 
       // Step 4: Finalize
       // Note: Bitnob handles the actual disbursement. We wait for their callback 
       // or poll to mark it as SETTLED.
       log(4, 'Waiting for Bitnob to complete disbursement...');
       const bitnobStatus = await this.pollUntil(
-        () => offrampService.checkSwapStatus(payout.swapId, transactionId),
+        () => offrampService.checkSwapStatus(payoutSwapId, transactionId),
         (s) => s === 'COMPLETED' || s === 'FAILED',
         180_000, // 3 min timeout
         10_000   // 10s interval

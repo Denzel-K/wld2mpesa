@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { confirmPayment } from '@/lib/api';
 import { payWithMiniKit, verifyWithWorldId, PAY_ACTION_ID } from '@/lib/minikit';
-import { formatKes, formatWld, shortTxId, calculateWldAmount } from '@/lib/utils';
+import { formatKes, formatWld, shortTxId, calculateWldAmount, PLATFORM_FEE_PERCENT } from '@/lib/utils';
 import { ArrowLeft, Shield, ChevronRight, Loader2, AlertCircle, Store, Phone, CreditCard } from 'lucide-react';
 
 export default function ConfirmationPage() {
@@ -143,8 +143,9 @@ export default function ConfirmationPage() {
               label: 'Total Fees',
               value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).feeKes),
               breakdown: [
-                { label: 'Processing (0.5%)', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).ourFee) },
-                { label: 'Network Cost', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).safaricomFee) }
+                { label: `Platform Fee (${PLATFORM_FEE_PERCENT}%)`, value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).ourFee) },
+                { label: 'Safaricom M-Pesa', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).safaricomFee) },
+                { label: 'World Chain Gas', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).gasBuffer) },
               ]
             },
             { label: 'Total Dedicated (WLD)', value: formatWld(tx.wldAmount), bold: true, green: true },

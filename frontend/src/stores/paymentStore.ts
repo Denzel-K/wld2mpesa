@@ -76,6 +76,9 @@ interface PaymentState {
 
   // Resolution flow
   selectedTransactionId: string | null;
+
+  // Retry flow — when user retries a stuck transaction from modal/resolution page
+  retryTransactionId: string | null;
 }
 
 interface PaymentActions {
@@ -120,6 +123,7 @@ interface PaymentActions {
   setError: (error: string | null) => void;
   setSelectedCurrency: (currency: string) => void;
   setSelectedTransactionId: (id: string | null) => void;
+  setRetryTransactionId: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -144,6 +148,7 @@ const initialState: PaymentState = {
   error: null,
   selectedCurrency: 'KES',
   selectedTransactionId: null,
+  retryTransactionId: null,
   transactionType: 'till',
   walletAddress: null,
   userName: null,
@@ -259,5 +264,6 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
   setError: (error) => set({ error }),
   setSelectedCurrency: (selectedCurrency) => set({ selectedCurrency }),
   setSelectedTransactionId: (selectedTransactionId) => set({ selectedTransactionId }),
+  setRetryTransactionId: (retryTransactionId) => set({ retryTransactionId }),
   reset: () => set({ ...initialState }),
 }));

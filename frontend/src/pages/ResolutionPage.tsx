@@ -7,13 +7,13 @@
 
 import { useState, useEffect } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
-import { fetchTransactionDetail, initiateRefund } from '@/lib/api';
+import { fetchTransactionDetail, initiateRefund, cancelTransaction, retryTransaction } from '@/lib/api';
 import type { TransactionDetail } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, Clock, Loader2,
   Shield, ArrowLeftRight, Zap, Send, RotateCcw,
-  MessageSquare, FileText, AlertCircle, ChevronRight, ExternalLink
+  MessageSquare, FileText, AlertCircle, ChevronRight, ExternalLink, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -58,15 +58,32 @@ function stageReachedIndex(status: string): number {
   return map[status] ?? -1;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  INITIATED: 'Initiated',
+  PENDING_CONFIRMATION: 'Pending Blockchain Confirmation',
+  CONFIRMED: 'WLD Confirmed On-Chain',
+  SWAP_COMPLETED: 'DEX Swap Completed',
+  OFFRAMP_INITIATED: 'Off-ramp Initiated',
+  MPESA_SENT: 'KES Sent to Recipient',
+  SETTLED: 'Fully Settled',
+  FAILED: 'Failed',
+};
+
 export default function ResolutionPage() {
-  const { selectedTransactionId, walletAddress, setScreen } = usePaymentStore();
+  const { selectedTransactionId, walletAddress, setScreen, setRetryTransactionId } = usePaymentStore();
   const [detail, setDetail] = useState<TransactionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDone, setRefundDone] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'pipeline' | 'legal' | 'escalate'>('pipeline');
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDone, setCancelDone] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [retryLoading, setRetryLoading] = useState(false);
+  const [retryDone, setRetryDone] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<'actions' | 'pipeline' | 'legal' | 'escalate'>('actions');
 
   useEffect(() => {
     if (!selectedTransactionId) {
@@ -81,24 +98,52 @@ export default function ResolutionPage() {
 
   const handleRefund = async () => {
     if (!walletAddress || !detail || !selectedTransactionId) return;
-    setRefundLoading(true);
-    setRefundError(null);
+    setRefundLoading(true); setRefundError(null);
     try {
       await initiateRefund(selectedTransactionId, walletAddress);
       setRefundDone(true);
       setDetail((d) => d ? { ...d, refundStatus: 'REFUND_INITIATED' } : d);
     } catch (e: any) {
       setRefundError(e?.message ?? 'Refund request failed. Please contact support at support@wld2mpesa.app');
-    } finally {
-      setRefundLoading(false);
-    }
+    } finally { setRefundLoading(false); }
+  };
+
+  const handleCancel = async () => {
+    if (!walletAddress || !detail || !selectedTransactionId) return;
+    setCancelLoading(true); setCancelError(null);
+    try {
+      await cancelTransaction(selectedTransactionId, walletAddress);
+      setCancelDone(true);
+      setDetail((d) => d ? { ...d, status: 'FAILED', failureReason: 'Cancelled by user — no WLD was transferred' } : d);
+    } catch (e: any) {
+      setCancelError(e?.message ?? 'Cancellation failed. Please try again.');
+    } finally { setCancelLoading(false); }
+  };
+
+  const handleRetry = async () => {
+    if (!walletAddress || !detail || !selectedTransactionId) return;
+    setRetryLoading(true); setRetryError(null);
+    try {
+      await retryTransaction(selectedTransactionId, walletAddress);
+      setRetryDone(true);
+      setRetryTransactionId(selectedTransactionId);
+      setTimeout(() => setScreen('status'), 800);
+    } catch (e: any) {
+      setRetryError(e?.message ?? 'Retry failed. Please contact support.');
+    } finally { setRetryLoading(false); }
   };
 
   if (!selectedTransactionId) return null;
 
+  const status = detail?.status;
   const reachedIdx = detail ? stageReachedIndex(detail.status) : -1;
-  const failedAt = detail?.failureReason ? reachedIdx : -1;
-  const canRefund = detail && detail.status !== 'SETTLED' && detail.refundStatus == null && !refundDone;
+  const isInitiated = status === 'INITIATED';
+  const isFailed = status === 'FAILED';
+  const isPendingConfirm = status === 'PENDING_CONFIRMATION';
+  const isStuckMidPipeline = status === 'CONFIRMED' || status === 'SWAP_COMPLETED' || status === 'OFFRAMP_INITIATED' || status === 'MPESA_SENT';
+  const wldAlreadySent = isPendingConfirm || isStuckMidPipeline || isFailed;
+  const canRefund = wldAlreadySent && detail?.refundStatus == null && !refundDone;
+  const isSettled = status === 'SETTLED';
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-12">
@@ -164,6 +209,7 @@ export default function ResolutionPage() {
             {/* Tab Selector */}
             <div className="flex bg-[var(--bg-secondary)] p-1 rounded-xl border border-[var(--border-color)] gap-1">
               {([
+                { key: 'actions', label: 'Actions' },
                 { key: 'pipeline', label: 'Pipeline' },
                 { key: 'legal', label: 'Legal' },
                 { key: 'escalate', label: 'Escalate' },
@@ -182,6 +228,117 @@ export default function ResolutionPage() {
                 </button>
               ))}
             </div>
+
+            {/* Actions Section */}
+            {activeSection === 'actions' && (
+              <div className="space-y-3">
+
+                {/* Status-aware context banner */}
+                <div className={cn('p-3 rounded-2xl border', isInitiated ? 'bg-blue-500/10 border-blue-500/20' : isSettled ? 'bg-[var(--accent)]/10 border-[var(--accent)]/30' : isFailed ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20')}>
+                  <p className={cn('text-[9px] font-black uppercase tracking-widest', isInitiated ? 'text-blue-400' : isSettled ? 'text-[var(--accent)]' : isFailed ? 'text-red-400' : 'text-orange-400')}>
+                    {STATUS_LABELS[status ?? ''] ?? status}
+                  </p>
+                  <p className="text-[9px] text-[var(--text-secondary)] mt-1 font-normal leading-relaxed">
+                    {isInitiated && 'No WLD has left your wallet yet. You can safely cancel this transaction.'}
+                    {isPendingConfirm && 'WLD was sent but blockchain confirmation is pending. Retry to re-check and continue the pipeline.'}
+                    {isStuckMidPipeline && `Pipeline stalled at ${STATUS_LABELS[status ?? ''] ?? status}. Retry re-kicks the pipeline from this stage.`}
+                    {isFailed && (detail?.refundStatus ? `Refund status: ${detail.refundStatus.replace(/_/g, ' ')}` : 'Transaction failed. Request a refund to recover your WLD.')}
+                    {isSettled && 'This transaction completed successfully. No action required.'}
+                  </p>
+                </div>
+
+                {/* INITIATED — Cancel */}
+                {isInitiated && !cancelDone && (
+                  <>
+                    <button
+                      onClick={handleCancel}
+                      disabled={cancelLoading}
+                      className="w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {cancelLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Cancelling...</> : <><X className="w-4 h-4" /> Cancel Transaction</>}
+                    </button>
+                    {cancelError && <p className="text-[9px] text-red-400 font-bold text-center">{cancelError}</p>}
+                  </>
+                )}
+                {cancelDone && (
+                  <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
+                    <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wide">Cancelled — No WLD Deducted</p>
+                  </div>
+                )}
+
+                {/* PENDING_CONFIRMATION / stuck — Retry */}
+                {(isPendingConfirm || isStuckMidPipeline) && (
+                  <>
+                    {!retryDone ? (
+                      <button
+                        onClick={handleRetry}
+                        disabled={retryLoading}
+                        className="w-full py-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {retryLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Retrying Pipeline...</> : <><RotateCcw className="w-4 h-4" /> Retry Pipeline</>}
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-wide">Retry Initiated — Redirecting to live tracker...</p>
+                      </div>
+                    )}
+                    {retryError && <p className="text-[9px] text-red-400 font-bold text-center">{retryError}</p>}
+                  </>
+                )}
+
+                {/* WLD sent — Refund */}
+                {canRefund && (
+                  <>
+                    <button
+                      onClick={handleRefund}
+                      disabled={refundLoading}
+                      className="w-full py-4 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {refundLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Initiating Refund...</> : <><RotateCcw className="w-4 h-4" /> Request WLD Refund</>}
+                    </button>
+                    {refundError && <p className="text-[9px] text-red-400 font-bold text-center mt-1">{refundError}</p>}
+                  </>
+                )}
+
+                {/* Refund status banners */}
+                {(refundDone || detail?.refundStatus === 'REFUND_INITIATED') && (
+                  <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-start gap-3">
+                    <RotateCcw className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-wide">Refund In Progress</p>
+                      <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">WLD is being returned to your wallet. Check your balance in 1–5 minutes.</p>
+                    </div>
+                  </div>
+                )}
+                {detail?.refundStatus === 'REFUNDED' && (
+                  <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Completed</p>
+                      <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">{detail.wldAmount ? `${parseFloat(detail.wldAmount).toFixed(4)} WLD` : 'WLD'} returned to your wallet.</p>
+                    </div>
+                  </div>
+                )}
+                {detail?.refundStatus === 'REFUND_FAILED' && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
+                    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Refund Failed</p>
+                      <p className="text-[9px] text-red-300 font-normal mt-0.5">Automatic refund could not be processed. Use escalation below to contact support.</p>
+                    </div>
+                  </div>
+                )}
+
+                {isSettled && (
+                  <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-[var(--accent)] flex-shrink-0" />
+                    <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Transaction Settled — No Action Required</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Pipeline Section */}
             {activeSection === 'pipeline' && (
@@ -371,33 +528,6 @@ export default function ResolutionPage() {
               </div>
             )}
 
-            {/* Auto-Refund CTA (sticky bottom) */}
-            {canRefund && (
-              <div className="pt-2">
-                <button
-                  onClick={handleRefund}
-                  disabled={refundLoading}
-                  className="w-full py-4 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  {refundLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Initiating Refund...</>
-                    : <><RotateCcw className="w-4 h-4" /> Request Automatic WLD Refund</>}
-                </button>
-                {refundError && <p className="text-[9px] text-red-400 font-bold text-center mt-2 px-2">{refundError}</p>}
-              </div>
-            )}
-
-            {(refundDone || detail.refundStatus === 'REFUND_INITIATED') && (
-              <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-start gap-3">
-                <RotateCcw className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Initiated</p>
-                  <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">
-                    WLD is being returned to your wallet. Check your balance in 1–5 minutes.
-                  </p>
-                </div>
-              </div>
-            )}
           </>
         ) : null}
       </div>

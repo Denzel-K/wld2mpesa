@@ -2,13 +2,13 @@
  * HomePage.tsx — Dashboard (Balance + Actions + History)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { formatCurrency, convertKesTo, cn } from '@/lib/utils';
 import { fetchTransactionHistory, fetchBalance } from '@/lib/api';
 import {
   Loader2, Send, Store, CreditCard, User,
-  TrendingUp, Shield, History, LogOut, Eye, AlertTriangle, Clock
+  TrendingUp, History, LogOut, Eye, AlertTriangle, Clock, RotateCcw, RefreshCw
 } from 'lucide-react';
 import CurrencySelector from '@/components/CurrencySelector';
 import TransactionDetailModal from '@/components/TransactionDetailModal';
@@ -61,40 +61,78 @@ export default function HomePage() {
   const [filter, setFilter] = useState<Filter>('All');
   const [modalTxId, setModalTxId] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  // Pull-to-refresh
+  const touchStartY = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const loadData = useCallback(async (showRefreshing = false) => {
     if (!walletAddress) return;
-
-    // Fetch on-chain balance directly — never affected by failed transactions
-    setBalanceLoading(true);
-    fetchBalance(walletAddress)
-      .then((b) => { if (b?.balanceWld) setBalanceWld(b.balanceWld); })
-      .catch(console.error)
-      .finally(() => setBalanceLoading(false));
-
-    // Fetch transaction history
-    setHistoryLoading(true);
-    fetchTransactionHistory(walletAddress)
-      .then(setHistory)
-      .catch(console.error)
-      .finally(() => setHistoryLoading(false));
+    if (showRefreshing) setRefreshing(true);
+    else { setBalanceLoading(true); setHistoryLoading(true); }
+    try {
+      const [balResult, histResult] = await Promise.all([
+        fetchBalance(walletAddress).catch(() => null),
+        fetchTransactionHistory(walletAddress).catch(() => []),
+      ]);
+      if (balResult?.balanceWld) setBalanceWld(balResult.balanceWld);
+      setHistory(histResult as any[]);
+    } finally {
+      setRefreshing(false);
+      setBalanceLoading(false);
+      setHistoryLoading(false);
+    }
   }, [walletAddress]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const scrollTop = containerRef.current?.scrollTop ?? 0;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (scrollTop <= 0 && delta > 60) loadData(true);
+  };
+
+  // Build activity rows: original txns + refund events
+  const activityRows = history.flatMap((tx: any) => {
+    const rows: any[] = [{ ...tx, _rowType: 'tx' }];
+    if (tx.refundStatus === 'REFUND_INITIATED' || tx.refundStatus === 'REFUNDED' || tx.refundStatus === 'REFUND_FAILED') {
+      rows.push({ ...tx, _rowType: 'refund' });
+    }
+    return rows;
+  });
 
   const handleAction = (id: string) => {
     setTransactionType(id as any);
     setScreen('payment-form');
   };
 
-  const filteredHistory = history.filter((tx) => {
+  const filteredHistory = activityRows.filter((row) => {
+    if (row._rowType === 'refund') return filter === 'All' || filter === 'Failed';
     if (filter === 'All') return true;
-    if (filter === 'Settled') return tx.status === 'SETTLED';
-    if (filter === 'Failed') return tx.status === 'FAILED';
-    if (filter === 'Pending') return !['SETTLED', 'FAILED'].includes(tx.status);
+    if (filter === 'Settled') return row.status === 'SETTLED';
+    if (filter === 'Failed') return row.status === 'FAILED';
+    if (filter === 'Pending') return !['SETTLED', 'FAILED'].includes(row.status);
     return true;
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-24">
+    <div
+      ref={containerRef}
+      className="flex flex-col min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-24 overflow-y-auto"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {refreshing && (
+        <div className="flex items-center justify-center gap-2 py-3 text-[var(--accent)]">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          <span className="text-[9px] font-black uppercase tracking-widest">Refreshing...</span>
+        </div>
+      )}
 
       {/* Header */}
       <header className="bg-[var(--accent)] px-5 pt-12 pb-14 rounded-b-[3rem] relative overflow-hidden shadow-[0_25px_50px_var(--accent-glow)]">
@@ -108,18 +146,14 @@ export default function HomePage() {
               {userName ? userName.split(' ')[0] : 'WLD2Mpesa'}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <button
-              onClick={() => logout()}
-              className="w-9 h-9 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors active:scale-95"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4 text-white" />
-            </button>
-          </div>
+          <button
+            onClick={() => logout()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-red-500/20 border border-red-400/40 text-red-300 hover:bg-red-500/30 transition-colors active:scale-95"
+            title="Logout"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Logout</span>
+          </button>
         </div>
 
         {/* Balance Card */}
@@ -266,38 +300,72 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredHistory.map((tx) => {
-                const Icon = txIcon(tx.transactionType);
-                const isSettled = tx.status === 'SETTLED';
-                const isFailed = tx.status === 'FAILED';
-                const txId = tx.id || tx.transactionId;
+              {filteredHistory.map((row, idx) => {
+                const txId = row.id || row.transactionId;
+                const isRefundRow = row._rowType === 'refund';
+
+                if (isRefundRow) {
+                  const refundFailed = row.refundStatus === 'REFUND_FAILED';
+                  const refundPending = row.refundStatus === 'REFUND_INITIATED';
+                  return (
+                    <div
+                      key={`${txId}-refund-${idx}`}
+                      className="card border-[var(--border-color)] p-3 flex items-center gap-3 hover:bg-[var(--bg-secondary)] transition-all ml-4 border-l-2 border-l-orange-500/40"
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0 bg-orange-500">
+                        <RotateCcw className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">WLD Refund</p>
+                        <p className="text-[8px] text-[var(--text-secondary)] font-bold mt-0.5">{txTimestamp(row)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <p className="text-[11px] font-black text-orange-400">+{row.wldAmount ? parseFloat(row.wldAmount).toFixed(4) : '?'} WLD</p>
+                        <span className={cn(
+                          'text-[7px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full',
+                          refundFailed ? 'bg-red-500/10 text-red-400' :
+                            refundPending ? 'bg-orange-500/10 text-orange-400' :
+                              'bg-[var(--accent)]/10 text-[var(--accent)]'
+                        )}>
+                          {refundFailed ? 'Refund Failed' : refundPending ? 'Refund Pending' : 'Refunded'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setModalTxId(txId)}
+                        className="ml-1 flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all active:scale-95"
+                        title="View Refund Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                }
+
+                const Icon = txIcon(row.transactionType);
+                const isSettled = row.status === 'SETTLED';
+                const isFailed = row.status === 'FAILED';
 
                 return (
                   <div
-                    key={txId}
+                    key={`${txId}-${idx}`}
                     className="card border-[var(--border-color)] p-3 flex items-center gap-3 hover:bg-[var(--bg-secondary)] transition-all"
                   >
-                    {/* Icon */}
                     <div className={cn(
                       'w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0',
-                      txColor(tx.transactionType)
+                      txColor(row.transactionType)
                     )}>
                       <Icon className="w-4 h-4" />
                     </div>
-
-                    {/* Main info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{txLabel(tx)}</p>
-                      <p className="text-[8px] text-[var(--text-secondary)] font-bold mt-0.5">{txTimestamp(tx)}</p>
+                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{txLabel(row)}</p>
+                      <p className="text-[8px] text-[var(--text-secondary)] font-bold mt-0.5">{txTimestamp(row)}</p>
                     </div>
-
-                    {/* Amount + Status */}
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <p className={cn(
                         'text-[11px] font-black',
                         isSettled ? 'text-[var(--text-primary)]' : isFailed ? 'text-[var(--text-secondary)]/50 line-through' : 'text-[var(--text-primary)]'
                       )}>
-                        {isSettled ? '-' : ''}{formatCurrency(tx.kesAmount, 'KES')}
+                        {isSettled ? '-' : ''}{formatCurrency(row.kesAmount, 'KES')}
                       </p>
                       <span className={cn(
                         'text-[7px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full',
@@ -308,8 +376,6 @@ export default function HomePage() {
                         {isSettled ? 'Settled' : isFailed ? 'Failed' : 'Pending'}
                       </span>
                     </div>
-
-                    {/* Action Button */}
                     <button
                       onClick={() => setModalTxId(txId)}
                       className={cn(

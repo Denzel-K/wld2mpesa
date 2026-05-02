@@ -227,6 +227,34 @@ export async function initiateRefund(
 }
 
 /**
+ * Cancel an INITIATED transaction (no WLD sent — safe to void).
+ */
+export async function cancelTransaction(
+  transactionId: string,
+  walletAddress: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await apiFetch(`/payment/${transactionId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+  return res as { success: boolean; message: string };
+}
+
+/**
+ * Retry the payment pipeline for a stuck transaction (WLD already sent).
+ */
+export async function retryTransaction(
+  transactionId: string,
+  walletAddress: string
+): Promise<{ success: boolean; message: string; currentStatus: string }> {
+  const res = await apiFetch(`/payment/${transactionId}/retry`, {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+  return res as { success: boolean; message: string; currentStatus: string };
+}
+
+/**
  * Logout user - notifies backend of session end
  * @param resetOnboarding - if true, resets onboarded flag so user sees onboarding slides again
  */
