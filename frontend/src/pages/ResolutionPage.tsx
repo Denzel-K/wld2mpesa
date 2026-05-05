@@ -5,7 +5,7 @@
  * auto-refund status, and escalation path if auto-refund fails.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { fetchTransactionDetail, initiateRefund, cancelTransaction, retryTransaction } from '@/lib/api';
 import type { TransactionDetail } from '@/lib/api';
@@ -75,8 +75,10 @@ export default function ResolutionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [refundPolling, setRefundPolling] = useState(false);
   const [refundDone, setRefundDone] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
+  const refundPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelDone, setCancelDone] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -101,12 +103,32 @@ export default function ResolutionPage() {
     setRefundLoading(true); setRefundError(null);
     try {
       await initiateRefund(selectedTransactionId, walletAddress);
-      setRefundDone(true);
       setDetail((d) => d ? { ...d, refundStatus: 'REFUND_INITIATED' } : d);
+      setRefundLoading(false);
+      setRefundPolling(true);
+      refundPollRef.current = setInterval(async () => {
+        try {
+          const updated = await fetchTransactionDetail(selectedTransactionId);
+          if (updated.refundStatus === 'REFUNDED') {
+            clearInterval(refundPollRef.current!);
+            setRefundPolling(false);
+            setRefundDone(true);
+            setDetail(updated);
+          } else if (updated.refundStatus === 'REFUND_FAILED') {
+            clearInterval(refundPollRef.current!);
+            setRefundPolling(false);
+            setRefundError('On-chain refund failed. Your WLD has NOT been returned. Contact support at support@wld2mpesa.app');
+            setDetail(updated);
+          }
+        } catch { /* ignore poll errors */ }
+      }, 4000);
     } catch (e: any) {
+      setRefundLoading(false);
       setRefundError(e?.message ?? 'Refund request failed. Please contact support at support@wld2mpesa.app');
-    } finally { setRefundLoading(false); }
+    }
   };
+
+  useEffect(() => () => { if (refundPollRef.current) clearInterval(refundPollRef.current); }, []);
 
   const handleCancel = async () => {
     if (!walletAddress || !detail || !selectedTransactionId) return;
@@ -289,44 +311,60 @@ export default function ResolutionPage() {
                 )}
 
                 {/* WLD sent — Refund */}
-                {canRefund && (
+                {canRefund && !refundPolling && !refundDone && (
                   <>
                     <button
                       onClick={handleRefund}
                       disabled={refundLoading}
                       className="w-full py-4 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {refundLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Initiating Refund...</> : <><RotateCcw className="w-4 h-4" /> Request WLD Refund</>}
+                      {refundLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting Refund Request...</> : <><RotateCcw className="w-4 h-4" /> Request WLD Refund</>}
                     </button>
-                    {refundError && <p className="text-[9px] text-red-400 font-bold text-center mt-1">{refundError}</p>}
+                    {refundError && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl">
+                        <p className="text-[9px] text-red-400 font-bold">{refundError}</p>
+                      </div>
+                    )}
                   </>
                 )}
 
-                {/* Refund status banners */}
-                {(refundDone || detail?.refundStatus === 'REFUND_INITIATED') && (
-                  <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-start gap-3">
-                    <RotateCcw className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                {/* Refund polling state */}
+                {refundPolling && (
+                  <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center gap-3">
+                    <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
                     <div>
-                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-wide">Refund In Progress</p>
-                      <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">WLD is being returned to your wallet. Check your balance in 1–5 minutes.</p>
+                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-wide">Refund Broadcast — Awaiting On-Chain Confirmation</p>
+                      <p className="text-[9px] text-orange-300 font-normal mt-0.5">Keep this screen open. Checking blockchain every 4 seconds...</p>
                     </div>
                   </div>
                 )}
-                {detail?.refundStatus === 'REFUNDED' && (
+
+                {/* Refund confirmed */}
+                {refundDone && (
                   <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-start gap-3">
                     <CheckCircle2 className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Completed</p>
-                      <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">{detail.wldAmount ? `${parseFloat(detail.wldAmount).toFixed(4)} WLD` : 'WLD'} returned to your wallet.</p>
+                      <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Confirmed On-Chain</p>
+                      <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">
+                        {detail?.wldAmount ? `${parseFloat(detail.wldAmount).toFixed(4)} WLD` : 'WLD'} transferred back to your wallet.
+                        {detail?.refundTxHash && detail.refundTxHash !== 'N/A' && (
+                          <> <button onClick={() => window.open(`https://worldscan.org/tx/${detail.refundTxHash}`, '_blank')} className="text-[var(--accent)] underline">Verify on WorldScan</button></>
+                        )}
+                      </p>
                     </div>
                   </div>
                 )}
-                {detail?.refundStatus === 'REFUND_FAILED' && (
+
+                {/* Refund failed */}
+                {!refundPolling && (detail?.refundStatus === 'REFUND_FAILED' || (refundError && !refundDone)) && (
                   <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
                     <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Refund Failed</p>
-                      <p className="text-[9px] text-red-300 font-normal mt-0.5">Automatic refund could not be processed. Use escalation below to contact support.</p>
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-wide">Refund Failed — Action Required</p>
+                      <p className="text-[9px] text-red-300 font-normal mt-0.5">
+                        {refundError || 'Automatic refund could not be processed. Your WLD has NOT been returned.'}
+                        {' '}Use the Escalate tab below to contact support.
+                      </p>
                     </div>
                   </div>
                 )}

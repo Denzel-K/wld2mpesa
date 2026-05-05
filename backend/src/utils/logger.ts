@@ -6,7 +6,7 @@
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE' | 'REFUND' | 'RECONCILIATION' | 'SECURITY';
+export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE' | 'REFUND' | 'RECONCILIATION' | 'SECURITY' | 'SYSTEM';
 
 interface LogEntry {
   timestamp: string;
@@ -86,12 +86,29 @@ class Logger {
       metadata: this.sanitizeMetadata(metadata),
     };
 
-    // In production, you might want to send this to a logging service
-    const prefix = `[${entry.timestamp}] [${category}]${transactionId ? ` [${transactionId}]` : ''}`;
+    const LEVEL_PREFIX: Record<LogLevel, string> = {
+      debug: '\x1b[2m[DBG]\x1b[0m',
+      info:  '\x1b[36m[INF]\x1b[0m',
+      warn:  '\x1b[33m[WRN]\x1b[0m',
+      error: '\x1b[31m[ERR]\x1b[0m',
+    };
+    const CAT_COLOR: Partial<Record<LogCategory, string>> = {
+      REFUND:         '\x1b[33m',
+      RECONCILIATION: '\x1b[35m',
+      PIPELINE:       '\x1b[36m',
+      BLOCKCHAIN:     '\x1b[34m',
+      DEX:            '\x1b[34m',
+      SECURITY:       '\x1b[31m',
+      PAYMENT:        '\x1b[32m',
+    };
+    const catColor = CAT_COLOR[category] ?? '';
+    const reset = '\x1b[0m';
+
+    const prefix = `${LEVEL_PREFIX[level]} ${catColor}[${category}]${reset}${transactionId ? ` \x1b[2m[${transactionId.slice(-12)}]\x1b[0m` : ''}`;
     const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
     
     if (metadata && Object.keys(metadata).length > 0) {
-      logFn(`${prefix} ${message}`, metadata);
+      logFn(`${prefix} ${message}`, entry.metadata);
     } else {
       logFn(`${prefix} ${message}`);
     }
@@ -173,7 +190,8 @@ class Logger {
    * Log pipeline step progress
    */
   pipelineStep(transactionId: string, step: number, totalSteps: number, description: string): void {
-    this.info('PIPELINE', `Step ${step}/${totalSteps}: ${description}`, transactionId, { step, totalSteps });
+    const bar = Array.from({ length: totalSteps }, (_, i) => i < step ? '█' : '░').join('');
+    this.info('PIPELINE', `[${bar}] ${step}/${totalSteps} ${description}`, transactionId);
   }
 
   /**
@@ -275,6 +293,37 @@ class Logger {
    */
   securityEvent(event: string, details: Record<string, unknown>): void {
     this.warn('SECURITY', `[SECURITY] ${event}`, undefined, details);
+  }
+
+  /**
+   * Print a startup banner summarising system configuration.
+   * Call once from server.ts after env validation.
+   */
+  startupBanner(mode: string, hasAdminKey: boolean, hasBitnob: boolean, hasMpesa: boolean): void {
+    const ok  = '\x1b[32m✓\x1b[0m';
+    const bad = '\x1b[31m✗\x1b[0m';
+    const warn = '\x1b[33m~\x1b[0m';
+    console.log('\n\x1b[1m\x1b[36m┌──────────────────────────────────────────────┐');
+    console.log(`│  WLD2Mpesa  — ${mode.padEnd(30)}│`);
+    console.log('└──────────────────────────────────────────────┘\x1b[0m');
+    console.log(`  ${hasAdminKey ? ok : bad} ADMIN_PRIVATE_KEY   ${hasAdminKey ? '\x1b[32mset (refunds enabled)\x1b[0m' : '\x1b[31mMISSING — on-chain refunds disabled\x1b[0m'}`);
+    console.log(`  ${hasBitnob  ? ok : warn} Bitnob credentials  ${hasBitnob  ? '\x1b[32mset\x1b[0m' : '\x1b[33mpartially missing — KES payout may fail\x1b[0m'}`);
+    console.log(`  ${hasMpesa   ? ok : warn} M-Pesa credentials  ${hasMpesa   ? '\x1b[32mset\x1b[0m' : '\x1b[33mmissing — webhook callbacks inactive\x1b[0m'}`);
+    console.log('');
+  }
+
+  /**
+   * Divider line — visually separates pipeline runs in console output.
+   */
+  pipelineDivider(transactionId: string, action: 'START' | 'END' | 'RETRY'): void {
+    const colors: Record<string, string> = {
+      START: '\x1b[36m', END: '\x1b[32m', RETRY: '\x1b[33m',
+    };
+    const icons: Record<string, string> = { START: '▶', END: '■', RETRY: '↩' };
+    const c = colors[action] ?? '';
+    console.log(`${c}${'─'.repeat(60)}\x1b[0m`);
+    console.log(`${c}  ${icons[action]} PIPELINE ${action}: ${transactionId}\x1b[0m`);
+    console.log(`${c}${'─'.repeat(60)}\x1b[0m`);
   }
 }
 

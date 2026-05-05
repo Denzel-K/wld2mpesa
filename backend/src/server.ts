@@ -15,6 +15,7 @@ dns.setServers(['8.8.8.8', '1.1.1.1']);
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { config } from './config';
+import { logger } from './utils/logger';
 import { paymentRouter } from './routes/payment.routes';
 import { ratesRouter } from './routes/rates.routes';
 import { userRouter } from './routes/user.routes';
@@ -64,7 +65,11 @@ app.use(express.json({ limit: '1mb' }));
 
 // Request logger
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  logger.info('API', `${req.method} ${req.path}`, undefined,
+    req.body && Object.keys(req.body).length > 0
+      ? { bodyKeys: Object.keys(req.body) }
+      : undefined
+  );
   next();
 });
 
@@ -118,6 +123,13 @@ app.listen(config.PORT, () => {
   console.log(`   Health: http://localhost:${config.PORT}/api/health`);
   console.log(`   Rates:  http://localhost:${config.PORT}/api/rates/wld-kes`);
   console.log(`   Mode:   ${config.IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}\n`);
+
+  logger.startupBanner(
+    config.IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT',
+    !!config.ADMIN_PRIVATE_KEY,
+    !!(config.BITNOB_CLIENT_ID && config.BITNOB_SECRET_KEY && config.BITNOB_API_KEY),
+    !!(config.MPESA_CONSUMER_KEY && config.MPESA_CONSUMER_SECRET)
+  );
 });
 
 export { app };

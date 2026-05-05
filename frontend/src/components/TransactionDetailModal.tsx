@@ -5,7 +5,7 @@
  * For non-settled: shows conflict resolution options + auto-refund.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { fetchTransactionDetail, initiateRefund, cancelTransaction, retryTransaction } from '@/lib/api';
 import type { TransactionDetail } from '@/lib/api';
@@ -72,8 +72,10 @@ export default function TransactionDetailModal({ transactionId, onClose }: Props
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [refundPolling, setRefundPolling] = useState(false);
   const [refundDone, setRefundDone] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
+  const refundPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelDone, setCancelDone] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -95,12 +97,33 @@ export default function TransactionDetailModal({ transactionId, onClose }: Props
     setRefundLoading(true); setRefundError(null);
     try {
       await initiateRefund(transactionId, walletAddress);
-      setRefundDone(true);
       setDetail((d) => d ? { ...d, refundStatus: 'REFUND_INITIATED' } : d);
+      setRefundLoading(false);
+      setRefundPolling(true);
+      // Poll until on-chain result is known
+      refundPollRef.current = setInterval(async () => {
+        try {
+          const updated = await fetchTransactionDetail(transactionId);
+          if (updated.refundStatus === 'REFUNDED') {
+            clearInterval(refundPollRef.current!);
+            setRefundPolling(false);
+            setRefundDone(true);
+            setDetail(updated);
+          } else if (updated.refundStatus === 'REFUND_FAILED') {
+            clearInterval(refundPollRef.current!);
+            setRefundPolling(false);
+            setRefundError('On-chain refund failed. Your WLD has NOT been returned. Please use Conflict Resolution to escalate.');
+            setDetail(updated);
+          }
+        } catch { /* ignore poll errors */ }
+      }, 4000);
     } catch (e: any) {
+      setRefundLoading(false);
       setRefundError(e?.message ?? 'Refund request failed. Please contact support.');
-    } finally { setRefundLoading(false); }
+    }
   };
+
+  useEffect(() => () => { if (refundPollRef.current) clearInterval(refundPollRef.current); }, []);
 
   const handleCancel = async () => {
     if (!walletAddress || !detail) return;
@@ -434,18 +457,42 @@ export default function TransactionDetailModal({ transactionId, onClose }: Props
               )}
 
               {/* Refund — for FAILED or stuck where WLD was sent */}
-              {canRefund && (
+              {canRefund && !refundPolling && !refundDone && (
                 <button
                   onClick={handleRefund}
                   disabled={refundLoading}
                   className="w-full py-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95 disabled:opacity-50"
                 >
                   {refundLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing Refund...</>
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting Refund Request...</>
                     : <><RotateCcw className="w-4 h-4" /> Auto-Refund WLD</>}
                 </button>
               )}
-              {refundError && <p className="text-[9px] text-red-400 font-bold text-center px-2">{refundError}</p>}
+              {refundPolling && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 text-orange-400 animate-spin flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-wide">Refund Broadcast — Awaiting On-Chain Confirmation</p>
+                    <p className="text-[9px] text-orange-300 font-normal mt-0.5">Do not close this screen. Checking blockchain every 4s...</p>
+                  </div>
+                </div>
+              )}
+              {refundDone && (
+                <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wide">Refund Confirmed On-Chain</p>
+                    <p className="text-[9px] text-[var(--text-secondary)] font-normal mt-0.5">
+                      {detail?.wldAmount ? `${parseFloat(detail.wldAmount).toFixed(4)} WLD` : 'WLD'} transferred back to your wallet.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {refundError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl">
+                  <p className="text-[9px] text-red-400 font-bold">{refundError}</p>
+                </div>
+              )}
 
               {/* Conflict Resolution Centre — for all non-settled non-initiated */}
               {!isSettled && !isInitiated && (

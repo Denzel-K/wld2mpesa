@@ -174,23 +174,40 @@ class SimulatedPaymentService implements IPaymentService {
 
     const log = (step: number, msg: string) => logger.pipelineStep(transactionId, step, 4, msg);
 
+    logger.pipelineDivider(transactionId, 'START');
+    logger.auditEvent(transactionId, 'PIPELINE_STARTED', 'INITIATION', {
+      mode: 'SIMULATION',
+      transactionType: tx.transactionType,
+      wldAmount: tx.wldAmount,
+      kesAmount: formatAmount(tx.kesAmount),
+    });
+
     try {
       log(1, 'Waiting for WLD confirmation…');
       await sleep(config.SIM_BLOCK_CONFIRM_MS);
-      await transactionStore.update(transactionId, { status: 'CONFIRMED' });
-      log(1, '✓ WLD received');
+      await transactionStore.update(transactionId, { status: 'CONFIRMED', confirmedAt: new Date().toISOString() });
+      log(1, '✓ WLD received [SIMULATED]');
+      logger.auditEvent(transactionId, 'WLD_CONFIRMED', 'BLOCKCHAIN', {
+        mode: 'SIMULATION', wldAmount: tx.wldAmount,
+      });
 
       // Step 2: DEX Swap (WLD → USDC) for rebalancing
       log(2, 'Rebalancing liquidity (WLD → USDC)...');
-      await sleep(config.SIM_OFFRAMP_MS / 2); // Simulate swap time
+      await sleep(config.SIM_OFFRAMP_MS / 2);
       await transactionStore.update(transactionId, { status: 'SWAP_COMPLETED' });
-      log(2, '✓ DEX swap completed');
+      log(2, '✓ DEX swap completed [SIMULATED]');
+      logger.auditEvent(transactionId, 'DEX_SWAP_COMPLETED', 'DEX_SWAP', {
+        mode: 'SIMULATION', wldAmount: tx.wldAmount,
+      });
 
       // Step 3: Off-ramp via Bitnob
       log(3, `Off-ramp: ${formatTransactionType(tx.transactionType)} via Bitnob...`);
-      await transactionStore.update(transactionId, { status: 'OFFRAMP_INITIATED' });
+      await transactionStore.update(transactionId, { status: 'OFFRAMP_INITIATED', offrampAt: new Date().toISOString() });
       await sleep(config.SIM_OFFRAMP_MS / 2);
-      log(3, '✓ Bitnob payout queued');
+      log(3, '✓ Bitnob payout queued [SIMULATED]');
+      logger.auditEvent(transactionId, 'OFFRAMP_INITIATED', 'OFFRAMP', {
+        mode: 'SIMULATION', kesAmount: formatAmount(tx.kesAmount),
+      });
 
       const destination = tx.transactionType === 'send' || tx.transactionType === 'pochi'
         ? maskPhoneNumber(tx.phoneNumber)
@@ -200,10 +217,10 @@ class SimulatedPaymentService implements IPaymentService {
 
       // Step 4: Final disbursement
       log(4, `Sending ${formatAmount(tx.kesAmount)} to ${destination}…`);
-      await transactionStore.update(transactionId, { status: 'MPESA_SENT' });
+      await transactionStore.update(transactionId, { status: 'MPESA_SENT', mpesaSentAt: new Date().toISOString() });
       await sleep(config.SIM_MPESA_MS);
 
-      const receiptNumber = `RGX${Date.now().toString().slice(-8)}`;
+      const receiptNumber = `SIM${Date.now().toString().slice(-8)}`;
 
       await transactionStore.update(transactionId, {
         status: 'SETTLED',
@@ -211,16 +228,27 @@ class SimulatedPaymentService implements IPaymentService {
         settledAt: new Date().toISOString(),
       });
 
-      log(4, `✓ SETTLED — Receipt: ${receiptNumber}`);
-      logger.info('PAYMENT', `Transaction completed successfully`, transactionId, {
+      log(4, `✓ SETTLED — Receipt: ${receiptNumber} [SIMULATED]`);
+      logger.info('PAYMENT', `Transaction completed successfully [SIMULATION]`, transactionId, {
         receiptNumber,
+        wldAmount: `${tx.wldAmount} WLD`,
         kesAmount: formatAmount(tx.kesAmount),
         destination,
       });
+      logger.auditEvent(transactionId, 'TRANSACTION_SETTLED', 'SETTLEMENT', {
+        mode: 'SIMULATION',
+        mpesaReceiptNumber: receiptNumber,
+        wldAmount: tx.wldAmount,
+        kesAmount: formatAmount(tx.kesAmount),
+        destination,
+      });
+      logger.pipelineDivider(transactionId, 'END');
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown pipeline error';
       logger.error('PAYMENT', `Pipeline failed: ${msg}`, transactionId, err);
+      logger.auditEvent(transactionId, 'PIPELINE_FAILED', 'FAILURE', { reason: msg });
+      logger.pipelineDivider(transactionId, 'END');
       await this.failTransaction(transactionId, msg);
     }
   }
@@ -301,6 +329,27 @@ class SimulatedPaymentService implements IPaymentService {
     const tx = await transactionStore.get(transactionId);
     if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
 
+    // Guard: block if refund already in-flight or completed
+    if (tx.refundStatus === 'REFUND_INITIATED') {
+      logger.warn('REFUND', 'Duplicate refund attempt blocked — refund already in-flight', transactionId, {
+        wallet: maskWalletAddress(walletAddress),
+        currentRefundStatus: tx.refundStatus,
+      });
+      throw new Error('A refund is already in progress for this transaction. Please wait.');
+    }
+    if (tx.refundStatus === 'REFUNDED' && tx.refundTxHash) {
+      logger.warn('REFUND', 'Duplicate refund attempt blocked — already refunded on-chain', transactionId, {
+        wallet: maskWalletAddress(walletAddress),
+        refundTxHash: tx.refundTxHash.slice(0, 12),
+      });
+      throw new Error('This transaction has already been refunded on-chain.');
+    }
+
+    if (!tx.wldAmount || parseFloat(tx.wldAmount) <= 0) {
+      logger.error('REFUND', 'Cannot refund — wldAmount is missing or zero', transactionId);
+      throw new Error('Cannot process refund: WLD amount is not recorded for this transaction.');
+    }
+
     logger.refundInitiated(transactionId, walletAddress, tx.wldAmount, tx.failureReason || 'User-requested conflict resolution');
     logger.auditEvent(transactionId, 'REFUND_REQUESTED', 'REFUND', {
       wallet: maskWalletAddress(walletAddress),
@@ -321,6 +370,7 @@ class SimulatedPaymentService implements IPaymentService {
   }
 
   private async processRefundPipeline(transactionId: string, walletAddress: string, wldAmount: string): Promise<void> {
+    logger.pipelineDivider(transactionId, 'START');
     logger.pipelineStep(transactionId, 0, 1, `Processing refund of ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`);
 
     if (!config.ADMIN_PRIVATE_KEY) {
@@ -363,6 +413,7 @@ class SimulatedPaymentService implements IPaymentService {
         wldAmount,
         refundTxHash: `${refundTxHash.slice(0, 12)}...${refundTxHash.slice(-6)}`,
       });
+      logger.pipelineDivider(transactionId, 'END');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown refund error';
       await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
@@ -371,6 +422,7 @@ class SimulatedPaymentService implements IPaymentService {
         'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
         msg
       );
+      logger.pipelineDivider(transactionId, 'END');
     }
   }
 
@@ -402,6 +454,14 @@ class RealPaymentService extends SimulatedPaymentService {
 
     // Statuses considered already past blockchain confirmation
     const PAST_CONFIRMATION = ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT'];
+    const isRetry = PAST_CONFIRMATION.includes(tx.status);
+    logger.pipelineDivider(transactionId, isRetry ? 'RETRY' : 'START');
+    logger.auditEvent(transactionId, isRetry ? 'PIPELINE_RETRY_STARTED' : 'PIPELINE_STARTED', 'INITIATION', {
+      mode: 'PRODUCTION',
+      currentStatus: tx.status,
+      wldAmount: tx.wldAmount,
+      kesAmount: formatAmount(tx.kesAmount),
+    });
     const PAST_SWAP = ['SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT'];
     const PAST_OFFRAMP = ['MPESA_SENT'];
 
@@ -486,6 +546,7 @@ class RealPaymentService extends SimulatedPaymentService {
       });
 
       log(4, '✓ SETTLED - Funds sent to recipient');
+      logger.pipelineDivider(transactionId, 'END');
       logger.info('PAYMENT', 'Transaction completed successfully', transactionId, {
         kesAmount: formatAmount(tx.kesAmount),
         swapHash: swapHash ? `${swapHash.slice(0, 10)}...${swapHash.slice(-6)}` : 'skipped',
@@ -499,6 +560,8 @@ class RealPaymentService extends SimulatedPaymentService {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown production pipeline error';
       logger.error('PAYMENT', `Pipeline critical failure: ${msg}`, transactionId, err);
+      logger.auditEvent(transactionId, 'PIPELINE_FAILED', 'FAILURE', { reason: msg, mode: 'PRODUCTION' });
+      logger.pipelineDivider(transactionId, 'END');
       await this.markFailed(transactionId, msg);
     }
   }
