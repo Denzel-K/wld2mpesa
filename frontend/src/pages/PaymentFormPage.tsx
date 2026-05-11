@@ -25,7 +25,7 @@ import {
   User
 } from 'lucide-react';
 
-const FEE_PERCENT = 0.5;
+const FEE_PERCENT = 5;
 
 type Step = 'details' | 'amount' | 'confirm';
 
@@ -317,7 +317,7 @@ export default function PaymentFormPage() {
                   </div>
                   <div className="flex flex-col gap-2 pl-3 border-l-2 border-[var(--accent)]/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee (0.5%)</span>
+                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee (5%)</span>
                       <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
                     </div>
                     <div className="flex justify-between items-center">

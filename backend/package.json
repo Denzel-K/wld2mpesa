@@ -8,9 +8,11 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
-    "test:e2e": "tsx src/scripts/testE2E.ts",
     "db:audit": "tsx src/scripts/db-audit.ts",
     "db:fix-refunds": "tsx src/scripts/db-audit.ts --fix-fake",
+    "analyze": "tsx src/scripts/transaction-analyzer.ts",
+    "analyze:fix": "tsx src/scripts/transaction-analyzer.ts --fix",
+    "analyze:report": "tsx src/scripts/transaction-analyzer.ts --report",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

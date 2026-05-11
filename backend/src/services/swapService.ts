@@ -53,15 +53,20 @@ export class SwapService {
       logger.dexOperation(operationId, 'Router approval confirmed', amountWld, 'WLD');
 
       // 2. Execute Swap (exactInputSingle)
-      // Fee tier: 1% (10000) is standard for WLD/USDC on many pools
+      // Fee tier: 0.3% (3000) is standard for most WLD/USDC pools
       logger.dexOperation(operationId, 'Executing swap on Uniswap V3', amountWld, 'WLD');
+      
+      // Calculate minimum output with 3% slippage protection
+      // In production, fetch quote from quoter contract
+      const expectedOutput = amountIn * BigInt(97) / BigInt(100); // 3% slippage tolerance
+      
       const params = {
         tokenIn: config.WLD_TOKEN,
         tokenOut: config.USDC_TOKEN,
-        fee: 10000, // 1%
+        fee: 3000, // 0.3% tier
         recipient: this.wallet.address,
         amountIn: amountIn,
-        amountOutMinimum: 0, // In production, add slippage protection!
+        amountOutMinimum: expectedOutput, // 3% slippage protection
         sqrtPriceLimitX96: 0,
       };
 

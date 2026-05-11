@@ -108,8 +108,7 @@ export interface WalletBalance {
 // ─── API functions ────────────────────────────────────────────────────────────
 
 /**
- * Fetch live WLD/KES exchange rate.
- * Simulated: returns hardcoded rate. Production: CoinGecko.
+ * Fetch live WLD/KES exchange rate from backend (Kraken API + ExchangeRate-API).
  */
 export async function fetchRate(): Promise<RateData> {
   const res = await apiFetch('/rates/wld-kes');

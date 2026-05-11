@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-05-11T17:43:36.165Z",
+  "summary": {
+    "totalTransactions": 4,
+    "byStatus": {
+      "FAILED": 4
+    },
+    "totalWldVolume": "1.9726",
+    "atRiskWld": "1.3786"
+  },
+  "failures": [
+    {
+      "transactionId": "TXN-1777635323912-6022",
+      "status": "FAILED",
+      "failureReason": "Cancelled by user — no WLD was transferred",
+      "failedAt": "2026-05-01T14:15:23.763Z",
+      "wldAmount": "0.4918",
+      "stageReached": "PENDING_CONFIRMATION",
+      "rootCause": "USER_CANCELLED",
+      "recoverable": false,
+      "suggestedAction": "No action needed - user intentionally cancelled"
+    },
+    {
+      "transactionId": "TXN-1777106930370-D989",
+      "status": "FAILED",
+      "failureReason": "On-chain WLD transfer could not be verified",
+      "failedAt": "2026-04-25T08:51:28.193Z",
+      "wldAmount": "0.2968",
+      "stageReached": "CONFIRMED",
+      "rootCause": "UNKNOWN",
+      "recoverable": true,
+      "suggestedAction": "Manual investigation required"
+    },
+    {
+      "transactionId": "TXN-1777103458329-5EC4",
+      "status": "FAILED",
+      "failureReason": "On-chain WLD transfer could not be verified",
+      "failedAt": "2026-04-25T07:53:40.098Z",
+      "wldAmount": "0.2972",
+      "stageReached": "CONFIRMED",
+      "rootCause": "UNKNOWN",
+      "recoverable": true,
+      "suggestedAction": "Manual investigation required"
+    },
+    {
+      "transactionId": "TXN-1777050840226-6429",
+      "status": "FAILED",
+      "failureReason": "On-chain WLD transfer could not be verified",
+      "failedAt": "2026-05-01T13:47:54.285Z",
+      "wldAmount": "0.8868",
+      "stageReached": "CONFIRMED",
+      "rootCause": "REFUND_FAILED_ONCHAIN",
+      "recoverable": true,
+      "suggestedAction": "Manual refund required - check gas availability and retry"
+    }
+  ],
+  "stuck": [],
+  "refunds": [
+    {
+      "transactionId": "TXN-1777635323912-6022",
+      "refundStatus": "REFUND_FAILED",
+      "refundTxHash": null,
+      "wldAmount": "0.4918",
+      "failedAt": "2026-05-01T14:15:23.763Z",
+      "legitimacy": "INVALID",
+      "issue": "Refund attempted but WLD was never sent - no refund needed",
+      "fixable": true
+    },
+    {
+      "transactionId": "TXN-1777106930370-D989",
+      "refundStatus": null,
+      "refundTxHash": null,
+      "wldAmount": "0.2968",
+      "failedAt": "2026-04-25T08:51:28.193Z",
+      "legitimacy": "VALID",
+      "issue": null,
+      "fixable": false
+    },
+    {
+      "transactionId": "TXN-1777103458329-5EC4",
+      "refundStatus": null,
+      "refundTxHash": null,
+      "wldAmount": "0.2972",
+      "failedAt": "2026-04-25T07:53:40.098Z",
+      "legitimacy": "VALID",
+      "issue": null,
+      "fixable": false
+    },
+    {
+      "transactionId": "TXN-1777050840226-6429",
+      "refundStatus": "REFUND_FAILED",
+      "refundTxHash": null,
+      "wldAmount": "0.8868",
+      "failedAt": "2026-05-01T13:47:54.285Z",
+      "legitimacy": "VALID",
+      "issue": "On-chain refund failed - requires manual intervention",
+      "fixable": true
+    }
+  ],
+  "pipelineHealth": {
+    "worldChain": {
+      "status": "UNKNOWN",
+      "notes": "0.0% confirmation success rate"
+    },
+    "bitnob": {
+      "status": "UNKNOWN",
+      "notes": "0.0% payout success rate"
+    },
+    "mpesa": {
+      "status": "UNKNOWN",
+      "notes": "0.0% disbursement success rate"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "category": "REFUND",
+      "title": "Fix Fake Refund Records",
+      "description": "1 transaction(s) marked as REFUNDED but no on-chain proof exists. Users may think they were refunded when they were not.",
+      "action": "Run --fix to reset these to REFUND_FAILED so users can retry",
+      "affectedTransactions": [
+        "TXN-1777635323912-6022"
+      ]
+    },
+    {
+      "priority": "CRITICAL",
+      "category": "REFUND",
+      "title": "Retry Failed On-Chain Refunds",
+      "description": "2 refund(s) failed on-chain. WLD is still held by backend and user has not been repaid.",
+      "action": "Ensure ADMIN_PRIVATE_KEY is configured with sufficient gas, then retry refunds",
+      "affectedTransactions": [
+        "TXN-1777635323912-6022",
+        "TXN-1777050840226-6429"
+      ]
+    }
+  ]
+}

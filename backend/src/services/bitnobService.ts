@@ -75,7 +75,7 @@ export interface BitnobRateResponse {
 /**
  * BitnobService — Complete Bitnob API integration
  */
-class BitnobService implements IOfframpService {
+export class BitnobService implements IOfframpService {
   private get baseUrl(): string {
     return config.BITNOB_ENV === 'production'
       ? 'https://api.bitnob.co/api/v1'
@@ -231,13 +231,14 @@ class BitnobService implements IOfframpService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string };
+      const errorMsg = errorData.message || errorData.error || response.statusText;
       logger.error('BITNOB', 'Failed to fetch payout status', reference || 'unknown', {
         payoutId,
         status: response.status,
-        error: error.message || response.statusText,
+        error: errorMsg,
       });
-      throw new Error(`Failed to fetch payout status: ${error.message || response.statusText}`);
+      throw new Error(`Failed to fetch payout status: ${errorMsg}`);
     }
 
     const data = await response.json() as any;

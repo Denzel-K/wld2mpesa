@@ -119,11 +119,9 @@ export interface WalletAuthResult {
  */
 export async function authenticateWallet(): Promise<WalletAuthResult> {
   if (!isInsideWorldApp()) {
-    // Development fallback (no real wallet)
-    console.warn('[MiniKit] Not in World App — using simulated walletAuth');
     return {
-      success: true,
-      walletAddress: '0xDEV_SIMULATED_WALLET',
+      success: false,
+      error: 'Not running inside World App. Please open this app from World App to proceed.',
     };
   }
 
@@ -192,14 +190,8 @@ export async function verifyWithWorldId(
   rpContext?: any
 ): Promise<any | null> {
   if (!isInsideWorldApp()) {
-    console.warn('[MiniKit] Not inside World App — simulating verify() success');
-    await sleep(800);
-    return {
-      nullifier_hash: '0xSIMULATED_NULLIFIER',
-      merkle_root: '0xSIMULATED_ROOT',
-      proof: '0xSIMULATED_PROOF',
-      verification_level: 'orb',
-    };
+    console.error('[MiniKit] Not inside World App — cannot verify World ID');
+    return null;
   }
 
   try {
@@ -245,12 +237,9 @@ export async function payWithMiniKit(
   referenceId: string
 ): Promise<MiniKitPayResult> {
   if (!isInsideWorldApp()) {
-    console.warn('[MiniKit] Not inside World App — simulating pay() success');
-    await sleep(1500);
     return {
-      success: true,
-      txHash: `0xSIMULATED_${Date.now()}`,
-      payload: { simulated: true },
+      success: false,
+      error: 'Not running inside World App. Please open this app from World App to make payments.',
     };
   }
 
@@ -283,8 +272,3 @@ export async function payWithMiniKit(
   };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}

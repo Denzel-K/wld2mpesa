@@ -89,11 +89,6 @@ const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 10);
 // Canonical WLD ERC-20 contract on World Chain — single source of truth
 const WLD_CONTRACT_ADDRESS = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
 
-// ─── Simulation delays (realistic mock timings) ───────────────────────────────
-const SIM_BLOCK_CONFIRM_MS = 5000;   // 5s for "block confirmation" (real: ~30s)
-const SIM_OFFRAMP_MS = 8000;         // 8s for "off-ramp" (real: ~2min)
-const SIM_MPESA_MS = 5000;           // 5s for "M-Pesa disbursement" (real: ~30s)
-
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export const config = {
@@ -134,10 +129,6 @@ export const config = {
   MIN_KES_AMOUNT,
   MAX_KES_AMOUNT,
   WLD_CONTRACT_ADDRESS,
-
-  SIM_BLOCK_CONFIRM_MS,
-  SIM_OFFRAMP_MS,
-  SIM_MPESA_MS,
 
   REDIS_URL,
   DATABASE_URL,

@@ -53,398 +53,13 @@ function calculateWldAmount(
 }
 
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// ─── Simulated implementation ─────────────────────────────────────────────────
-
-class SimulatedPaymentService implements IPaymentService {
-  async initiatePayment(params: InitiatePaymentParams): Promise<InitiatePaymentResult> {
-    const { transactionType, kesAmount, tillNumber, phoneNumber, accountNumber, walletAddress } = params;
-
-    // Validate inputs
-    if (kesAmount < config.MIN_KES_AMOUNT || kesAmount > config.MAX_KES_AMOUNT) {
-      throw new Error(`Amount must be between KES ${config.MIN_KES_AMOUNT} and KES ${config.MAX_KES_AMOUNT}`);
-    }
-
-    if (transactionType === 'paybill') {
-      if (!tillNumber || !/^\d{5,7}$/.test(tillNumber)) throw new Error('Invalid Paybill number');
-      if (!accountNumber) throw new Error('Account number is required');
-    } else if (transactionType === 'send' || transactionType === 'pochi') {
-      if (!phoneNumber || !/^(\+254|0)[17]\d{8}$/.test(phoneNumber)) throw new Error('Invalid M-Pesa phone number');
-    } else {
-      if (!tillNumber || !/^\d{5,6}$/.test(tillNumber)) throw new Error('Invalid Till number — must be 5 or 6 digits');
-    }
-
-    // Fetch rate
-    const rate = await rateService.getWldKesRate();
-    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer } = calculateWldAmount(
-      kesAmount,
-      rate.wldPriceKes,
-      config.FEE_PERCENT,
-      config.GAS_BUFFER_KES
-    );
-
-    // Create transaction
-    const tx: Transaction = {
-      // @ts-ignore - Some stores might use 'id'
-      id: `TXN-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`,
-      status: 'INITIATED',
-      transactionType,
-      kesAmount,
-      tillNumber,
-      phoneNumber,
-      accountNumber,
-      walletAddress,
-      wldAmount,
-      feeWld,
-      feeKes,
-      wldRate: rate.wldPriceKes.toString(),
-      payToAddress: config.BACKEND_WALLET_ADDRESS,
-      createdAt: new Date().toISOString(),
-    };
-
-    await transactionStore.save(tx);
-    
-    // Log payment initiation with masked sensitive data
-    const recipient = transactionType === 'send' || transactionType === 'pochi'
-      ? maskPhoneNumber(phoneNumber)
-      : transactionType === 'paybill'
-      ? `Paybill ${tillNumber} (Acct: ${accountNumber?.slice(0, 3)}...)`
-      : `Till ${tillNumber}`;
-    
-    logger.paymentInitiated(tx.id, transactionType, kesAmount, recipient);
-    logger.info('PAYMENT', `Rate: 1 WLD = ${formatAmount(rate.wldPriceKes)} | Total fee: KSh ${formatAmount(feeKes)}`, tx.id, {
-      wldAmount: `${wldAmount} WLD`,
-      payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
-      feeBreakdown: {
-        platformFee: `KSh ${formatAmount(platformFee)} (${config.FEE_PERCENT}%)`,
-        safaricomFee: `KSh ${formatAmount(safaricomFee)}`,
-        gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
-        totalFeeKes: `KSh ${formatAmount(feeKes)}`,
-        totalFeeWld: `${feeWld} WLD`,
-      },
-    });
-
-    return {
-      transactionId: tx.id,
-      wldAmount,
-      feeWld,
-      feeKes,
-      rate: rate.wldPriceKes.toString(),
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-      payToAddress: config.BACKEND_WALLET_ADDRESS,
-    };
-  }
-
-  async confirmPayment(params: ConfirmPaymentParams): Promise<ConfirmPaymentResult> {
-    const { transactionId, txHash, miniKitPayload } = params;
-    const tx = await transactionStore.get(transactionId);
-
-    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
-    if (tx.status !== 'INITIATED') {
-      throw new Error(`Transaction ${transactionId} is in state ${tx.status} — cannot confirm`);
-    }
-
-    await transactionStore.update(transactionId, {
-      status: 'PENDING_CONFIRMATION',
-      txHash,
-      miniKitPayload,
-      confirmedAt: new Date().toISOString(),
-    });
-
-    logger.info('PAYMENT', `Payment confirmed on-chain`, transactionId, {
-      txHash: txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-6)}` : 'N/A',
-    });
-    
-    logger.pipelineStep(transactionId, 1, 4, '✓ WLD payment confirmed on World Chain');
-    void this.processPaymentPipeline(transactionId);
-
-    return {
-      transactionId,
-      status: 'PENDING_CONFIRMATION',
-      estimatedSettlementMinutes: 3,
-    };
-  }
-
-  async processPaymentPipeline(transactionId: string): Promise<void> {
-    const tx = await transactionStore.get(transactionId);
-    if (!tx) return;
-
-    const log = (step: number, msg: string) => logger.pipelineStep(transactionId, step, 4, msg);
-
-    logger.pipelineDivider(transactionId, 'START');
-    logger.auditEvent(transactionId, 'PIPELINE_STARTED', 'INITIATION', {
-      mode: 'SIMULATION',
-      transactionType: tx.transactionType,
-      wldAmount: tx.wldAmount,
-      kesAmount: formatAmount(tx.kesAmount),
-    });
-
-    try {
-      log(1, 'Waiting for WLD confirmation…');
-      await sleep(config.SIM_BLOCK_CONFIRM_MS);
-      await transactionStore.update(transactionId, { status: 'CONFIRMED', confirmedAt: new Date().toISOString() });
-      log(1, '✓ WLD received [SIMULATED]');
-      logger.auditEvent(transactionId, 'WLD_CONFIRMED', 'BLOCKCHAIN', {
-        mode: 'SIMULATION', wldAmount: tx.wldAmount,
-      });
-
-      // Step 2: DEX Swap (WLD → USDC) for rebalancing
-      log(2, 'Rebalancing liquidity (WLD → USDC)...');
-      await sleep(config.SIM_OFFRAMP_MS / 2);
-      await transactionStore.update(transactionId, { status: 'SWAP_COMPLETED' });
-      log(2, '✓ DEX swap completed [SIMULATED]');
-      logger.auditEvent(transactionId, 'DEX_SWAP_COMPLETED', 'DEX_SWAP', {
-        mode: 'SIMULATION', wldAmount: tx.wldAmount,
-      });
-
-      // Step 3: Off-ramp via Bitnob
-      log(3, `Off-ramp: ${formatTransactionType(tx.transactionType)} via Bitnob...`);
-      await transactionStore.update(transactionId, { status: 'OFFRAMP_INITIATED', offrampAt: new Date().toISOString() });
-      await sleep(config.SIM_OFFRAMP_MS / 2);
-      log(3, '✓ Bitnob payout queued [SIMULATED]');
-      logger.auditEvent(transactionId, 'OFFRAMP_INITIATED', 'OFFRAMP', {
-        mode: 'SIMULATION', kesAmount: formatAmount(tx.kesAmount),
-      });
-
-      const destination = tx.transactionType === 'send' || tx.transactionType === 'pochi'
-        ? maskPhoneNumber(tx.phoneNumber)
-        : tx.transactionType === 'paybill'
-        ? `Paybill ${tx.tillNumber}`
-        : `Till ${tx.tillNumber}`;
-
-      // Step 4: Final disbursement
-      log(4, `Sending ${formatAmount(tx.kesAmount)} to ${destination}…`);
-      await transactionStore.update(transactionId, { status: 'MPESA_SENT', mpesaSentAt: new Date().toISOString() });
-      await sleep(config.SIM_MPESA_MS);
-
-      const receiptNumber = `SIM${Date.now().toString().slice(-8)}`;
-
-      await transactionStore.update(transactionId, {
-        status: 'SETTLED',
-        mpesaReceiptNumber: receiptNumber,
-        settledAt: new Date().toISOString(),
-      });
-
-      log(4, `✓ SETTLED — Receipt: ${receiptNumber} [SIMULATED]`);
-      logger.info('PAYMENT', `Transaction completed successfully [SIMULATION]`, transactionId, {
-        receiptNumber,
-        wldAmount: `${tx.wldAmount} WLD`,
-        kesAmount: formatAmount(tx.kesAmount),
-        destination,
-      });
-      logger.auditEvent(transactionId, 'TRANSACTION_SETTLED', 'SETTLEMENT', {
-        mode: 'SIMULATION',
-        mpesaReceiptNumber: receiptNumber,
-        wldAmount: tx.wldAmount,
-        kesAmount: formatAmount(tx.kesAmount),
-        destination,
-      });
-      logger.pipelineDivider(transactionId, 'END');
-
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown pipeline error';
-      logger.error('PAYMENT', `Pipeline failed: ${msg}`, transactionId, err);
-      logger.auditEvent(transactionId, 'PIPELINE_FAILED', 'FAILURE', { reason: msg });
-      logger.pipelineDivider(transactionId, 'END');
-      await this.failTransaction(transactionId, msg);
-    }
-  }
-
-  async getTransactionStatus(transactionId: string): Promise<TransactionStatusResult> {
-    const tx = await transactionStore.get(transactionId);
-    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
-
-    return {
-      transactionId: tx.id || (tx as any).transactionId,
-      status: tx.status,
-      transactionType: tx.transactionType,
-      kesAmount: tx.kesAmount,
-      tillNumber: tx.tillNumber ?? undefined,
-      phoneNumber: tx.phoneNumber ?? undefined,
-      accountNumber: tx.accountNumber ?? undefined,
-      mpesaReceiptNumber: tx.mpesaReceiptNumber ?? undefined,
-      settledAt: tx.settledAt ?? undefined,
-      failureReason: tx.failureReason ?? undefined,
-      steps: this.buildSteps(tx),
-    };
-  }
-
-  private buildSteps(tx: Transaction): TransactionStep[] {
-    const steps: TransactionStep[] = [
-      {
-        step: 'WLD_RECEIVED',
-        timestamp: tx.confirmedAt ?? tx.createdAt,
-        done: ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
-      },
-      {
-        step: 'DEX_SWAP',
-        timestamp: tx.confirmedAt ?? tx.createdAt,
-        done: ['SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
-      },
-      {
-        step: 'OFFRAMP_INITIATED',
-        timestamp: tx.offrampAt ?? tx.confirmedAt ?? tx.createdAt,
-        done: ['OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
-      },
-      {
-        step: 'MPESA_SENT',
-        timestamp: tx.mpesaSentAt ?? tx.offrampAt ?? tx.createdAt,
-        done: ['MPESA_SENT', 'SETTLED'].includes(tx.status),
-      },
-      {
-        step: 'SETTLED',
-        timestamp: tx.settledAt ?? tx.createdAt,
-        done: tx.status === 'SETTLED',
-      },
-    ];
-    return steps;
-  }
-
-  async markSettled(transactionId: string, mpesaReceipt: string): Promise<void> {
-    await transactionStore.update(transactionId, {
-      status: 'SETTLED',
-      mpesaReceiptNumber: mpesaReceipt,
-      settledAt: new Date().toISOString(),
-    });
-    logger.info('PAYMENT', `Transaction SETTLED`, transactionId, { mpesaReceipt });
-  }
-
-  async markFailed(transactionId: string, reason: string): Promise<void> {
-    await transactionStore.update(transactionId, {
-      status: 'FAILED',
-      failureReason: reason,
-      failedAt: new Date().toISOString(),
-    });
-    logger.userError(transactionId, 'TXN_FAILED', 'Transaction failed - funds will be returned', reason);
-  }
-
-  private async failTransaction(transactionId: string, reason: string): Promise<void> {
-    await this.markFailed(transactionId, reason);
-  }
-
-  async initiateRefund(transactionId: string, walletAddress: string): Promise<void> {
-    const tx = await transactionStore.get(transactionId);
-    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
-
-    // Guard: block if refund already in-flight or completed
-    if (tx.refundStatus === 'REFUND_INITIATED') {
-      logger.warn('REFUND', 'Duplicate refund attempt blocked — refund already in-flight', transactionId, {
-        wallet: maskWalletAddress(walletAddress),
-        currentRefundStatus: tx.refundStatus,
-      });
-      throw new Error('A refund is already in progress for this transaction. Please wait.');
-    }
-    if (tx.refundStatus === 'REFUNDED' && tx.refundTxHash) {
-      logger.warn('REFUND', 'Duplicate refund attempt blocked — already refunded on-chain', transactionId, {
-        wallet: maskWalletAddress(walletAddress),
-        refundTxHash: tx.refundTxHash.slice(0, 12),
-      });
-      throw new Error('This transaction has already been refunded on-chain.');
-    }
-
-    if (!tx.wldAmount || parseFloat(tx.wldAmount) <= 0) {
-      logger.error('REFUND', 'Cannot refund — wldAmount is missing or zero', transactionId);
-      throw new Error('Cannot process refund: WLD amount is not recorded for this transaction.');
-    }
-
-    logger.refundInitiated(transactionId, walletAddress, tx.wldAmount, tx.failureReason || 'User-requested conflict resolution');
-    logger.auditEvent(transactionId, 'REFUND_REQUESTED', 'REFUND', {
-      wallet: maskWalletAddress(walletAddress),
-      wldAmount: tx.wldAmount,
-      kesAmount: formatAmount(tx.kesAmount),
-      originalStatus: tx.status,
-    });
-
-    await transactionStore.update(transactionId, {
-      status: 'FAILED',
-      failureReason: tx.failureReason || 'Refund requested',
-      failedAt: tx.failedAt || new Date().toISOString(),
-      refundStatus: 'REFUND_INITIATED',
-      refundAt: new Date().toISOString(),
-    });
-
-    void this.processRefundPipeline(transactionId, walletAddress, tx.wldAmount);
-  }
-
-  private async processRefundPipeline(transactionId: string, walletAddress: string, wldAmount: string): Promise<void> {
-    logger.pipelineDivider(transactionId, 'START');
-    logger.pipelineStep(transactionId, 0, 1, `Processing refund of ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`);
-
-    if (!config.ADMIN_PRIVATE_KEY) {
-      const msg = 'ADMIN_PRIVATE_KEY not configured — on-chain refund cannot be executed';
-      logger.error('REFUND', msg, transactionId);
-      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
-      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
-      logger.userError(transactionId, 'REFUND_FAILED',
-        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
-        msg
-      );
-      return;
-    }
-
-    try {
-      const { ethers } = await import('ethers');
-      const provider = new ethers.JsonRpcProvider(config.WORLD_CHAIN_RPC_URL);
-      const signer = new ethers.Wallet(config.ADMIN_PRIVATE_KEY, provider);
-
-      const erc20Abi = ['function transfer(address to, uint256 amount) public returns (bool)'];
-      const wldContract = new ethers.Contract(config.WLD_CONTRACT_ADDRESS, erc20Abi, signer);
-
-      const amountWei = ethers.parseUnits(wldAmount, 18);
-      logger.info('REFUND', `Sending ${wldAmount} WLD on-chain to ${maskWalletAddress(walletAddress)}`, transactionId);
-
-      const tx = await wldContract.transfer(walletAddress, amountWei);
-      logger.info('REFUND', `Refund tx broadcast: ${tx.hash.slice(0, 12)}...${tx.hash.slice(-6)}`, transactionId);
-
-      const receipt = await tx.wait(1);
-      const refundTxHash: string = receipt?.hash ?? tx.hash;
-
-      await transactionStore.update(transactionId, {
-        refundStatus: 'REFUNDED',
-        refundTxHash,
-        refundAt: new Date().toISOString(),
-      });
-      logger.refundCompleted(transactionId, walletAddress, wldAmount, refundTxHash);
-      logger.auditEvent(transactionId, 'REFUND_COMPLETED', 'REFUND', {
-        wallet: maskWalletAddress(walletAddress),
-        wldAmount,
-        refundTxHash: `${refundTxHash.slice(0, 12)}...${refundTxHash.slice(-6)}`,
-      });
-      logger.pipelineDivider(transactionId, 'END');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown refund error';
-      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
-      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
-      logger.userError(transactionId, 'REFUND_FAILED',
-        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
-        msg
-      );
-      logger.pipelineDivider(transactionId, 'END');
-    }
-  }
-
-  protected async pollUntil<T>(
-    fn: () => Promise<T>,
-    isDone: (v: T) => boolean,
-    timeoutMs: number,
-    intervalMs: number
-  ): Promise<T | null> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const result = await fn();
-      if (isDone(result)) return result;
-      await sleep(intervalMs);
-    }
-    return null;
-  }
-}
-
-class RealPaymentService extends SimulatedPaymentService {
+class PaymentService implements IPaymentService {
   /**
-   * Production pipeline swaps simulated delays for real service calls
+   * Processes payment through the full pipeline:
+   * 1. Verify WLD on-chain
+   * 2. DEX swap (WLD → USDC)
+   * 3. Off-ramp via Bitnob
+   * 4. Wait for M-Pesa disbursement
    */
   async processPaymentPipeline(transactionId: string): Promise<void> {
     const tx = await transactionStore.get(transactionId);
@@ -565,10 +180,296 @@ class RealPaymentService extends SimulatedPaymentService {
       await this.markFailed(transactionId, msg);
     }
   }
+
+  async initiatePayment(params: InitiatePaymentParams): Promise<InitiatePaymentResult> {
+    const { transactionType, kesAmount, tillNumber, phoneNumber, accountNumber, walletAddress } = params;
+
+    if (kesAmount < config.MIN_KES_AMOUNT || kesAmount > config.MAX_KES_AMOUNT) {
+      throw new Error(`Amount must be between KES ${config.MIN_KES_AMOUNT} and KES ${config.MAX_KES_AMOUNT}`);
+    }
+
+    if (transactionType === 'paybill') {
+      if (!tillNumber || !/^\d{5,7}$/.test(tillNumber)) throw new Error('Invalid Paybill number');
+      if (!accountNumber) throw new Error('Account number is required');
+    } else if (transactionType === 'send' || transactionType === 'pochi') {
+      if (!phoneNumber || !/^(\+254|0)[17]\d{8}$/.test(phoneNumber)) throw new Error('Invalid M-Pesa phone number');
+    } else {
+      if (!tillNumber || !/^\d{5,6}$/.test(tillNumber)) throw new Error('Invalid Till number — must be 5 or 6 digits');
+    }
+
+    const rate = await rateService.getWldKesRate();
+    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer } = calculateWldAmount(
+      kesAmount,
+      rate.wldPriceKes,
+      config.FEE_PERCENT,
+      config.GAS_BUFFER_KES
+    );
+
+    const tx: Transaction = {
+      id: `TXN-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`,
+      status: 'INITIATED',
+      transactionType,
+      kesAmount,
+      tillNumber,
+      phoneNumber,
+      accountNumber,
+      walletAddress,
+      wldAmount,
+      feeWld,
+      feeKes,
+      wldRate: rate.wldPriceKes.toString(),
+      payToAddress: config.BACKEND_WALLET_ADDRESS,
+      createdAt: new Date().toISOString(),
+    };
+
+    await transactionStore.save(tx);
+
+    const recipient = transactionType === 'send' || transactionType === 'pochi'
+      ? maskPhoneNumber(phoneNumber)
+      : transactionType === 'paybill'
+      ? `Paybill ${tillNumber} (Acct: ${accountNumber?.slice(0, 3)}...)`
+      : `Till ${tillNumber}`;
+
+    logger.paymentInitiated(tx.id, transactionType, kesAmount, recipient);
+    logger.info('PAYMENT', `Rate: 1 WLD = ${formatAmount(rate.wldPriceKes)} | Total fee: KSh ${formatAmount(feeKes)}`, tx.id, {
+      wldAmount: `${wldAmount} WLD`,
+      payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
+      feeBreakdown: {
+        platformFee: `KSh ${formatAmount(platformFee)} (${config.FEE_PERCENT}%)`,
+        safaricomFee: `KSh ${formatAmount(safaricomFee)}`,
+        gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
+        totalFeeKes: `KSh ${formatAmount(feeKes)}`,
+        totalFeeWld: `${feeWld} WLD`,
+      },
+    });
+
+    return {
+      transactionId: tx.id,
+      wldAmount,
+      feeWld,
+      feeKes,
+      rate: rate.wldPriceKes.toString(),
+      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      payToAddress: config.BACKEND_WALLET_ADDRESS,
+    };
+  }
+
+  async confirmPayment(params: ConfirmPaymentParams): Promise<ConfirmPaymentResult> {
+    const { transactionId, txHash, miniKitPayload } = params;
+    const tx = await transactionStore.get(transactionId);
+
+    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
+    if (tx.status !== 'INITIATED') {
+      throw new Error(`Transaction ${transactionId} is in state ${tx.status} — cannot confirm`);
+    }
+
+    await transactionStore.update(transactionId, {
+      status: 'PENDING_CONFIRMATION',
+      txHash,
+      miniKitPayload,
+      confirmedAt: new Date().toISOString(),
+    });
+
+    logger.info('PAYMENT', `Payment confirmed on-chain`, transactionId, {
+      txHash: txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-6)}` : 'N/A',
+    });
+
+    logger.pipelineStep(transactionId, 1, 4, '✓ WLD payment confirmed on World Chain');
+    void this.processPaymentPipeline(transactionId);
+
+    return {
+      transactionId,
+      status: 'PENDING_CONFIRMATION',
+      estimatedSettlementMinutes: 3,
+    };
+  }
+
+  async getTransactionStatus(transactionId: string): Promise<TransactionStatusResult> {
+    const tx = await transactionStore.get(transactionId);
+    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
+
+    return {
+      transactionId: tx.id || (tx as any).transactionId,
+      status: tx.status,
+      transactionType: tx.transactionType,
+      kesAmount: tx.kesAmount,
+      tillNumber: tx.tillNumber ?? undefined,
+      phoneNumber: tx.phoneNumber ?? undefined,
+      accountNumber: tx.accountNumber ?? undefined,
+      mpesaReceiptNumber: tx.mpesaReceiptNumber ?? undefined,
+      settledAt: tx.settledAt ?? undefined,
+      failureReason: tx.failureReason ?? undefined,
+      steps: this.buildSteps(tx),
+    };
+  }
+
+  private buildSteps(tx: Transaction): TransactionStep[] {
+    const steps: TransactionStep[] = [
+      {
+        step: 'WLD_RECEIVED',
+        timestamp: tx.confirmedAt ?? tx.createdAt,
+        done: ['CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'DEX_SWAP',
+        timestamp: tx.confirmedAt ?? tx.createdAt,
+        done: ['SWAP_COMPLETED', 'OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'OFFRAMP_INITIATED',
+        timestamp: tx.offrampAt ?? tx.confirmedAt ?? tx.createdAt,
+        done: ['OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'MPESA_SENT',
+        timestamp: tx.mpesaSentAt ?? tx.offrampAt ?? tx.createdAt,
+        done: ['MPESA_SENT', 'SETTLED'].includes(tx.status),
+      },
+      {
+        step: 'SETTLED',
+        timestamp: tx.settledAt ?? tx.createdAt,
+        done: tx.status === 'SETTLED',
+      },
+    ];
+    return steps;
+  }
+
+  async markSettled(transactionId: string, mpesaReceipt: string): Promise<void> {
+    await transactionStore.update(transactionId, {
+      status: 'SETTLED',
+      mpesaReceiptNumber: mpesaReceipt,
+      settledAt: new Date().toISOString(),
+    });
+    logger.info('PAYMENT', `Transaction SETTLED`, transactionId, { mpesaReceipt });
+  }
+
+  async markFailed(transactionId: string, reason: string): Promise<void> {
+    await transactionStore.update(transactionId, {
+      status: 'FAILED',
+      failureReason: reason,
+      failedAt: new Date().toISOString(),
+    });
+    logger.userError(transactionId, 'TXN_FAILED', 'Transaction failed - funds will be returned', reason);
+  }
+
+  async initiateRefund(transactionId: string, walletAddress: string): Promise<void> {
+    const tx = await transactionStore.get(transactionId);
+    if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
+
+    if (tx.refundStatus === 'REFUND_INITIATED') {
+      logger.warn('REFUND', 'Duplicate refund attempt blocked — refund already in-flight', transactionId, {
+        wallet: maskWalletAddress(walletAddress),
+        currentRefundStatus: tx.refundStatus,
+      });
+      throw new Error('A refund is already in progress for this transaction. Please wait.');
+    }
+    if (tx.refundStatus === 'REFUNDED' && tx.refundTxHash) {
+      logger.warn('REFUND', 'Duplicate refund attempt blocked — already refunded on-chain', transactionId, {
+        wallet: maskWalletAddress(walletAddress),
+        refundTxHash: tx.refundTxHash.slice(0, 12),
+      });
+      throw new Error('This transaction has already been refunded on-chain.');
+    }
+
+    if (!tx.wldAmount || parseFloat(tx.wldAmount) <= 0) {
+      logger.error('REFUND', 'Cannot refund — wldAmount is missing or zero', transactionId);
+      throw new Error('Cannot process refund: WLD amount is not recorded for this transaction.');
+    }
+
+    logger.refundInitiated(transactionId, walletAddress, tx.wldAmount, tx.failureReason || 'User-requested conflict resolution');
+    logger.auditEvent(transactionId, 'REFUND_REQUESTED', 'REFUND', {
+      wallet: maskWalletAddress(walletAddress),
+      wldAmount: tx.wldAmount,
+      kesAmount: formatAmount(tx.kesAmount),
+      originalStatus: tx.status,
+    });
+
+    await transactionStore.update(transactionId, {
+      status: 'FAILED',
+      failureReason: tx.failureReason || 'Refund requested',
+      failedAt: tx.failedAt || new Date().toISOString(),
+      refundStatus: 'REFUND_INITIATED',
+      refundAt: new Date().toISOString(),
+    });
+
+    void this.processRefundPipeline(transactionId, walletAddress, tx.wldAmount);
+  }
+
+  private async processRefundPipeline(transactionId: string, walletAddress: string, wldAmount: string): Promise<void> {
+    logger.pipelineDivider(transactionId, 'START');
+    logger.pipelineStep(transactionId, 0, 1, `Processing refund of ${wldAmount} WLD → ${maskWalletAddress(walletAddress)}`);
+
+    if (!config.ADMIN_PRIVATE_KEY) {
+      const msg = 'ADMIN_PRIVATE_KEY not configured — on-chain refund cannot be executed';
+      logger.error('REFUND', msg, transactionId);
+      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
+      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
+      logger.userError(transactionId, 'REFUND_FAILED',
+        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
+        msg
+      );
+      return;
+    }
+
+    try {
+      const { ethers } = await import('ethers');
+      const provider = new ethers.JsonRpcProvider(config.WORLD_CHAIN_RPC_URL);
+      const signer = new ethers.Wallet(config.ADMIN_PRIVATE_KEY, provider);
+
+      const erc20Abi = ['function transfer(address to, uint256 amount) public returns (bool)'];
+      const wldContract = new ethers.Contract(config.WLD_CONTRACT_ADDRESS, erc20Abi, signer);
+
+      const amountWei = ethers.parseUnits(wldAmount, 18);
+      logger.info('REFUND', `Sending ${wldAmount} WLD on-chain to ${maskWalletAddress(walletAddress)}`, transactionId);
+
+      const tx = await wldContract.transfer(walletAddress, amountWei);
+      logger.info('REFUND', `Refund tx broadcast: ${tx.hash.slice(0, 12)}...${tx.hash.slice(-6)}`, transactionId);
+
+      const receipt = await tx.wait(1);
+      const refundTxHash: string = receipt?.hash ?? tx.hash;
+
+      await transactionStore.update(transactionId, {
+        refundStatus: 'REFUNDED',
+        refundTxHash,
+        refundAt: new Date().toISOString(),
+      });
+      logger.refundCompleted(transactionId, walletAddress, wldAmount, refundTxHash);
+      logger.auditEvent(transactionId, 'REFUND_COMPLETED', 'REFUND', {
+        wallet: maskWalletAddress(walletAddress),
+        wldAmount,
+        refundTxHash: `${refundTxHash.slice(0, 12)}...${refundTxHash.slice(-6)}`,
+      });
+      logger.pipelineDivider(transactionId, 'END');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown refund error';
+      await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
+      logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
+      logger.userError(transactionId, 'REFUND_FAILED',
+        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
+        msg
+      );
+      logger.pipelineDivider(transactionId, 'END');
+    }
+  }
+
+  private async pollUntil<T>(
+    fn: () => Promise<T>,
+    isDone: (v: T) => boolean,
+    timeoutMs: number,
+    intervalMs: number
+  ): Promise<T | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const result = await fn();
+      if (isDone(result)) return result;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return null;
+  }
 }
 
 export function createPaymentService(): IPaymentService {
-  return new RealPaymentService();
+  return new PaymentService();
 }
 
 export const paymentService = createPaymentService();

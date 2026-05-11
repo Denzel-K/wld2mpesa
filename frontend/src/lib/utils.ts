@@ -130,8 +130,3 @@ export function isValidKesAmount(amount: number, min = 10, max = 150000): boolea
 export function generateNonce(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-
-/** Sleep utility for simulations */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}

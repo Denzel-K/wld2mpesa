@@ -1,10 +1,7 @@
 /**
  * rateService.ts — WLD/KES exchange rate provider
  *
- * Simulation: returns hardcoded rate with slight random variation
- * Production: fetches from Kraken API (free, no key required)
- *
- * TODO: PRODUCTION - See TRANSITION_GUIDE.md Step 2
+ * Fetches live rates from Kraken API (WLD/USD) and ExchangeRate-API (USD/KES)
  */
 
 import type { IRateService, RateData } from '../types';
@@ -12,13 +9,11 @@ import type { IRateService, RateData } from '../types';
 import { prisma } from '../db/prisma';
 import { redisService } from './redisService';
 
-/** Rate cache — refreshed every 60 seconds in production */
+/** Rate cache — refreshed every 60 seconds */
 const CACHE_TTL_MS = 60_000;
 
 
-// ─── Real implementation ──────────────────────────────────────────────────────
-
-class RealRateService implements IRateService {
+class RateService implements IRateService {
   /**
    * Fetches live WLD/KES rate from Kraken API (free, no auth required)
    */
@@ -118,10 +113,8 @@ class RealRateService implements IRateService {
   }
 }
 
-// ─── Factory ──────────────────────────────────────────────────────────────────
-
 export function createRateService(): IRateService {
-  return new RealRateService();
+  return new RateService();
 }
 
 export const rateService = createRateService();

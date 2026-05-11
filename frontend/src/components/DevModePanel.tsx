@@ -1,9 +1,8 @@
 /**
- * DevModePanel.tsx — Developer simulation log panel
+ * DevModePanel.tsx — Developer debug log panel
  *
  * Slides up from the bottom when Dev Mode is toggled.
- * Shows all simulation log entries in real time so you can
- * see exactly what the app is doing at each step.
+ * Shows debug log entries in real time for troubleshooting.
  */
 
 import { useEffect, useRef } from 'react';
@@ -34,7 +33,7 @@ export default function DevModePanel() {
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
           <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em] font-display">
-            SIMULATION LOGS ({simulationLogs.length})
+            DEBUG LOGS ({simulationLogs.length})
           </span>
         </div>
         <div className="flex items-center gap-2">

@@ -1,11 +1,7 @@
 /**
  * worldChainListener.ts — Listens for WLD transfers on World Chain
  *
- * Simulation: waits a fixed delay and returns true
- * Production: uses viem to watch for ERC-20 Transfer events
- *
- * TODO: PRODUCTION - See TRANSITION_GUIDE.md Step 3
- * Install: npm install viem
+ * Uses viem to watch for ERC-20 Transfer events on World Chain
  */
 
 import { createPublicClient, http, Hash, Hex, defineChain, formatUnits, isAddress } from 'viem';
@@ -29,27 +25,9 @@ const worldchain = defineChain({
 const WLD_CONTRACT = config.WLD_CONTRACT_ADDRESS as Hex;
 const erc20BalanceOfAbi = [{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}] as const;
 
-// ─── Simulated implementation ─────────────────────────────────────────────────
+// ─── World Chain Listener Implementation ──────────────────────────────────────
 
-// Simulation class removed to resolve tsc error. Use RealWorldChainListener.
-
-// ─── Real implementation ──────────────────────────────────────────────────────
-
-class RealWorldChainListener implements IWorldChainListener {
-  /**
-   * TODO: PRODUCTION - Watch for WLD ERC-20 transfer on World Chain.
-   *
-   * Steps:
-   * 1. npm install viem
-   * 2. Import createPublicClient, http from 'viem'
-   * 3. Define World Chain config (chainId: 480)
-   * 4. Use client.waitForTransactionReceipt()
-   * 5. Parse Transfer logs from WLD contract
-   *
-   * WLD Token Contract on World Chain: 0x2cFc85d8E48F8EAB294be644d9E25C3030863003
-   *
-   * See TRANSITION_GUIDE.md Step 3 for full diff.
-   */
+class WorldChainListener implements IWorldChainListener {
   async waitForWldTransfer(
     toAddress: string,
     expectedAmount: bigint,
@@ -151,9 +129,7 @@ class RealWorldChainListener implements IWorldChainListener {
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 export function createWorldChainListener(): IWorldChainListener {
-  return new RealWorldChainListener();
+  return new WorldChainListener();
 }
 
 export const worldChainListener = createWorldChainListener();
-
-// sleep removed

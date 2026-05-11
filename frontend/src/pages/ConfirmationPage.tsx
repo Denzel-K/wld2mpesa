@@ -66,13 +66,19 @@ export default function ConfirmationPage() {
         return;
       }
 
+      if (!payResult.txHash) {
+        setError('Payment succeeded but no transaction hash returned');
+        setLoading(false);
+        return;
+      }
+
       addSimLog('success', `WLD sent! TxHash: ${payResult.txHash}`);
 
       // Step 3: Notify backend
       addSimLog('info', 'Notifying backend of confirmed payment…');
       const confirmation = await confirmPayment({
         transactionId: tx.transactionId,
-        txHash: payResult.txHash ?? '0xSIMULATED',
+        txHash: payResult.txHash,
         miniKitPayload: { ...(payResult.payload as Record<string, unknown>), worldIdProof },
       });
 

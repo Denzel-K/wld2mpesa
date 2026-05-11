@@ -100,8 +100,4 @@ export function createMpesaService(): IMpesaService {
   return new DarajaMpesaService();
 }
 
-// ─── Re-include Simulated implementation for the factory ───────────────────────
-
-// Simulated implementation removed to resolve tsc error.
-
 export const mpesaService = createMpesaService();
