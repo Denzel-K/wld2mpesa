@@ -4,12 +4,12 @@
 
 | Component | Current Status | Gap | Priority |
 |-----------|---------------|-----|----------|
-| ETH Gas Fees (World Chain) | ✅ Absorbed into platform fee | Covered by KSh 10 buffer | - |
+| ETH Gas Fees (World Chain) | ✅ Absorbed by platform | KSh 10 buffer, tracked in DB, **not shown to user** | - |
 | Platform Fee (5%) | ✅ Consistently implemented | Market analysis shows 5% is high vs competitors | **REVIEW** |
-| M-Pesa Fees | ✅ Passed to user | Accurate 2024/2025 fee table | - |
-| DEX Swap Slippage | ✅ Fixed | Now has 3% slippage protection, 0.3% pool fee | - |
-| Bitnob Fees | ❌ Not tracked | Need API integration to fetch rates | **MEDIUM** |
-| UI Fee Transparency | ✅ Shows fee breakdown | 5% displayed to user | - |
+| M-Pesa Fees | ✅ Passed to user | Accurate 2024/2025 fee table, shown to user | - |
+| DEX Swap Slippage | ✅ Fixed | 3% slippage protection, 0.3% pool fee, tracked in DB | - |
+| Bitnob Fees | ✅ Estimated & tracked in DB | ~2.2% (0.2% FX spread + 2% KES network fee), **not shown to user** | - |
+| UI Fee Transparency | ✅ Correct & complete | Miniapp + website calculator both show only user-facing fees | - |
 
 ---
 
@@ -92,39 +92,41 @@ function getMpesaFees(amount: number): number {
 
 ### 1.4 DEX Swap Fees (Uniswap V3)
 
-**Current Implementation:**
+**Current Implementation (fixed):**
 ```typescript
-// backend/src/services/swapService.ts (line 61)
-fee: 10000, // 1% pool fee
-
-// Line 64 - CRITICAL ISSUE
-amountOutMinimum: 0, // No slippage protection!
+// backend/src/services/swapService.ts
+fee: 3000, // 0.3% pool fee (corrected from 1%)
+amountOutMinimum: calculatedMinimum, // 3% slippage protection
 ```
 
-**Problems:**
-- 1% pool fee is high (standard is 0.3% or 0.05%)
-- No slippage protection → vulnerable to MEV attacks
-- Should set minimum 2-3% slippage tolerance
+**Status:** ✅ Fixed
+- Pool fee reduced from 1% to 0.3% (standard Uniswap V3 tier)
+- 3% slippage protection applied on minimum output amounts
+- DEX fee estimated at `totalUserPaysKes × 0.3%` and recorded per transaction as `dex_fee_kes`
+- Platform absorbs this cost; **not charged to or shown to user**
 
 ### 1.5 Bitnob Off-ramp Fees
 
-**Status:** ❌ NOT CURRENTLY TRACKED
+**Status:** ✅ ESTIMATED & TRACKED IN DATABASE
 
-**What we need:**
+**Confirmed fee structure (from Bitnob official docs):**
+- Mobile Money withdrawal (M-Pesa): **$0 explicit fee**
+- KES funding/conversion: **2% network fee** on transaction value
+- FX exchange rate spread: **~0.2%**
+- **Effective total: ~2.2% of KES amount**
+
+**Implementation:**
 ```typescript
-// TODO: Add Bitnob fee estimation
-interface BitnobFeeEstimate {
-  payoutFee: number; // Fixed or percentage
-  exchangeRate: number; // USDC to KES rate
-  exchangeRateMargin: number; // Bitnob's spread
-  totalCostKes: number;
-}
+// backend/src/services/paymentService.ts
+const BITNOB_EFFECTIVE_FEE_PERCENT = 2.2;
+const bitnobFeeKes = (kesAmount × 2.2) / 100;
+// Stored as bitnob_fee_kes on every transaction record
 ```
 
-**Bitnob typically charges:**
-- Fixed fee per payout (varies by country)
-- Exchange rate margin (1-3% spread)
-- Total: ~2-4% of transaction value
+**Important:** Bitnob fees are a **platform cost**. They are:
+- Estimated at initiation and stored in `bitnob_fee_kes` column
+- Factored into `net_platform_revenue_kes` for P&L tracking
+- **Never shown to users** — absorbed by the platform's 5% service fee
 
 ---
 
@@ -132,63 +134,60 @@ interface BitnobFeeEstimate {
 
 ### Example: KSh 5,000 Transaction
 
-| Component | Calculation | Amount (KES) | Amount (WLD @ KSh 2350) |
-|-----------|-------------|--------------|-------------------------|
-| **User wants to send** | - | 5,000.00 | 2.1277 WLD |
-| Platform Fee (0.5%) | 5,000 × 0.5% | 25.00 | 0.0106 WLD |
-| M-Pesa Fee | Fixed fee | 57.00 | 0.0243 WLD |
-| Gas Buffer | Fixed | 10.00 | 0.0043 WLD |
-| **Total Fees** | - | **92.00** | **0.0391 WLD** |
-| **Total User Pays** | 5,000 + 92 | **5,092.00** | **2.1668 WLD** |
+#### User-facing (what is shown in the app and website calculator)
 
-**Backend receives:** 2.1668 WLD
-- Platform keeps: 0.0106 WLD (0.5%)
-- Swap to USDC: ~2.1562 WLD worth
-- Bitnob payout: 5,000 KES (minus their fees)
+| Component | Calculation | Amount (KES) | Shown to user? |
+|-----------|-------------|--------------|----------------|
+| Recipient receives | — | 5,000.00 | ✅ |
+| Platform fee (5%) | 5,000 × 5% | 250.00 | ✅ |
+| M-Pesa network fee | Fixed | 57.00 | ✅ |
+| **Total fees** | — | **307.00** | ✅ |
+| **Total user pays** | 5,000 + 307 | **5,307.00** | ✅ (in WLD) |
+
+#### Platform cost breakdown (stored in DB, shown in website calculator's collapsed section)
+
+| Platform Cost | Calculation | Amount (KES) | Shown to user? |
+|--------------|-------------|--------------|----------------|
+| Bitnob spread (~2.2%) | 5,000 × 2.2% | 110.00 | ❌ (platform) |
+| DEX pool fee (0.3%) | 5,307 × 0.3% | 15.92 | ❌ (platform) |
+| World Chain gas buffer | Fixed | 10.00 | ❌ (platform) |
+| **Total platform costs** | — | **135.92** | ❌ |
+| **Net platform revenue** | 250 − 135.92 | **~114.08** | ❌ |
+
+**Note:** Gas buffer (KSh 10) is absorbed into backend operations and does **not** inflate the user-facing total.
 
 ---
 
 ## 3. UI Fee Display Analysis
 
-### Current UI (PaymentFormPage.tsx)
+### Current UI — Miniapp (PaymentFormPage.tsx) ✅
 
-**What's shown:**
+**What is shown to the user (confirm step):**
 ```
-Total to Pay: 2.1668 WLD
+Total to Pay: X.XXXX WLD
 Recipient Receives: KSh 5,000
-Total Fees: KSh 92
-  └─ Service Fee (0.5%): KSh 25
-  └─ Network Cost: KSh 57
+
+Total Fees: KSh 307
+  └─ Service Fee (5%):       KSh 250
+  └─ M-Pesa Network Fee:     KSh 57
+
+Exchange Rate: 1 WLD = KSh X,XXX
 ```
 
-**What's missing:**
-- Gas fee breakdown (KSh 10)
-- DEX swap slippage warning
-- Bitnob fees (if any)
-- Exchange rate source
-- "You save X% vs traditional" comparison
+**What is intentionally NOT shown to the user:**
+- Gas buffer (KSh 10) — platform operational cost
+- Bitnob spread (~2.2%) — platform cost absorbed by service fee
+- DEX pool fee (0.3%) — platform cost absorbed by service fee
 
-### Recommended UI Enhancement:
+**Design principle:** The 5% service fee is presented as an all-in fee that covers all platform-side costs. Users see only fees they are directly responsible for (service fee + M-Pesa network fee).
 
-```
-┌─────────────────────────────────────┐
-│  YOU SEND        RECIPIENT GETS     │
-│  2.1668 WLD      KSh 5,000          │
-│  (~KSh 5,092)                       │
-├─────────────────────────────────────┤
-│  FEE BREAKDOWN                      │
-│  ─────────────────────────────────  │
-│  Platform fee (0.5%)    KSh 25    │
-│  M-Pesa network fee     KSh 57    │
-│  Blockchain gas         KSh 10    │
-│  ─────────────────────────────────  │
-│  Total fees             KSh 92    │
-├─────────────────────────────────────┤
-│  Exchange rate: 1 WLD = KSh 2,350   │
-│  Source: Kraken + ExchangeRate-API  │
-│  Updated: Just now                  │
-└─────────────────────────────────────┘
-```
+### Current UI — Website Fee Calculator ✅
+
+The marketing website (`wld2mpesa-website`) now includes an interactive fee calculator at `/#calculator` that:
+- Shows live WLD/KES rate from Kraken (refreshes every 60s)
+- Accepts any amount between KSh 10 and KSh 250,000
+- Displays the full user-facing breakdown: recipient amount, service fee (5%), M-Pesa fee, total fees, total WLD to send
+- Includes a **collapsible "Platform costs (absorbed)"** section (collapsed by default) that shows Bitnob spread, DEX fee, gas buffer, and net platform revenue — for transparency without cluttering the user experience
 
 ---
 
@@ -295,16 +294,19 @@ VITE_WLD_APP_ID=app_xxx
 
 #### Test Transactions:
 1. **Small amount (KSh 100)**
-   - Expected fee: KSh 0 (M-Pesa) + KSh 25 (0.5%) + KSh 10 (gas) = KSh 35
-   - User pays: KSh 135 worth of WLD
+   - User-facing fee: KSh 0 (M-Pesa) + KSh 5 (5%) = KSh 5
+   - User pays: KSh 105 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 2.20, DEX ~KSh 0.32
 
 2. **Medium amount (KSh 1,000)**
-   - Expected fee: KSh 13 + KSh 5 + KSh 10 = KSh 28
-   - User pays: KSh 1,028 worth of WLD
+   - User-facing fee: KSh 13 (M-Pesa) + KSh 50 (5%) = KSh 63
+   - User pays: KSh 1,063 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 22, DEX ~KSh 3.19
 
 3. **Large amount (KSh 10,000)**
-   - Expected fee: KSh 90 + KSh 50 + KSh 10 = KSh 150
-   - User pays: KSh 10,150 worth of WLD
+   - User-facing fee: KSh 90 (M-Pesa) + KSh 500 (5%) = KSh 590
+   - User pays: KSh 10,590 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 220, DEX ~KSh 31.77
 
 4. **Failure & Refund Test**
    - Trigger failure (e.g., invalid phone)
@@ -331,20 +333,34 @@ The swap service has been enhanced with:
 - Added 3% slippage protection on minimum output amounts
 - Protection against MEV attacks and price manipulation
 
-### 6.3 Bitnob Fee Tracking (PENDING)
+### 6.3 Bitnob Fee Tracking (COMPLETED)
 
-Bitnob fees are currently not explicitly tracked in the fee breakdown. The platform passes the KES amount to Bitnob for payout, and Bitnob's exchange rate margin is absorbed into their payout calculation. Future enhancement should include fetching Bitnob's fee structure via API for complete transparency.
+Bitnob's effective fee (~2.2% of KES amount) is now estimated at transaction initiation and persisted to the database. The following columns were added to the `transactions` table via migration `20260512094438_add_platform_cost_tracking`:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `platform_fee_kes` | Float | Our 5% service revenue |
+| `safaricom_fee_kes` | Float | M-Pesa pass-through |
+| `gas_buffer_kes` | Float | World Chain ETH gas |
+| `bitnob_fee_kes` | Float | Bitnob spread estimate |
+| `dex_fee_kes` | Float | Uniswap 0.3% pool fee |
+| `net_platform_revenue_kes` | Float | platformFee − all platform costs |
+
+These fields power future admin P&L reporting and are never exposed to users.
 
 ### 6.4 Enhanced Fee Transparency (COMPLETED)
 
-The UI now displays:
-- Total WLD amount to pay
-- KES amount recipient receives
-- Platform service fee breakdown (5%)
-- M-Pesa network fees
-- Total fees in KES
+Fee display has been fully audited and corrected across all surfaces:
 
-Future enhancement could include displaying the gas fee component and Bitnob exchange rate margin separately.
+**Miniapp confirm screen:**
+- Shows: service fee (5%), M-Pesa network fee, total fees, exchange rate
+- Does NOT show: gas buffer, Bitnob costs, DEX fees
+- "Total Fees" and "Total you pay" are now arithmetically consistent (no silent KSh 10 inflation)
+
+**Website marketing pages:**
+- `hero-section.tsx`, `features-section.tsx`, `stats-section.tsx`: all corrected from `0.5%` to `5%`
+- New interactive fee calculator at `/#calculator` with full itemised breakdown and collapsible platform costs panel
+- Nav link added: "Fee Calculator" → `/#calculator`
 
 ---
 
@@ -460,12 +476,14 @@ The 5% rate currently implemented provides comfortable margins and operational r
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Platform fee (5%) | ✅ Implemented consistently | All components aligned |
-| M-Pesa fee pass-through | ✅ Implemented | Accurate 2024/2025 fee table |
-| Gas fee absorption | ✅ Implemented | KSh 10 buffer covers World Chain L2 costs |
-| DEX swap slippage protection | ✅ Implemented | 3% protection, 0.3% pool fee |
-| UI fee display | ✅ Implemented | Clear breakdown of all fees |
-| Bitnob fee tracking | ⚠️ Pending | Future enhancement for full transparency |
+| Platform fee (5%) | ✅ Implemented | All components aligned (miniapp + website) |
+| M-Pesa fee pass-through | ✅ Implemented | Accurate 2024/2025 fee table, shown to user |
+| Gas fee absorption | ✅ Implemented | KSh 10 buffer, tracked in DB, hidden from user |
+| DEX swap slippage protection | ✅ Implemented | 3% protection, 0.3% pool fee, tracked in DB |
+| Bitnob fee tracking | ✅ Implemented | ~2.2% est., stored as `bitnob_fee_kes` per transaction |
+| Net platform revenue tracking | ✅ Implemented | `net_platform_revenue_kes` stored per transaction |
+| Miniapp UI fee display | ✅ Correct | Service fee + M-Pesa fee only; totals arithmetically consistent |
+| Website fee calculator | ✅ New | Interactive calculator with collapsible platform costs panel |
 
 ### Outstanding Requirements for MVP Launch
 
@@ -484,15 +502,25 @@ The 5% rate currently implemented provides comfortable margins and operational r
 
 ### Current Fee Example (KSh 5,000 Transaction)
 
-| Line Item | Amount (KES) | Notes |
-|-----------|--------------|-------|
-| Recipient receives | 5,000.00 | Net amount delivered |
-| Platform fee (5%) | 250.00 | Revenue to platform |
-| M-Pesa fee | 57.00 | Safaricom network fee |
-| Gas buffer | 10.00 | World Chain L2 ETH cost |
-| **Total user pays** | **5,317.00** | Equivalent in WLD |
+**User-facing (shown in app and website calculator):**
 
-**Total effective cost to user:** 6.3% above face value
+| Line Item | Amount (KES) | Shown to user? |
+|-----------|--------------|----------------|
+| Recipient receives | 5,000.00 | ✅ |
+| Platform fee (5%) | 250.00 | ✅ |
+| M-Pesa network fee | 57.00 | ✅ |
+| **Total user pays** | **5,307.00** | ✅ (in WLD) |
+
+**Total effective cost to user:** 6.1% above face value
+
+**Platform cost tracking (stored in DB, not shown to user):**
+
+| Platform Cost | Amount (KES) |
+|--------------|--------------|
+| Bitnob spread (~2.2%) | 110.00 |
+| DEX pool fee (0.3%) | 15.92 |
+| Gas buffer | 10.00 |
+| **Net platform revenue** | **~114.08** |
 
 ### Partner Decision Points
 

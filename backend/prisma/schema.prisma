@@ -43,6 +43,14 @@ model Transaction {
   feeKes     Float  @map("fee_kes")
   wldRate    String @map("wld_rate")
 
+  // Platform cost tracking (internal — not shown to users)
+  platformFeeKes Float? @map("platform_fee_kes")   // Our 5% service revenue
+  safaricomFeeKes Float? @map("safaricom_fee_kes")  // M-Pesa pass-through cost
+  gasBufferKes   Float? @map("gas_buffer_kes")      // World Chain L2 ETH gas
+  bitnobFeeKes   Float? @map("bitnob_fee_kes")      // Bitnob spread (~2.2% of kesAmount)
+  dexFeeKes      Float? @map("dex_fee_kes")         // Uniswap 0.3% pool fee on swap
+  netPlatformRevenueKes Float? @map("net_platform_revenue_kes") // platformFee - all platform costs
+
   // Recipient details
   tillNumber    String? @map("till_number")
   phoneNumber   String? @map("phone_number")

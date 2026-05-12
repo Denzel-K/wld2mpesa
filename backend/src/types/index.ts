@@ -40,6 +40,14 @@ export interface Transaction {
   wldRate: string;
   payToAddress: string;
 
+  // Platform cost tracking (internal — not shown to users)
+  platformFeeKes?: number | null;
+  safaricomFeeKes?: number | null;
+  gasBufferKes?: number | null;
+  bitnobFeeKes?: number | null;
+  dexFeeKes?: number | null;
+  netPlatformRevenueKes?: number | null;
+
   // Hashes / IDs
   txHash?: string | null;
   offrampId?: string | null;

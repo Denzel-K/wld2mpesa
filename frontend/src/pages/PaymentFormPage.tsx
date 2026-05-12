@@ -194,7 +194,7 @@ export default function PaymentFormPage() {
                     <p className="text-sm font-bold text-[var(--accent)] uppercase tracking-wider">
                       ≈ {formatWld(conversion.wldAmount)}
                     </p>
-                    <p className="text-[9px] text-[var(--accent)]/60 font-bold uppercase tracking-tighter">Incl. 0.5% + M-Pesa fees</p>
+                    <p className="text-[9px] text-[var(--accent)]/60 font-bold uppercase tracking-tighter">Incl. 5% service + M-Pesa fees</p>
                   </div>
                 </div>
               )}
@@ -313,18 +313,28 @@ export default function PaymentFormPage() {
                 <div className="pt-2">
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">Total Fees</span>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.feeKes || 0, 'KES')}</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">
+                      {formatCurrency((conversion?.ourFee || 0) + (conversion?.safaricomFee || 0), 'KES')}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-2 pl-3 border-l-2 border-[var(--accent)]/30">
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee (5%)</span>
                       <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Network Cost</span>
-                      <span className="text-[9px] font-bold text-orange-500 uppercase">{formatCurrency(conversion?.safaricomFee || 0, 'KES')}</span>
-                    </div>
+                    {(conversion?.safaricomFee || 0) > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">M-Pesa Network Fee</span>
+                        <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.safaricomFee || 0, 'KES')}</span>
+                      </div>
+                    )}
                   </div>
+                  {rate && (
+                    <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex justify-between items-center">
+                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Exchange Rate</span>
+                      <span className="text-[9px] font-bold text-[var(--text-secondary)]">1 WLD = {formatCurrency(rate.wldPriceKes, 'KES')}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

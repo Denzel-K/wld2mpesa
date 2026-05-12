@@ -37,19 +37,40 @@ function getMpesaFees(amount: number): number {
   return 108;
 }
 
+// Bitnob effective cost: 0.2% spread + 2% KES funding network fee = ~2.2%
+const BITNOB_EFFECTIVE_FEE_PERCENT = 2.2;
+// Uniswap V3 0.3% pool fee on WLD→USDC swap
+const DEX_POOL_FEE_PERCENT = 0.3;
+
 function calculateWldAmount(
   kesAmount: number,
   wldPriceKes: number,
   feePercent: number,
   gasBufferKes: number = 0
-): { wldAmount: string; feeWld: string; feeKes: number; platformFee: number; safaricomFee: number; gasBuffer: number } {
+): {
+  wldAmount: string;
+  feeWld: string;
+  feeKes: number;
+  platformFee: number;
+  safaricomFee: number;
+  gasBuffer: number;
+  bitnobFeeKes: number;
+  dexFeeKes: number;
+  netPlatformRevenueKes: number;
+} {
   const platformFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
   const feeKes = parseFloat((platformFee + safaricomFee + gasBufferKes).toFixed(2));
   const totalKes = kesAmount + feeKes;
   const wldAmount = parseFloat((totalKes / wldPriceKes).toFixed(6)).toString();
   const feeWld = parseFloat((feeKes / wldPriceKes).toFixed(6)).toString();
-  return { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer: gasBufferKes };
+
+  // Internal platform cost estimates (not charged to user, tracked for admin P&L)
+  const bitnobFeeKes = parseFloat(((kesAmount * BITNOB_EFFECTIVE_FEE_PERCENT) / 100).toFixed(2));
+  const dexFeeKes = parseFloat(((totalKes * DEX_POOL_FEE_PERCENT) / 100 / wldPriceKes * wldPriceKes).toFixed(2));
+  const netPlatformRevenueKes = parseFloat((platformFee - gasBufferKes - bitnobFeeKes - dexFeeKes).toFixed(2));
+
+  return { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer: gasBufferKes, bitnobFeeKes, dexFeeKes, netPlatformRevenueKes };
 }
 
 
@@ -198,7 +219,7 @@ class PaymentService implements IPaymentService {
     }
 
     const rate = await rateService.getWldKesRate();
-    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer } = calculateWldAmount(
+    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer, bitnobFeeKes, dexFeeKes, netPlatformRevenueKes } = calculateWldAmount(
       kesAmount,
       rate.wldPriceKes,
       config.FEE_PERCENT,
@@ -220,6 +241,12 @@ class PaymentService implements IPaymentService {
       wldRate: rate.wldPriceKes.toString(),
       payToAddress: config.BACKEND_WALLET_ADDRESS,
       createdAt: new Date().toISOString(),
+      platformFeeKes: platformFee,
+      safaricomFeeKes: safaricomFee,
+      gasBufferKes: gasBuffer,
+      bitnobFeeKes,
+      dexFeeKes,
+      netPlatformRevenueKes,
     };
 
     await transactionStore.save(tx);
@@ -240,6 +267,12 @@ class PaymentService implements IPaymentService {
         gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
         totalFeeKes: `KSh ${formatAmount(feeKes)}`,
         totalFeeWld: `${feeWld} WLD`,
+      },
+      platformCosts: {
+        bitnobSpread: `KSh ${formatAmount(bitnobFeeKes)} (~${BITNOB_EFFECTIVE_FEE_PERCENT}% est.)`,
+        dexPoolFee: `KSh ${formatAmount(dexFeeKes)} (${DEX_POOL_FEE_PERCENT}% Uniswap V3)`,
+        gasBuffer: `KSh ${formatAmount(gasBuffer)}`,
+        netRevenue: `KSh ${formatAmount(netPlatformRevenueKes)}`,
       },
     });
 
