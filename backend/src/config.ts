@@ -74,6 +74,21 @@ const REDIS_URL = optionalEnv('REDIS_URL', 'redis://localhost:6379');
 const DATABASE_URL = optionalEnv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/wld2mpesa?schema=public');
 const CLOUDFLARE_ENABLED = optionalEnv('CLOUDFLARE_ENABLED', 'false') === 'true';
 
+// ─── Email Configuration ─────────────────────────────────────────────────────────
+const EMAIL_HOST = optionalEnv('EMAIL_HOST', 'smtp.gmail.com');
+const EMAIL_PORT = optionalEnvNumber('EMAIL_PORT', 587);
+const EMAIL_SECURE = optionalEnv('EMAIL_SECURE', 'false') === 'true';
+const EMAIL_USER = optionalEnv('EMAIL_USER', '');
+const EMAIL_PASSWORD = optionalEnv('EMAIL_PASSWORD', '');
+const EMAIL_FROM_NAME = optionalEnv('EMAIL_FROM_NAME', 'WLD2Mpesa');
+const EMAIL_FROM_ADDRESS = optionalEnv('EMAIL_FROM_ADDRESS', 'noreply@wld2mpesa.com');
+
+// ─── JWT & Admin Authentication ────────────────────────────────────────────────
+const JWT_SECRET = optionalEnv('JWT_SECRET', '');
+const JWT_EXPIRES_IN = optionalEnv('JWT_EXPIRES_IN', '24h');
+const ADMIN_SESSION_TIMEOUT = optionalEnvNumber('ADMIN_SESSION_TIMEOUT', 86400000); // 24 hours in ms
+const INVITATION_EXPIRY_HOURS = optionalEnvNumber('INVITATION_EXPIRY_HOURS', 48);
+
 // ─── Transaction log ──────────────────────────────────────────────────────────
 const TRANSACTION_LOG_PATH = optionalEnv('TRANSACTION_LOG_PATH', './data/transactions.json');
 
@@ -133,6 +148,21 @@ export const config = {
   REDIS_URL,
   DATABASE_URL,
   CLOUDFLARE_ENABLED,
+
+  // Email
+  EMAIL_HOST,
+  EMAIL_PORT,
+  EMAIL_SECURE,
+  EMAIL_USER,
+  EMAIL_PASSWORD,
+  EMAIL_FROM_NAME,
+  EMAIL_FROM_ADDRESS,
+
+  // JWT & Admin Auth
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  ADMIN_SESSION_TIMEOUT,
+  INVITATION_EXPIRY_HOURS,
 } as const;
 
 // Warn about missing environment variables (will cause runtime failures)

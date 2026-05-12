@@ -24,6 +24,8 @@ import { nonceRouter } from './routes/nonce.routes';
 import { debugRouter } from './routes/debug.routes';
 import { idkitRouter } from './routes/idkit.routes';
 import { bitnobRouter } from './routes/bitnob.routes';
+import { contactRouter } from './routes/contact.routes';
+import { adminRouter } from './routes/admin.routes';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { cloudflareMiddleware } from './middleware/cloudflareMiddleware';
@@ -92,6 +94,8 @@ app.use('/api/idkit', idkitRouter);
 app.use('/api/mpesa', webhooksRouter);
 app.use('/api/webhooks/bitnob', bitnobRouter);
 app.use('/api/yellowcard', webhooksRouter);
+app.use('/api/contact', contactRouter);
+app.use('/api/admin', adminRouter);
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 

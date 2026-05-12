@@ -127,3 +127,123 @@ model WebhookEvent {
   @@index([transactionId])
   @@map("webhook_events")
 }
+
+// ─── Contact Messages ─────────────────────────────────────────────────────────
+
+model ContactMessage {
+  id            String   @id @default(uuid())
+  name          String
+  email         String
+  company       String?
+  inquiryType   String   @map("inquiry_type") // demo | support | partnership | other
+  message       String
+  status        String   @default("NEW") // NEW | READ | REPLIED | RESOLVED | ARCHIVED
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  conversation  Conversation?
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+// ─── Conversations (grouped messages with a contact) ──────────────────────────
+
+model Conversation {
+  id              String   @id @default(uuid())
+  contactEmail    String   @map("contact_email")
+  contactName     String   @map("contact_name")
+  contactCompany  String?  @map("contact_company")
+  status          String   @default("ACTIVE") // ACTIVE | CLOSED | ARCHIVED
+  lastMessageAt   DateTime @default(now()) @map("last_message_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  originalMessageId String         @unique @map("original_message_id")
+  originalMessage   ContactMessage @relation(fields: [originalMessageId], references: [id])
+  messages          Message[]
+  assignedAdminId   String?        @map("assigned_admin_id")
+  assignedAdmin     Admin?         @relation(fields: [assignedAdminId], references: [id])
+
+  @@index([contactEmail])
+  @@index([status])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+// ─── Messages (conversation thread) ───────────────────────────────────────────
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String   @map("conversation_id")
+  senderType      String   @map("sender_type") // CONTACT | ADMIN | SYSTEM
+  senderId        String?  @map("sender_id") // Admin ID if sender is admin
+  content         String
+  isEmailSent     Boolean  @default(false) @map("is_email_sent")
+  emailSentAt     DateTime? @map("email_sent_at")
+  emailError      String?  @map("email_error")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          Admin?       @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ─── Admins ─────────────────────────────────────────────────────────────────────
+
+model Admin {
+  id            String   @id @default(uuid())
+  fullName      String   @map("full_name")
+  email         String   @unique
+  phone         String?
+  passwordHash  String   @map("password_hash")
+  role          String   @default("MANAGER") // SUPER_ADMIN | MANAGER
+  status        String   @default("ACTIVE") // ACTIVE | SUSPENDED | INACTIVE
+  lastLoginAt   DateTime? @map("last_login_at")
+  lastLoginIp   String?   @map("last_login_ip")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  conversations Conversation[]
+  messages      Message[]
+  sentInvitations AdminInvitation[] @relation("InvitedBy")
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("admins")
+}
+
+// ─── Admin Invitations ─────────────────────────────────────────────────────────
+
+model AdminInvitation {
+  id            String   @id @default(uuid())
+  email         String
+  fullName      String   @map("full_name")
+  phone         String?
+  role          String   @default("MANAGER") // MANAGER only (SUPER_ADMIN via script only)
+  token           String   @unique
+  expiresAt       DateTime @map("expires_at")
+  acceptedAt      DateTime? @map("accepted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  invitedById     String   @map("invited_by_id")
+  invitedBy       Admin    @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([token])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("admin_invitations")
+}
