@@ -22,7 +22,11 @@ type Step = 'idle' | 'wallet-auth' | 'world-id' | 'syncing' | 'done' | 'error';
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const VerificationPage: React.FC = () => {
-    const { setScreen, setWalletAddress, setUserName, setWorldIdVerified, setOnboarded } = usePaymentStore();
+    const {
+        setScreen, setWalletAddress,
+        setWldUsername, setFullName, setUserEmail, setUserPhone, setProfileComplete,
+        setWorldIdVerified, setOnboarded,
+    } = usePaymentStore();
     const [step, setStep] = useState<Step>('idle');
     const [error, setError] = useState<string | null>(null);
     const [statusMsg, setStatusMsg] = useState<string>('');
@@ -87,11 +91,21 @@ export const VerificationPage: React.FC = () => {
             const user = await api.fetchUser(walletAddress);
             if (user?.isVerified) {
                 setWorldIdVerified(true);
-                setUserName(user.name || null);
+                setWldUsername(user.wldUsername || null);
+                setFullName(user.fullName || null);
+                setUserEmail(user.email || null);
+                setUserPhone(user.phone || null);
+                setProfileComplete(user.profileComplete);
                 setOnboarded(user.onboarded);
                 setStep('done');
                 setTimeout(() => {
-                    setScreen(user.onboarded ? 'home' : 'onboarding');
+                    if (!user.profileComplete) {
+                        setScreen('profile-setup');
+                    } else if (!user.onboarded) {
+                        setScreen('onboarding');
+                    } else {
+                        setScreen('home');
+                    }
                 }, 600);
                 return;
             }
@@ -134,11 +148,21 @@ export const VerificationPage: React.FC = () => {
                 actionId: LOGIN_ACTION_ID 
             });
             setWorldIdVerified(true);
-            setUserName(user.name || null);
+            setWldUsername(user.wldUsername || null);
+            setFullName(user.fullName || null);
+            setUserEmail(user.email || null);
+            setUserPhone(user.phone || null);
+            setProfileComplete(user.profileComplete);
             setOnboarded(user.onboarded);
             setStep('done');
             setTimeout(() => {
-                setScreen(user.onboarded ? 'home' : 'onboarding');
+                if (!user.profileComplete) {
+                    setScreen('profile-setup');
+                } else if (!user.onboarded) {
+                    setScreen('onboarding');
+                } else {
+                    setScreen('home');
+                }
             }, 800);
         } catch (err: any) {
             setError(err.message || 'Account sync failed. Please try again.');

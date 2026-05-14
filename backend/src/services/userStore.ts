@@ -14,7 +14,11 @@ class UserStore {
             id: pu.id,
             walletAddress: pu.walletAddress,
             nullifierHash: pu.nullifierHash,
-            name: (pu as any).name,
+            wldUsername: (pu as any).wldUsername ?? null,
+            fullName: (pu as any).fullName ?? null,
+            email: (pu as any).email ?? null,
+            phone: (pu as any).phone ?? null,
+            profileComplete: (pu as any).profileComplete ?? false,
             verificationLevel: pu.verificationLevel,
             isVerified: pu.isVerified,
             onboarded: pu.onboarded,
@@ -40,7 +44,11 @@ class UserStore {
     async createOrUpdate(data: {
         walletAddress: string;
         nullifierHash?: string;
-        name?: string;
+        wldUsername?: string;
+        fullName?: string;
+        email?: string;
+        phone?: string;
+        profileComplete?: boolean;
         verificationLevel?: string;
         isVerified?: boolean;
         onboarded?: boolean;
@@ -48,11 +56,27 @@ class UserStore {
         const pu = await prisma.user.upsert({
             where: { walletAddress: data.walletAddress },
             update: {
-                ...data,
+                ...(data as any),
                 lastSeenAt: new Date(),
             },
             create: {
-                ...data,
+                ...(data as any),
+                lastSeenAt: new Date(),
+            },
+        });
+        return this.mapToDomain(pu);
+    }
+
+    async updateProfile(walletAddress: string, data: {
+        fullName: string;
+        email: string;
+        phone: string;
+    }): Promise<User> {
+        const pu = await prisma.user.update({
+            where: { walletAddress },
+            data: {
+                ...(data as any),
+                profileComplete: true,
                 lastSeenAt: new Date(),
             },
         });

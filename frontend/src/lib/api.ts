@@ -93,10 +93,26 @@ export interface User {
   id: string;
   walletAddress: string;
   nullifierHash?: string | null;
-  name?: string | null;
+  wldUsername?: string | null;   // Read-only: from World ID / WLD account
+  fullName?: string | null;      // User-provided official name
+  email?: string | null;
+  phone?: string | null;
+  profileComplete: boolean;
   isVerified: boolean;
   onboarded: boolean;
   balanceWld?: string;
+}
+
+export interface UpdateProfileRequest {
+  fullName: string;
+  email: string;
+  phone: string;
+}
+
+export interface UpdateProfileFieldErrors {
+  fullName?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface WalletBalance {
@@ -176,6 +192,20 @@ export async function fetchIdKitContext(actionId: string): Promise<any> {
         body: JSON.stringify({ action: actionId }),
     });
     return res;
+}
+
+/**
+ * Update user profile (fullName, email, phone).
+ */
+export async function updateUserProfile(
+  walletAddress: string,
+  data: UpdateProfileRequest
+): Promise<User> {
+  const res = await apiFetch(`/user/${walletAddress}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return res as User;
 }
 
 /**
@@ -281,9 +311,11 @@ async function apiFetch(path: string, options?: RequestInit): Promise<unknown> {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const body = errorBody as { error?: string; fields?: Record<string, string> };
     throw new ApiError(
       response.status,
-      (errorBody as { error?: string }).error ?? `HTTP ${response.status}`
+      body.error ?? `HTTP ${response.status}`,
+      body.fields
     );
   }
 
@@ -291,12 +323,16 @@ async function apiFetch(path: string, options?: RequestInit): Promise<unknown> {
 }
 
 export class ApiError extends Error {
+  public readonly fields?: Record<string, string>;
+
   constructor(
     public readonly statusCode: number,
-    message: string
+    message: string,
+    fields?: Record<string, string>
   ) {
     super(message);
     this.name = 'ApiError';
+    this.fields = fields;
   }
 }
 

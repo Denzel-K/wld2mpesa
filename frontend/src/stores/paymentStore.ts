@@ -14,6 +14,7 @@ import { logoutUser } from '@/lib/api';
 export type AppScreen =
   | 'welcome'
   | 'verification'
+  | 'profile-setup'
   | 'onboarding'
   | 'home'
   | 'payment-form'
@@ -62,7 +63,11 @@ interface PaymentState {
 
   // MiniKit / User state
   walletAddress: string | null;
-  userName: string | null;
+  wldUsername: string | null;     // Read-only: from World ID account
+  fullName: string | null;        // User-provided official name
+  userEmail: string | null;
+  userPhone: string | null;
+  profileComplete: boolean;
   balanceWld: string | null;
   worldIdVerified: boolean;
   onboarded: boolean;
@@ -112,7 +117,11 @@ interface PaymentActions {
 
   // MiniKit / User
   setWalletAddress: (address: string | null) => void;
-  setUserName: (name: string | null) => void;
+  setWldUsername: (username: string | null) => void;
+  setFullName: (name: string | null) => void;
+  setUserEmail: (email: string | null) => void;
+  setUserPhone: (phone: string | null) => void;
+  setProfileComplete: (complete: boolean) => void;
   setBalanceWld: (balance: string | null) => void;
   setWorldIdVerified: (verified: boolean) => void;
   setOnboarded: (onboarded: boolean) => void;
@@ -151,7 +160,11 @@ const initialState: PaymentState = {
   retryTransactionId: null,
   transactionType: 'till',
   walletAddress: null,
-  userName: null,
+  wldUsername: null,
+  fullName: null,
+  userEmail: null,
+  userPhone: null,
+  profileComplete: false,
   balanceWld: null,
   worldIdVerified: false,
   onboarded: false,
@@ -168,6 +181,7 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
     const { screen } = get();
     const backMap: Partial<Record<AppScreen, AppScreen>> = {
       'onboarding': 'verification',
+      'profile-setup': 'verification',
       'home': 'onboarding', // Should maybe be blocked or handle logic
       'payment-form': 'home',
       'confirmation': 'payment-form',
@@ -217,7 +231,11 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
 
   // MiniKit / User
   setWalletAddress: (walletAddress) => set({ walletAddress }),
-  setUserName: (userName) => set({ userName }),
+  setWldUsername: (wldUsername) => set({ wldUsername }),
+  setFullName: (fullName) => set({ fullName }),
+  setUserEmail: (userEmail) => set({ userEmail }),
+  setUserPhone: (userPhone) => set({ userPhone }),
+  setProfileComplete: (profileComplete) => set({ profileComplete }),
   setBalanceWld: (balanceWld) => set({ balanceWld }),
   setWorldIdVerified: (worldIdVerified) => set({ worldIdVerified }),
   setOnboarded: (onboarded) => set({ onboarded }),
@@ -243,7 +261,11 @@ export const usePaymentStore = create<PaymentState & PaymentActions>((set, get) 
     set({
       screen: 'welcome',
       walletAddress: null,
-      userName: null,
+      wldUsername: null,
+      fullName: null,
+      userEmail: null,
+      userPhone: null,
+      profileComplete: false,
       balanceWld: null,
       worldIdVerified: false,
       onboarded: false,

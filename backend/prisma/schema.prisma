@@ -17,7 +17,11 @@ model User {
   id                String   @id @default(uuid())
   walletAddress     String   @unique @map("wallet_address")
   nullifierHash     String?  @unique @map("nullifier_hash")
-  name              String?
+  wldUsername       String?  @map("wld_username")   // Read-only: extracted from World ID / WLD account
+  fullName          String?  @map("full_name")       // User-provided official name
+  email             String?
+  phone             String?
+  profileComplete   Boolean  @default(false) @map("profile_complete")
   verificationLevel String?  @map("verification_level") // "orb" | "device"
   isVerified        Boolean  @default(false) @map("is_verified")
   onboarded         Boolean  @default(false)

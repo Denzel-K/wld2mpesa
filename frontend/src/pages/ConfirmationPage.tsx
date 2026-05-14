@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { confirmPayment } from '@/lib/api';
 import { payWithMiniKit, verifyWithWorldId, PAY_ACTION_ID } from '@/lib/minikit';
-import { formatKes, formatWld, shortTxId, calculateWldAmount, PLATFORM_FEE_PERCENT } from '@/lib/utils';
+import { formatKes, formatWld, shortTxId, calculateWldAmount, getFeeForAmount } from '@/lib/utils';
 import { ArrowLeft, Shield, ChevronRight, Loader2, AlertCircle, Store, Phone, CreditCard } from 'lucide-react';
 
 export default function ConfirmationPage() {
@@ -145,15 +145,18 @@ export default function ConfirmationPage() {
           {[
             { label: 'Settlement Amount', value: formatKes(kes), bold: true },
             { label: 'Current Rate', value: `1 WLD = ${rate ? formatKes(rate.wldPriceKes) : '…'}` },
-            {
-              label: 'Total Fees',
-              value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).feeKes),
-              breakdown: [
-                { label: `Platform Fee (${PLATFORM_FEE_PERCENT}%)`, value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).ourFee) },
-                { label: 'Safaricom M-Pesa', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).safaricomFee) },
-                { label: 'World Chain Gas', value: formatKes(calculateWldAmount(kes, rate?.wldPriceKes || 1).gasBuffer) },
-              ]
-            },
+            (() => {
+              const feeCalc = calculateWldAmount(kes, rate?.wldPriceKes || 1);
+              return {
+                label: 'Total Fees',
+                value: formatKes(feeCalc.feeKes),
+                breakdown: [
+                  { label: `Platform Fee (${feeCalc.feePercent}%)`, value: formatKes(feeCalc.ourFee) },
+                  { label: 'Safaricom M-Pesa', value: formatKes(feeCalc.safaricomFee) },
+                  { label: 'World Chain Gas', value: formatKes(feeCalc.gasBuffer) },
+                ]
+              };
+            })(),
             { label: 'Total Dedicated (WLD)', value: formatWld(tx.wldAmount), bold: true, green: true },
           ].map(({ label, value, bold, green, breakdown }: any) => (
             <div key={label} className="flex flex-col py-3.5 border-b border-[var(--border-color)]/50 last:border-0">

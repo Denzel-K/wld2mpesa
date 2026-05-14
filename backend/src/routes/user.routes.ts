@@ -212,23 +212,29 @@ router.post('/sync', async (req, res) => {
         return res.status(400).json({ error: 'Invalid World ID proof' });
     }
 
-    // 1b. Capture Name from Metadata (if available)
-    let name = '';
+    // 1b. Capture WLD Username from Metadata (if available) — this is read-only
+    let wldUsername = '';
     if (v4Result?.responses?.[0]?.name) {
-        name = v4Result.responses[0].name;
+        wldUsername = v4Result.responses[0].name;
     } else if (v4Result?.name) {
-        name = v4Result.name;
+        wldUsername = v4Result.name;
     } else if (worldIdProof?.name) {
-        name = worldIdProof.name;
+        wldUsername = worldIdProof.name;
     } else {
-        name = `Verified User ${nullifierHash.slice(0, 6)}`;
+        wldUsername = `user_${nullifierHash.slice(0, 8)}`;
     }
 
-    // 2. Create or Update User
+    // 2. Create or Update User (only update wldUsername if it's a fresh sync, preserve profile fields)
+    const existingUser = await userStore.findByWallet(walletAddress);
     const user = await userStore.createOrUpdate({
         walletAddress,
         nullifierHash: nullifierHash,
-        name: name,
+        wldUsername: wldUsername,
+        // Preserve existing profile fields if already set
+        ...(existingUser?.fullName ? { fullName: existingUser.fullName } : {}),
+        ...(existingUser?.email ? { email: existingUser.email } : {}),
+        ...(existingUser?.phone ? { phone: existingUser.phone } : {}),
+        ...(existingUser?.profileComplete ? { profileComplete: existingUser.profileComplete } : {}),
         verificationLevel: verificationLevel,
         isVerified: true
     });
@@ -304,6 +310,67 @@ router.post('/logout', async (req, res) => {
             error: err instanceof Error ? err.message : 'Unknown error'
         });
         return res.status(500).json({ error: 'Logout failed' });
+    }
+});
+
+/**
+ * PUT /api/user/:walletAddress/profile
+ * Save or update the user's profile (fullName, email, phone).
+ * Marks profileComplete = true on success.
+ */
+router.put('/:walletAddress/profile', async (req, res) => {
+    const { walletAddress } = req.params;
+    const { fullName, email, phone } = req.body;
+
+    // ── Validation ─────────────────────────────────────────────────────────
+    const errors: Record<string, string> = {};
+
+    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
+        errors.fullName = 'Full name must be at least 2 characters.';
+    } else if (fullName.trim().length > 100) {
+        errors.fullName = 'Full name must be under 100 characters.';
+    }
+
+    if (!email || typeof email !== 'string') {
+        errors.email = 'Email address is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!phone || typeof phone !== 'string') {
+        errors.phone = 'Phone number is required.';
+    } else {
+        const cleaned = phone.replace(/[\s\-()]/g, '');
+        if (!/^(\+?254|0)[17]\d{8}$/.test(cleaned)) {
+            errors.phone = 'Enter a valid Kenyan phone number (e.g. 07XXXXXXXX or +254XXXXXXXXX).';
+        }
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).json({ error: 'Validation failed', fields: errors });
+    }
+
+    const user = await userStore.findByWallet(walletAddress);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+
+    try {
+        const updated = await userStore.updateProfile(walletAddress, {
+            fullName: fullName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+        });
+        logger.info('API', 'User profile updated', undefined, {
+            wallet: maskWalletAddress(walletAddress),
+        });
+        return res.json(updated);
+    } catch (err) {
+        logger.error('API', 'Profile update failed', undefined, {
+            wallet: maskWalletAddress(walletAddress),
+            error: err instanceof Error ? err.message : 'Unknown error',
+        });
+        return res.status(500).json({ error: 'Failed to update profile' });
     }
 });
 

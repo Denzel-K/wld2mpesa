@@ -305,7 +305,7 @@ export async function sendContactConfirmation(params: {
     
     <p>While you wait, you might want to:</p>
     <p style="text-align: center; margin: 24px 0;">
-      <a href="https://wld2mpesa.com" class="btn">Visit Our Website</a>
+      <a href="https://wld2mpesa-website.vercel.app" class="btn">Visit Our Website</a>
     </p>
     
     <p style="font-size: 14px; color: #737373;">
@@ -318,7 +318,7 @@ export async function sendContactConfirmation(params: {
     to: params.to,
     subject: 'We received your message — WLD2Mpesa',
     html: getBaseTemplate(content, 'Message Received'),
-    text: `Thank you for reaching out, ${params.name}!\n\nWe've received your message and will get back to you within 24 hours.\n\nInquiry Type: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nYour Message: ${params.message}\n\nVisit us at https://wld2mpesa.com`,
+    text: `Thank you for reaching out, ${params.name}!\n\nWe've received your message and will get back to you within 24 hours.\n\nInquiry Type: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nYour Message: ${params.message}\n\nVisit us at https://wld2mpesa-website.vercel.app`,
   });
 }
 
@@ -446,7 +446,7 @@ export async function sendNewMessageNotification(params: {
     </div>
     
     <p style="text-align: center; margin: 24px 0;">
-      <a href="https://wld2mpesa.com/admin-panel" class="btn">View in Admin Panel</a>
+      <a href="https://wld2mpesa-website.vercel.app/admin-panel" class="btn">View in Admin Panel</a>
     </p>
   `;
 
@@ -454,7 +454,7 @@ export async function sendNewMessageNotification(params: {
     to: params.to,
     subject: `New inquiry: ${params.contactName} — ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}`,
     html: getBaseTemplate(content, 'New Message'),
-    text: `Hi ${params.adminName},\n\nNew message from ${params.contactName} (${params.contactEmail})\n\nType: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nMessage: ${params.messagePreview}\n\nView in admin panel: https://wld2mpesa.com/admin-panel`,
+    text: `Hi ${params.adminName},\n\nNew message from ${params.contactName} (${params.contactEmail})\n\nType: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nMessage: ${params.messagePreview}\n\nView in admin panel: https://wld2mpesa-website.vercel.app/admin-panel`,
   });
 }
 

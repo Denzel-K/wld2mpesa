@@ -8,10 +8,11 @@ import { formatCurrency, convertKesTo, cn } from '@/lib/utils';
 import { fetchTransactionHistory, fetchBalance } from '@/lib/api';
 import {
   Loader2, Send, Store, CreditCard, User,
-  TrendingUp, History, LogOut, Eye, AlertTriangle, Clock, RotateCcw, RefreshCw
+  TrendingUp, History, LogOut, Eye, AlertTriangle, Clock, RotateCcw, RefreshCw, BadgeCheck
 } from 'lucide-react';
 import CurrencySelector from '@/components/CurrencySelector';
 import TransactionDetailModal from '@/components/TransactionDetailModal';
+import { ProfileSetupModal } from '@/components/ProfileSetupModal';
 
 const ACTIONS = [
   { id: 'send', label: 'Send Money', icon: Send, sub: 'To M-Pesa Number', color: 'bg-blue-600' },
@@ -52,7 +53,7 @@ export default function HomePage() {
     rate, rateLoading, rateError,
     setScreen,
     selectedCurrency, setSelectedCurrency, setTransactionType,
-    walletAddress, userName, balanceWld, setBalanceWld,
+    walletAddress, wldUsername, fullName, profileComplete, balanceWld, setBalanceWld,
     logout
   } = usePaymentStore();
 
@@ -62,6 +63,7 @@ export default function HomePage() {
   const [modalTxId, setModalTxId] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(!profileComplete);
 
   // Pull-to-refresh
   const touchStartY = useRef(0);
@@ -143,8 +145,14 @@ export default function HomePage() {
           <div>
             <span className="text-white/60 text-[9px] font-black tracking-[0.3em] uppercase">Welcome back</span>
             <h1 className="text-white text-2xl font-black font-display tracking-tight mt-0.5">
-              {userName ? userName.split(' ')[0] : 'WLD2Mpesa'}
+              {fullName ? fullName.split(' ')[0] : (wldUsername ? wldUsername.split(' ')[0] : 'WLD2Mpesa')}
             </h1>
+            {wldUsername && (
+              <div className="flex items-center gap-1 mt-1">
+                <BadgeCheck className="w-3 h-3 text-emerald-300" />
+                <span className="text-white/50 text-[8px] font-bold">@{wldUsername}</span>
+              </div>
+            )}
           </div>
           <button
             onClick={() => logout()}
@@ -406,6 +414,11 @@ export default function HomePage() {
           transactionId={modalTxId}
           onClose={() => setModalTxId(null)}
         />
+      )}
+
+      {/* Profile Setup Modal — shown to existing users who haven't completed their profile */}
+      {showProfileModal && !profileComplete && (
+        <ProfileSetupModal onClose={() => setShowProfileModal(false)} />
       )}
     </div>
   );

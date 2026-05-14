@@ -530,3 +530,103 @@ The 5% rate currently implemented provides comfortable margins and operational r
 4. **What volume projections justify the chosen fee structure?**
 
 The technical infrastructure is ready for launch. The primary remaining decision is the commercial fee structure based on partner strategy and market positioning goals.
+
+---
+
+## 10. Future Enhancements & Debatable Features
+
+The following features are NOT required for MVP/sandbox testing but are documented for future implementation consideration:
+
+### 10.1 DEX Swap Optimization
+
+**Status**: Working but could be enhanced
+
+**Current**: Automatic swap with 3% slippage protection
+
+**Future Options**:
+1. **Batch swapping**: Queue swaps and execute hourly to reduce gas costs
+2. **Dynamic slippage**: Calculate from actual Uniswap V3 pool data instead of fixed 3%
+3. **Liquidity checks**: Verify pool depth before attempting large swaps
+4. **Manual swap option**: Admin-controlled swaps for safety
+
+**Recommendation**: Implement batch swapping once daily volume exceeds 50 transactions
+
+### 10.2 Progressive Transaction Limits
+
+**Status**: Simple limits in place (KES 10 - 150,000)
+
+**Future Options**:
+1. **Tiered limits by user history**:
+   - New users: KES 100 - 10,000
+   - 3+ successful transactions: KES 10 - 50,000
+   - 10+ successful transactions: KES 10 - 150,000
+   - Verified users: Up to KES 250,000
+
+2. **Per-type limits**:
+   - Send Money: Higher limits (up to KES 150,000)
+   - Paybill: Medium limits (up to KES 100,000)
+   - Till/Pochi: Lower limits (up to KES 50,000)
+
+**Recommendation**: Implement progressive limits after initial user base established
+
+### 10.3 Full Daraja Migration
+
+**Status**: Hybrid architecture implemented (Bitnob for Send/Till/Pochi, Daraja planned for Paybill)
+
+**Future Options**:
+1. **Current (Phase 1)**: All types via Bitnob for speed to market
+2. **Phase 2**: Daraja for Paybill (lower fees for highest volume type)
+3. **Phase 3**: Full Daraja for ALL types (lowest fees, requires KES float)
+
+**Requirements for Phase 3**:
+- M-Pesa Business Account (4-8 week approval)
+- KES float: KES 500K-1M minimum
+- B2C API for Send Money/Till/Pochi
+- B2B API for Paybill
+- Full compliance certification
+
+**Recommendation**: Evaluate after achieving 1,000+ monthly transactions
+
+### 10.4 Refund Policy Refinement
+
+**Status**: Auto-refund implemented with gas checks
+
+**Future Options**:
+1. **Current**: Auto-refund all platform failures
+2. **Manual review threshold**: Hold refunds > KES 10,000 for admin review
+3. **Gas fee pass-through**: Charge users gas costs for refunds (currently absorbed)
+4. **No refund for user errors**: Don't refund wrong phone numbers (after confirmation)
+
+**Recommendation**: Implement manual review threshold after transaction volume increases
+
+### 10.5 Enhanced Monitoring & Alerting
+
+**Status**: Structured logging implemented
+
+**Future Requirements**:
+1. **Metrics dashboard**: Real-time transaction volume, success rates
+2. **PagerDuty/Slack alerts**: For critical thresholds
+3. **Automated health checks**: Pipeline component monitoring
+4. **Cost tracking**: Per-transaction P&L dashboard
+
+**Alert Thresholds**:
+| Metric | Threshold | Action |
+|--------|-----------|--------|
+| Failure rate | > 5% | Page |
+| Refund failure | > 1% | Page |
+| ETH balance | < 0.005 ETH | Page |
+| Bitnob errors | > 10/hour | Slack |
+
+**Recommendation**: Implement after production launch
+
+### 10.6 KYC/AML Enhancements
+
+**Status**: World ID provides basic verification
+
+**Future Options**:
+1. **Enhanced KYC**: For transactions > KES 50,000
+2. **Suspicious activity monitoring**: Automated flagging
+3. **Transaction reporting**: To regulators for large amounts
+4. **Blacklist integration**: Check against sanctions lists
+
+**Recommendation**: Evaluate based on regulatory requirements in operating jurisdictions

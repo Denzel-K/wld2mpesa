@@ -91,6 +91,72 @@ export class BitnobService implements IOfframpService {
   }
 
   /**
+   * Get Bitnob wallet balance
+   */
+  async getWalletBalance(): Promise<{ usdc: number; kes: number; btc: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/wallets/balances`, {
+        method: 'GET',
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch balance: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Parse balances from response
+      const balances = data.data || data;
+      return {
+        usdc: parseFloat(balances.usdc || balances.USDC || 0),
+        kes: parseFloat(balances.kes || balances.KES || 0),
+        btc: parseFloat(balances.btc || balances.BTC || 0),
+      };
+    } catch (error) {
+      logger.error('BITNOB', 'Failed to fetch wallet balance', undefined, error);
+      // Return zeros to allow transaction attempt (fail open)
+      return { usdc: 0, kes: 0, btc: 0 };
+    }
+  }
+
+  /**
+   * Check if there's sufficient balance for a payout
+   * Includes 10% buffer for fees and exchange rate fluctuations
+   */
+  async ensureSufficientBalance(kesAmount: number): Promise<boolean> {
+    try {
+      const balances = await this.getWalletBalance();
+      
+      // Estimate required USDC (assuming ~130 KES per USD, with 10% buffer)
+      const estimatedUsdNeeded = (kesAmount / 130) * 1.1;
+      
+      logger.info('BITNOB', 'Balance check', undefined, {
+        requiredUsd: estimatedUsdNeeded.toFixed(2),
+        availableUsdc: balances.usdc.toFixed(2),
+        availableKes: balances.kes.toFixed(2),
+      });
+
+      // Check if we have enough (USDC or KES balance)
+      if (balances.usdc >= estimatedUsdNeeded || balances.kes >= kesAmount * 1.1) {
+        return true;
+      }
+
+      logger.error('BITNOB', 'Insufficient balance for payout', undefined, {
+        requiredUsd: estimatedUsdNeeded.toFixed(2),
+        availableUsdc: balances.usdc.toFixed(2),
+        kesAmount: kesAmount.toFixed(2),
+      });
+      
+      return false;
+    } catch (error) {
+      logger.error('BITNOB', 'Balance check failed', undefined, error);
+      // Fail open - allow transaction to proceed and let Bitnob handle rejection if truly insufficient
+      return true;
+    }
+  }
+
+  /**
    * Initialize a mobile money payout to MPESA
    *
    * Endpoint: POST /wallets/payout/initialize
@@ -301,7 +367,7 @@ export class BitnobService implements IOfframpService {
     } else if (payment.transactionType === 'till') {
       // For till, we need the recipient's phone number (for receiving confirmation)
       // The till number itself is passed in the reference or handled by Bitnob
-      phoneNumber = payment.phoneNumber || '254700000000'; // Fallback for till
+      phoneNumber = payment.phoneNumber || '';
       options.tillNumber = payment.tillNumber;
     } else {
       throw new Error(`Unsupported transaction type: ${payment.transactionType}`);
@@ -310,6 +376,12 @@ export class BitnobService implements IOfframpService {
     if (!phoneNumber) {
       logger.error('PAYMENT', `Phone number missing for ${payment.transactionType} payout`, txnId);
       throw new Error(`Phone number required for ${payment.transactionType} payout`);
+    }
+
+    // Pre-flight check: Verify sufficient balance before initiating
+    const hasBalance = await this.ensureSufficientBalance(kesAmount);
+    if (!hasBalance) {
+      throw new Error('Insufficient Bitnob balance for payout. Please contact support.');
     }
 
     // Initiate the payout

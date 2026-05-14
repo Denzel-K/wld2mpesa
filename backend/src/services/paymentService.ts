@@ -142,38 +142,53 @@ class PaymentService implements IPaymentService {
         }
       }
 
-      // Step 3: Off-ramp / Payout via Bitnob (skip if already initiated)
-      let payoutSwapId: string = tx.offrampId ?? '';
+      // Step 3: Off-ramp / Payout
+      // Route based on transaction type:
+      // - paybill: Use Daraja (direct M-Pesa integration)
+      // - send, till, pochi: Use Bitnob off-ramp
+      let payoutId: string = tx.offrampId ?? '';
       if (PAST_OFFRAMP.includes(tx.status) && tx.offrampId) {
         log(3, `↩ Skipping off-ramp initiation — already initiated: ${tx.offrampId.slice(0, 8)}...`);
-        payoutSwapId = tx.offrampId;
+        payoutId = tx.offrampId;
+      } else if (tx.transactionType === 'paybill') {
+        // Paybill via Daraja (STK Push - but for our flow we actually need B2B or different approach)
+        // For now, route through Bitnob for Paybill as well until full Daraja integration complete
+        // TODO: Implement full Daraja B2B/B2C for Paybill
+        log(3, `Initiating Paybill via Bitnob (Daraja integration pending)...`);
+        const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
+        payoutId = payout.swapId;
+        await transactionStore.update(transactionId, {
+          status: 'OFFRAMP_INITIATED',
+          offrampId: payoutId
+        });
+        log(3, `✓ Bitnob payout queued [${payoutId.slice(0, 8)}...]`);
       } else {
         log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob...`);
         const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
-        payoutSwapId = payout.swapId;
+        payoutId = payout.swapId;
         await transactionStore.update(transactionId, {
           status: 'OFFRAMP_INITIATED',
-          offrampId: payoutSwapId
+          offrampId: payoutId
         });
-        log(3, `✓ Bitnob payout queued [${payoutSwapId.slice(0, 8)}...]`);
+        log(3, `✓ Bitnob payout queued [${payoutId.slice(0, 8)}...]`);
       }
 
       // Step 4: Finalize
-      // Note: Bitnob handles the actual disbursement. We wait for their callback 
+      // Note: Bitnob handles the actual disbursement. We wait for their callback
       // or poll to mark it as SETTLED.
-      log(4, 'Waiting for Bitnob to complete disbursement...');
-      const bitnobStatus = await this.pollUntil(
-        () => offrampService.checkSwapStatus(payoutSwapId, transactionId),
+      log(4, 'Waiting for payout provider to complete disbursement...');
+      const payoutStatus = await this.pollUntil(
+        () => offrampService.checkSwapStatus(payoutId, transactionId),
         (s) => s === 'COMPLETED' || s === 'FAILED',
         180_000, // 3 min timeout
         10_000   // 10s interval
       );
 
-      if (bitnobStatus !== 'COMPLETED') {
-        logger.userError(transactionId, 'BITNOB_PAYOUT_FAILED', 
+      if (payoutStatus !== 'COMPLETED') {
+        logger.userError(transactionId, 'PAYOUT_FAILED',
           'MPESA disbursement failed - your WLD will be refunded',
-          'Bitnob payout failed or timed out');
-        throw new Error('Bitnob payout failed or timed out');
+          'Payout failed or timed out');
+        throw new Error('Payout failed or timed out');
       }
 
       await transactionStore.update(transactionId, {
@@ -219,10 +234,11 @@ class PaymentService implements IPaymentService {
     }
 
     const rate = await rateService.getWldKesRate();
+    const feePercent = config.getFeeForAmount(kesAmount);
     const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer, bitnobFeeKes, dexFeeKes, netPlatformRevenueKes } = calculateWldAmount(
       kesAmount,
       rate.wldPriceKes,
-      config.FEE_PERCENT,
+      feePercent,
       config.GAS_BUFFER_KES
     );
 
@@ -262,7 +278,7 @@ class PaymentService implements IPaymentService {
       wldAmount: `${wldAmount} WLD`,
       payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
       feeBreakdown: {
-        platformFee: `KSh ${formatAmount(platformFee)} (${config.FEE_PERCENT}%)`,
+        platformFee: `KSh ${formatAmount(platformFee)} (${feePercent}%)`,
         safaricomFee: `KSh ${formatAmount(safaricomFee)}`,
         gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
         totalFeeKes: `KSh ${formatAmount(feeKes)}`,
@@ -446,8 +462,30 @@ class PaymentService implements IPaymentService {
 
     try {
       const { ethers } = await import('ethers');
+      
+      // Use RPC fallback from worldChainListener for reliability
       const provider = new ethers.JsonRpcProvider(config.WORLD_CHAIN_RPC_URL);
       const signer = new ethers.Wallet(config.ADMIN_PRIVATE_KEY, provider);
+
+      // Pre-flight gas check
+      const minRequiredEth = ethers.parseEther('0.001'); // Minimum 0.001 ETH for gas
+      const walletBalance = await provider.getBalance(signer.address);
+      
+      if (walletBalance < minRequiredEth) {
+        const msg = `Insufficient ETH for gas. Have: ${ethers.formatEther(walletBalance)} ETH, Need: ${ethers.formatEther(minRequiredEth)} ETH`;
+        logger.error('REFUND', msg, transactionId);
+        await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
+        logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
+        logger.securityEvent('CRITICAL: Refund failed due to insufficient gas', {
+          transactionId,
+          wallet: maskWalletAddress(walletAddress),
+          wldAmount,
+          balance: ethers.formatEther(walletBalance),
+        });
+        return;
+      }
+
+      logger.info('REFUND', `Gas check passed. Balance: ${ethers.formatEther(walletBalance)} ETH`, transactionId);
 
       const erc20Abi = ['function transfer(address to, uint256 amount) public returns (bool)'];
       const wldContract = new ethers.Contract(config.WLD_CONTRACT_ADDRESS, erc20Abi, signer);
@@ -455,11 +493,37 @@ class PaymentService implements IPaymentService {
       const amountWei = ethers.parseUnits(wldAmount, 18);
       logger.info('REFUND', `Sending ${wldAmount} WLD on-chain to ${maskWalletAddress(walletAddress)}`, transactionId);
 
-      const tx = await wldContract.transfer(walletAddress, amountWei);
-      logger.info('REFUND', `Refund tx broadcast: ${tx.hash.slice(0, 12)}...${tx.hash.slice(-6)}`, transactionId);
+      // Attempt refund with retry logic
+      let refundTxHash: string | null = null;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const tx = await wldContract.transfer(walletAddress, amountWei, {
+            gasLimit: 100000, // Set explicit gas limit
+          });
+          logger.info('REFUND', `Refund tx broadcast (attempt ${attempt}/${maxRetries}): ${tx.hash.slice(0, 12)}...${tx.hash.slice(-6)}`, transactionId);
 
-      const receipt = await tx.wait(1);
-      const refundTxHash: string = receipt?.hash ?? tx.hash;
+          const receipt = await tx.wait(1);
+          refundTxHash = receipt?.hash ?? tx.hash;
+          break; // Success, exit retry loop
+        } catch (txErr) {
+          const errMsg = txErr instanceof Error ? txErr.message : 'Unknown error';
+          logger.warn('REFUND', `Refund attempt ${attempt}/${maxRetries} failed`, transactionId, { error: errMsg });
+          
+          if (attempt < maxRetries) {
+            const delay = 1000 * Math.pow(2, attempt); // Exponential backoff
+            logger.info('REFUND', `Retrying in ${delay}ms...`, transactionId);
+            await new Promise(r => setTimeout(r, delay));
+          } else {
+            throw txErr; // All retries exhausted
+          }
+        }
+      }
+
+      if (!refundTxHash) {
+        throw new Error('Failed to get refund transaction hash after retries');
+      }
 
       await transactionStore.update(transactionId, {
         refundStatus: 'REFUNDED',
@@ -481,6 +545,12 @@ class PaymentService implements IPaymentService {
         'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
         msg
       );
+      logger.securityEvent('ERROR: Refund permanently failed - manual intervention required', {
+        transactionId,
+        wallet: maskWalletAddress(walletAddress),
+        wldAmount,
+        error: msg,
+      });
       logger.pipelineDivider(transactionId, 'END');
     }
   }

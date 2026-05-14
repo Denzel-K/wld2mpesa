@@ -12,23 +12,53 @@
  */
 
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { paymentService } from '../services/paymentService';
 import { transactionStore } from '../services/transactionStore';
 import { bitnobService } from '../services/bitnobService';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 export const bitnobRouter = Router();
 
 // ─── Webhook Secret Verification ─────────────────────────────────────────────
 
 /**
- * Verify Bitnob webhook signature
- * Bitnob signs webhooks with a secret that you can configure in the dashboard
+ * Verify Bitnob webhook signature using HMAC SHA-256
+ * 
+ * Bitnob signs webhooks with the BITNOB_SECRET_KEY using HMAC SHA-256.
+ * The signature is sent in the x-bitnob-signature header.
+ * 
+ * @param payload - The raw request body (string)
+ * @param signature - The signature from x-bitnob-signature header
+ * @param secret - The BITNOB_SECRET_KEY from config
+ * @returns boolean - True if signature is valid
  */
 function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-  // TODO: Implement HMAC signature verification if Bitnob provides it
-  // For now, we rely on the reference ID matching our transaction
-  return true;
+  if (!signature || !secret) {
+    logger.warn('BITNOB_WEBHOOK', 'Missing signature or secret for verification');
+    return false;
+  }
+
+  try {
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(payload, 'utf8')
+      .digest('hex');
+
+    // Use timing-safe comparison to prevent timing attacks
+    const sigBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+    if (sigBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+  } catch (error) {
+    logger.error('BITNOB_WEBHOOK', 'Signature verification error', undefined, error);
+    return false;
+  }
 }
 
 // ─── Webhook Handler ───────────────────────────────────────────────────────────
@@ -41,7 +71,24 @@ function verifyWebhookSignature(payload: string, signature: string, secret: stri
  */
 bitnobRouter.post('/', async (req: Request, res: Response) => {
   try {
-    console.log('[Bitnob Webhook] Received:', req.body);
+    // Get raw body and signature for verification
+    const rawBody = JSON.stringify(req.body);
+    const signature = req.headers['x-bitnob-signature'] as string || req.headers['X-Bitnob-Signature'] as string;
+    
+    // Verify webhook signature
+    if (!verifyWebhookSignature(rawBody, signature, config.BITNOB_SECRET_KEY)) {
+      logger.securityEvent('Invalid Bitnob webhook signature received', { 
+        ip: req.ip,
+        signature: signature ? `${signature.slice(0, 10)}...` : 'missing',
+      });
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
+    logger.info('BITNOB_WEBHOOK', 'Received valid webhook', undefined, { 
+      event: req.body.event || req.body.type,
+      signature: `${signature.slice(0, 10)}...`,
+    });
 
     // Acknowledge receipt immediately (prevent Bitnob retries)
     res.status(200).json({ received: true });

@@ -16,6 +16,7 @@ import SuccessPage from './pages/SuccessPage';
 import FailurePage from './pages/FailurePage';
 import ResolutionPage from './pages/ResolutionPage';
 import { VerificationPage } from './pages/VerificationPage';
+import { ProfileSetupPage } from './pages/ProfileSetupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { WelcomePage } from './pages/WelcomePage';
 
@@ -87,6 +88,8 @@ export default function App() {
         return <WelcomePage />;
       case 'verification':
         return <VerificationPage />;
+      case 'profile-setup':
+        return <ProfileSetupPage />;
       case 'onboarding':
         return <OnboardingPage />;
       case 'home':

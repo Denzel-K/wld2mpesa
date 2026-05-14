@@ -85,25 +85,53 @@ export function getMpesaFees(amount: number): number {
   return 108; // For amounts above 20,000 up to 250,000
 }
 
-/** Platform fee percentage — must match backend config.FEE_PERCENT */
-export const PLATFORM_FEE_PERCENT = 5;
+/** 
+ * Tiered platform fee structure — must match backend config
+ * Tier 1: 3% for KES 10 - 5,000
+ * Tier 2: 2% for KES 5,001 - 20,000
+ * Tier 3: 1.5% for KES 20,001+
+ */
+export const FEE_TIER_1_PERCENT = 3;
+export const FEE_TIER_2_PERCENT = 2;
+export const FEE_TIER_3_PERCENT = 1.5;
+export const FEE_TIER_1_MAX = 5000;
+export const FEE_TIER_2_MAX = 20000;
+
+/** Legacy constant for backward compatibility - use getFeeForAmount() instead */
+export const PLATFORM_FEE_PERCENT = FEE_TIER_1_PERCENT;
+
 /** Gas buffer in KES absorbed into fee — covers World Chain L2 ETH gas for DEX swap */
 export const GAS_BUFFER_KES = 10;
 
-/** Calculate WLD amount from KES, rate, and fee */
+/** Get the appropriate fee percentage for a given KES amount */
+export function getFeeForAmount(kesAmount: number): number {
+  if (kesAmount <= FEE_TIER_1_MAX) {
+    return FEE_TIER_1_PERCENT;
+  } else if (kesAmount <= FEE_TIER_2_MAX) {
+    return FEE_TIER_2_PERCENT;
+  } else {
+    return FEE_TIER_3_PERCENT;
+  }
+}
+
+/** 
+ * Calculate WLD amount from KES, rate, and fee
+ * Uses tiered fee structure based on amount
+ */
 export function calculateWldAmount(
   kesAmount: number,
   wldPriceKes: number,
-  feePercent: number = PLATFORM_FEE_PERCENT,
+  feePercent?: number,
   gasBufferKes: number = GAS_BUFFER_KES
-): { wldAmount: number; feeKes: number; safaricomFee: number; ourFee: number; feeWld: number; netKes: number; gasBuffer: number } {
-  const ourFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
+): { wldAmount: number; feeKes: number; safaricomFee: number; ourFee: number; feeWld: number; netKes: number; gasBuffer: number; feePercent: number } {
+  const effectiveFeePercent = feePercent ?? getFeeForAmount(kesAmount);
+  const ourFee = parseFloat(((kesAmount * effectiveFeePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
   const feeKes = parseFloat((ourFee + safaricomFee + gasBufferKes).toFixed(2));
   const netKes = kesAmount + feeKes;
   const wldAmount = netKes / wldPriceKes;
   const feeWld = feeKes / wldPriceKes;
-  return { wldAmount, feeKes, safaricomFee, ourFee, feeWld, netKes, gasBuffer: gasBufferKes };
+  return { wldAmount, feeKes, safaricomFee, ourFee, feeWld, netKes, gasBuffer: gasBufferKes, feePercent: effectiveFeePercent };
 }
 
 /** Format relative time: "2 minutes ago" */

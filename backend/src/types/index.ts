@@ -93,7 +93,11 @@ export interface User {
   id: string;
   walletAddress: string;
   nullifierHash?: string | null;
-  name?: string | null;
+  wldUsername?: string | null;  // Read-only: extracted from World ID / WLD account
+  fullName?: string | null;     // User-provided official name
+  email?: string | null;
+  phone?: string | null;
+  profileComplete: boolean;
   verificationLevel?: string | null;
   isVerified: boolean;
   onboarded: boolean;

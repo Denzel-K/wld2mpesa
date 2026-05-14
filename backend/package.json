@@ -18,7 +18,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "create-super-admin": "tsx src/scripts/create-super-admin.ts"
+    "create-super-admin": "tsx src/scripts/create-super-admin.ts",
+    "db:add-profile-fields": "tsx src/scripts/add-user-profile-fields.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",

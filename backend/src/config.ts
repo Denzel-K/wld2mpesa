@@ -93,12 +93,21 @@ const INVITATION_EXPIRY_HOURS = optionalEnvNumber('INVITATION_EXPIRY_HOURS', 48)
 const TRANSACTION_LOG_PATH = optionalEnv('TRANSACTION_LOG_PATH', './data/transactions.json');
 
 // ─── Fee config ───────────────────────────────────────────────────────────────
-// Platform fee: 5% covers operational costs, DEX swap slippage, and gas buffer
-const FEE_PERCENT = optionalEnvNumber('FEE_PERCENT', 5);
+// Tiered fee structure: 3% for 10-5K KES, 2% for 5K-20K KES, 1.5% for 20K+ KES
+// This replaces the flat 5% fee for competitive positioning
+const FEE_TIER_1_PERCENT = optionalEnvNumber('FEE_TIER_1_PERCENT', 3);  // KES 10 - 5,000
+const FEE_TIER_2_PERCENT = optionalEnvNumber('FEE_TIER_2_PERCENT', 2);  // KES 5,001 - 20,000
+const FEE_TIER_3_PERCENT = optionalEnvNumber('FEE_TIER_3_PERCENT', 1.5); // KES 20,001+
+const FEE_TIER_1_MAX = optionalEnvNumber('FEE_TIER_1_MAX', 5000);
+const FEE_TIER_2_MAX = optionalEnvNumber('FEE_TIER_2_MAX', 20000);
+
 const MIN_KES_AMOUNT = optionalEnvNumber('MIN_KES_AMOUNT', 10);
 const MAX_KES_AMOUNT = optionalEnvNumber('MAX_KES_AMOUNT', 150000);
 // Gas buffer: absorbs backend ETH spend for DEX swap + blockchain ops (~KSh 6-15/tx on World Chain L2)
 const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 10);
+
+// Legacy flat fee for backward compatibility (deprecated, use tiered)
+const FEE_PERCENT = optionalEnvNumber('FEE_PERCENT', 3);
 
 // ─── WLD Contract (World Chain mainnet) ───────────────────────────────────────
 // Canonical WLD ERC-20 contract on World Chain — single source of truth
@@ -139,11 +148,27 @@ export const config = {
   BACKEND_URL,
   TRANSACTION_LOG_PATH,
 
-  FEE_PERCENT,
+  FEE_PERCENT,  // Deprecated - use tiered fees below
+  FEE_TIER_1_PERCENT,
+  FEE_TIER_2_PERCENT,
+  FEE_TIER_3_PERCENT,
+  FEE_TIER_1_MAX,
+  FEE_TIER_2_MAX,
   GAS_BUFFER_KES,
   MIN_KES_AMOUNT,
   MAX_KES_AMOUNT,
   WLD_CONTRACT_ADDRESS,
+
+  // Helper function to calculate fee based on amount
+  getFeeForAmount: (kesAmount: number): number => {
+    if (kesAmount <= FEE_TIER_1_MAX) {
+      return FEE_TIER_1_PERCENT;
+    } else if (kesAmount <= FEE_TIER_2_MAX) {
+      return FEE_TIER_2_PERCENT;
+    } else {
+      return FEE_TIER_3_PERCENT;
+    }
+  },
 
   REDIS_URL,
   DATABASE_URL,
