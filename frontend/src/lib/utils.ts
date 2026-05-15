@@ -87,13 +87,13 @@ export function getMpesaFees(amount: number): number {
 
 /** 
  * Tiered platform fee structure — must match backend config
- * Tier 1: 3% for KES 10 - 5,000
- * Tier 2: 2% for KES 5,001 - 20,000
- * Tier 3: 1.5% for KES 20,001+
+ * Tier 1: 5% for KES 10 - 5,000
+ * Tier 2: 3% for KES 5,001 - 20,000
+ * Tier 3: 2% for KES 20,001+
  */
-export const FEE_TIER_1_PERCENT = 3;
-export const FEE_TIER_2_PERCENT = 2;
-export const FEE_TIER_3_PERCENT = 1.5;
+export const FEE_TIER_1_PERCENT = 5;
+export const FEE_TIER_2_PERCENT = 3;
+export const FEE_TIER_3_PERCENT = 2;
 export const FEE_TIER_1_MAX = 5000;
 export const FEE_TIER_2_MAX = 20000;
 

@@ -9,6 +9,7 @@ import {
   formatCurrency,
   formatWld,
   calculateWldAmount,
+  getFeeForAmount,
   isValidTillNumber,
   isValidKesAmount,
   cn,
@@ -24,8 +25,6 @@ import {
   Store,
   User
 } from 'lucide-react';
-
-const FEE_PERCENT = 5;
 
 type Step = 'details' | 'amount' | 'confirm';
 
@@ -68,9 +67,9 @@ export default function PaymentFormPage() {
   // Parse numeric KES value
   const kes = parseFloat(kesAmount.replace(/,/g, '')) || 0;
 
-  // Live conversion
+  // Live conversion (uses tiered fee based on amount)
   const conversion = rate && kes > 0
-    ? calculateWldAmount(kes, rate.wldPriceKes, FEE_PERCENT)
+    ? calculateWldAmount(kes, rate.wldPriceKes)
     : null;
 
   useEffect(() => { setLocalError(null); }, [kesAmount, tillNumber, step, phoneNumber, accountNumber]);
@@ -194,7 +193,7 @@ export default function PaymentFormPage() {
                     <p className="text-sm font-bold text-[var(--accent)] uppercase tracking-wider">
                       ≈ {formatWld(conversion.wldAmount)}
                     </p>
-                    <p className="text-[9px] text-[var(--accent)]/60 font-bold uppercase tracking-tighter">Incl. 5% service + M-Pesa fees</p>
+                    <p className="text-[9px] text-[var(--accent)]/60 font-bold uppercase tracking-tighter">Incl. {conversion?.feePercent ?? getFeeForAmount(kes)}% service + M-Pesa fees</p>
                   </div>
                 </div>
               )}
@@ -319,7 +318,7 @@ export default function PaymentFormPage() {
                   </div>
                   <div className="flex flex-col gap-2 pl-3 border-l-2 border-[var(--accent)]/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee (5%)</span>
+                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee ({conversion?.feePercent ?? getFeeForAmount(kes)}%)</span>
                       <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
                     </div>
                     {(conversion?.safaricomFee || 0) > 0 && (

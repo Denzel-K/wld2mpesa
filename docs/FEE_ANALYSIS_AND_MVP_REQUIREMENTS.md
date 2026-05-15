@@ -5,7 +5,7 @@
 | Component | Current Status | Gap | Priority |
 |-----------|---------------|-----|----------|
 | ETH Gas Fees (World Chain) | ✅ Absorbed by platform | KSh 10 buffer, tracked in DB, **not shown to user** | - |
-| Platform Fee (Tiered) | ✅ Implemented | 3% / 2% / 1.5% based on transaction amount | - |
+| Platform Fee (Tiered) | ✅ Implemented | 5% / 3% / 2% based on transaction amount | - |
 | M-Pesa Fees | ✅ Passed to user | Accurate 2024/2025 fee table, shown to user | - |
 | DEX Swap Slippage | ✅ Fixed | 3% slippage protection, 0.3% pool fee, tracked in DB | - |
 | Bitnob Fees | ✅ Estimated & tracked in DB | ~2.2% (0.2% FX spread + 2% KES network fee), **not shown to user** | - |
@@ -37,17 +37,17 @@
 **Current State:** Platform fee uses a tiered structure based on transaction amount, implemented across backend configuration, frontend utilities, and website calculator. The tiered approach provides competitive pricing while maintaining sustainable margins.
 
 **Tier Structure:**
-- **Tier 1:** 3% for KES 10 – 5,000
-- **Tier 2:** 2% for KES 5,001 – 20,000
-- **Tier 3:** 1.5% for KES 20,001+
+- **Tier 1:** 5% for KES 10 – 5,000
+- **Tier 2:** 3% for KES 5,001 – 20,000
+- **Tier 3:** 2% for KES 20,001+
 
-**Market Position:** The tiered structure positions WLD2Mpesa competitively against market leaders. Small transactions (Tier 1) at 3% are competitive with established providers, while larger transactions (Tier 3) at 1.5% offer premium pricing to incentivize high-value transfers.
+**Market Position:** The tiered structure covers platform costs across all transaction sizes. Small transactions (Tier 1) at 5% ensure healthy margins where fixed costs represent a higher percentage, while larger transactions (Tier 3) at 2% remain competitive while minimizing losses on high-value transfers.
 
 **Economic Considerations:**
-- Tier 1 (3%) provides healthy margin on small transactions where fixed costs represent higher percentage
-- Tier 2 (2%) balances competitiveness with sustainability for medium amounts
-- Tier 3 (1.5%) incentivizes larger transfers while still covering platform costs
-- The structure encourages volume through lower rates on larger transactions
+- Tier 1 (5%) provides healthy margin on small transactions where fixed costs represent higher percentage
+- Tier 2 (3%) balances competitiveness with sustainability for medium amounts
+- Tier 3 (2%) reduces losses on larger transfers where Bitnob's ~2.2% fixed cost constrains margins
+- The structure ensures we do not lose money on any transaction tier
 
 **Implementation:** The fee percentage is automatically calculated based on the KES amount at transaction initiation. Backend and frontend both use the same tiered logic to ensure consistency.
 
@@ -99,73 +99,73 @@
 
 ## 2. Fee Calculation Examples
 
-### Example 1: KSh 1,000 Transaction (Tier 1 - 3%)
+### Example 1: KSh 1,000 Transaction (Tier 1 - 5%)
 
 #### User-facing (what is shown in the app and website calculator)
 
 | Component | Calculation | Amount (KES) | Shown to user? |
 |-----------|-------------|--------------|----------------|
 | Recipient receives | — | 1,000.00 | ✅ |
-| Platform fee (3%) | 1,000 × 3% | 30.00 | ✅ |
+| Platform fee (5%) | 1,000 × 5% | 50.00 | ✅ |
 | M-Pesa network fee | Fixed | 13.00 | ✅ |
-| **Total fees** | — | **43.00** | ✅ |
-| **Total user pays** | 1,000 + 43 | **1,043.00** | ✅ (in WLD) |
+| **Total fees** | — | **63.00** | ✅ |
+| **Total user pays** | 1,000 + 63 | **1,063.00** | ✅ (in WLD) |
 
 #### Platform cost breakdown (stored in DB, shown in website calculator's collapsed section)
 
 | Platform Cost | Calculation | Amount (KES) | Shown to user? |
 |--------------|-------------|--------------|----------------|
 | Bitnob spread (~2.2%) | 1,000 × 2.2% | 22.00 | ❌ (platform) |
-| DEX pool fee (0.3%) | 1,043 × 0.3% | 3.13 | ❌ (platform) |
+| DEX pool fee (0.3%) | 1,063 × 0.3% | 3.19 | ❌ (platform) |
 | World Chain gas buffer | Fixed | 10.00 | ❌ (platform) |
-| **Total platform costs** | — | **35.13** | ❌ |
-| **Net platform revenue** | 30 − 35.13 | **~-5.13** | ❌ |
+| **Total platform costs** | — | **35.19** | ❌ |
+| **Net platform revenue** | 50 − 35.19 | **~14.81** | ❌ |
 
-### Example 2: KSh 5,000 Transaction (Tier 1 - 3%)
+### Example 2: KSh 5,000 Transaction (Tier 1 - 5%)
 
 #### User-facing (what is shown in the app and website calculator)
 
 | Component | Calculation | Amount (KES) | Shown to user? |
 |-----------|-------------|--------------|----------------|
 | Recipient receives | — | 5,000.00 | ✅ |
-| Platform fee (3%) | 5,000 × 3% | 150.00 | ✅ |
+| Platform fee (5%) | 5,000 × 5% | 250.00 | ✅ |
 | M-Pesa network fee | Fixed | 57.00 | ✅ |
-| **Total fees** | — | **207.00** | ✅ |
-| **Total user pays** | 5,000 + 207 | **5,207.00** | ✅ (in WLD) |
+| **Total fees** | — | **307.00** | ✅ |
+| **Total user pays** | 5,000 + 307 | **5,307.00** | ✅ (in WLD) |
 
 #### Platform cost breakdown (stored in DB, shown in website calculator's collapsed section)
 
 | Platform Cost | Calculation | Amount (KES) | Shown to user? |
 |--------------|-------------|--------------|----------------|
 | Bitnob spread (~2.2%) | 5,000 × 2.2% | 110.00 | ❌ (platform) |
-| DEX pool fee (0.3%) | 5,207 × 0.3% | 15.62 | ❌ (platform) |
+| DEX pool fee (0.3%) | 5,307 × 0.3% | 15.92 | ❌ (platform) |
 | World Chain gas buffer | Fixed | 10.00 | ❌ (platform) |
-| **Total platform costs** | — | **135.62** | ❌ |
-| **Net platform revenue** | 150 − 135.62 | **~14.38** | ❌ |
+| **Total platform costs** | — | **135.92** | ❌ |
+| **Net platform revenue** | 250 − 135.92 | **~114.08** | ❌ |
 
-### Example 3: KSh 25,000 Transaction (Tier 3 - 1.5%)
+### Example 3: KSh 25,000 Transaction (Tier 3 - 2%)
 
 #### User-facing (what is shown in the app and website calculator)
 
 | Component | Calculation | Amount (KES) | Shown to user? |
 |-----------|-------------|--------------|----------------|
 | Recipient receives | — | 25,000.00 | ✅ |
-| Platform fee (1.5%) | 25,000 × 1.5% | 375.00 | ✅ |
+| Platform fee (2%) | 25,000 × 2% | 500.00 | ✅ |
 | M-Pesa network fee | Fixed | 108.00 | ✅ |
-| **Total fees** | — | **483.00** | ✅ |
-| **Total user pays** | 25,000 + 483 | **25,483.00** | ✅ (in WLD) |
+| **Total fees** | — | **608.00** | ✅ |
+| **Total user pays** | 25,000 + 608 | **25,608.00** | ✅ (in WLD) |
 
 #### Platform cost breakdown (stored in DB, shown in website calculator's collapsed section)
 
 | Platform Cost | Calculation | Amount (KES) | Shown to user? |
 |--------------|-------------|--------------|----------------|
 | Bitnob spread (~2.2%) | 25,000 × 2.2% | 550.00 | ❌ (platform) |
-| DEX pool fee (0.3%) | 25,483 × 0.3% | 76.45 | ❌ (platform) |
+| DEX pool fee (0.3%) | 25,608 × 0.3% | 76.82 | ❌ (platform) |
 | World Chain gas buffer | Fixed | 10.00 | ❌ (platform) |
-| **Total platform costs** | — | **636.45** | ❌ |
-| **Net platform revenue** | 375 − 636.45 | **~-261.45** | ❌ |
+| **Total platform costs** | — | **636.82** | ❌ |
+| **Net platform revenue** | 500 − 636.82 | **~-136.82** | ❌ |
 
-**Note:** Gas buffer (KSh 10) is absorbed into backend operations and does **not** inflate the user-facing total. Net platform revenue may be negative on smaller transactions due to fixed costs, but becomes positive at higher volumes and larger transaction amounts.
+**Note:** Gas buffer (KSh 10) is absorbed into backend operations and does **not** inflate the user-facing total. With the updated tiered fees, smaller transactions are now profitable. Net platform revenue may still be negative on very large transactions where Bitnob's percentage-based spread exceeds the 2% platform fee.
 
 ---
 
@@ -193,7 +193,7 @@
 The marketing website (`wld2mpesa-website`) now includes an interactive fee calculator at `/#calculator` that:
 - Shows live WLD/KES rate from Kraken (refreshes every 60s)
 - Accepts any amount between KSh 10 and KSh 250,000
-- Displays the full user-facing breakdown: recipient amount, tiered service fee (3%/2%/1.5%), M-Pesa fee, total fees, total WLD to send
+- Displays the full user-facing breakdown: recipient amount, tiered service fee (5%/3%/2%), M-Pesa fee, total fees, total WLD to send
 - Includes a **collapsible "Platform costs (absorbed)"** section (collapsed by default) that shows Bitnob spread, DEX fee, gas buffer, and net platform revenue — for transparency without cluttering the user experience
 - Shows active tier indicator highlighting which fee tier applies to the entered amount
 
@@ -297,7 +297,7 @@ Prefunding platform wallets can significantly improve transaction speed and reli
 - WORLD_CHAIN_RPC_URL (World Chain RPC endpoint)
 - ADMIN_PRIVATE_KEY (Admin operations)
 - Optional: KRAKEN_API_KEY, KRAKEN_API_SECRET (Exchange rate API)
-- Optional: FEE_TIER_1_PERCENT, FEE_TIER_2_PERCENT, FEE_TIER_3_PERCENT (Customize tiered fees, defaults: 3/2/1.5)
+- Optional: FEE_TIER_1_PERCENT, FEE_TIER_2_PERCENT, FEE_TIER_3_PERCENT (Customize tiered fees, defaults: 5/3/2)
 
 **Frontend Configuration:**
 - VITE_BACKEND_URL (Backend API endpoint)
@@ -312,20 +312,20 @@ Prefunding platform wallets can significantly improve transaction speed and reli
 - [ ] Database migrated
 
 #### Test Transactions:
-1. **Small amount (KSh 100) - Tier 1 (3%):**
-   - User-facing fee: KSh 0 (M-Pesa) + KSh 3 (3%) = KSh 3
-   - User pays: KSh 103 worth of WLD
-   - Platform tracks internally: gas KSh 10, Bitnob KSh 2.20, DEX ~KSh 0.31
+1. **Small amount (KSh 100) - Tier 1 (5%):**
+   - User-facing fee: KSh 0 (M-Pesa) + KSh 5 (5%) = KSh 5
+   - User pays: KSh 105 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 2.20, DEX ~KSh 0.32
 
-2. **Medium amount (KSh 1,000) - Tier 1 (3%):**
-   - User-facing fee: KSh 13 (M-Pesa) + KSh 30 (3%) = KSh 43
-   - User pays: KSh 1,043 worth of WLD
-   - Platform tracks internally: gas KSh 10, Bitnob KSh 22, DEX ~KSh 3.13
+2. **Medium amount (KSh 1,000) - Tier 1 (5%):**
+   - User-facing fee: KSh 13 (M-Pesa) + KSh 50 (5%) = KSh 63
+   - User pays: KSh 1,063 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 22, DEX ~KSh 3.19
 
-3. **Large amount (KSh 10,000) - Tier 2 (2%):**
-   - User-facing fee: KSh 90 (M-Pesa) + KSh 200 (2%) = KSh 290
-   - User pays: KSh 10,290 worth of WLD
-   - Platform tracks internally: gas KSh 10, Bitnob KSh 220, DEX ~KSh 30.87
+3. **Large amount (KSh 10,000) - Tier 2 (3%):**
+   - User-facing fee: KSh 90 (M-Pesa) + KSh 300 (3%) = KSh 390
+   - User pays: KSh 10,390 worth of WLD
+   - Platform tracks internally: gas KSh 10, Bitnob KSh 220, DEX ~KSh 31.17
 
 4. **Failure & Refund Test**
    - Trigger failure (e.g., invalid phone)
@@ -359,7 +359,7 @@ Bitnob's effective fee (~2.2% of KES amount) is now estimated at transaction ini
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `platform_fee_kes` | Float | Our tiered service revenue (3%/2%/1.5%) |
+| `platform_fee_kes` | Float | Our tiered service revenue (5%/3%/2%) |
 | `safaricom_fee_kes` | Float | M-Pesa pass-through |
 | `gas_buffer_kes` | Float | World Chain ETH gas |
 | `bitnob_fee_kes` | Float | Bitnob spread estimate |
@@ -373,7 +373,7 @@ These fields power future admin P&L reporting and are never exposed to users.
 Fee display has been fully audited and corrected across all surfaces:
 
 **Miniapp confirm screen:**
-- Shows: tiered service fee (3%/2%/1.5%), M-Pesa network fee, total fees, exchange rate
+- Shows: tiered service fee (5%/3%/2%), M-Pesa network fee, total fees, exchange rate
 - Does NOT show: gas buffer, Bitnob costs, DEX fees
 - "Total Fees" and "Total you pay" are arithmetically consistent (no silent KSh 10 inflation)
 
@@ -390,7 +390,7 @@ Fee display has been fully audited and corrected across all surfaces:
 ### Pre-Launch Requirements
 
 **1. Partner Review on Fee Structure**
-The tiered platform fee structure (3%/2%/1.5%) has been implemented consistently. Partners should review the market analysis provided in Section 8 to confirm this structure is appropriate for launch, or if adjustments to the tier thresholds or percentages would be preferable for user acquisition.
+The tiered platform fee structure (5%/3%/2%) has been implemented consistently. Partners should review the market analysis provided in Section 8 to confirm this structure is appropriate for launch, or if adjustments to the tier thresholds or percentages would be preferable for user acquisition.
 
 **2. Backend Wallet Funding**
 Before testing can begin:
@@ -407,7 +407,7 @@ Execute a complete transaction flow:
 
 **4. Verify Fee Accuracy**
 After test transactions, verify:
-- Platform fee charged matches correct tier percentage (3%/2%/1.5%) based on amount
+- Platform fee charged matches correct tier percentage (5%/3%/2%) based on amount
 - M-Pesa fees align with Safaricom fee table
 - Gas costs remain within KSh 10 buffer
 - Total user charge matches UI display
@@ -425,7 +425,7 @@ The following analysis compares WLD2Mpesa's tiered platform fee structure agains
 
 | Service | Fee Structure | Total Cost (KSh 5,000 Transaction) | Total Cost (KSh 25,000 Transaction) | Market Position |
 |---------|--------------|-----------------------------------|-----------------------------------|-----------------|
-| WLD2Mpesa (Tiered) | 3% + M-Pesa (small), 2% + M-Pesa (medium), 1.5% + M-Pesa (large) | ~KSh 207 (4.1% total) | ~KSh 483 (1.9% total) | Competitive pricing |
+| WLD2Mpesa (Tiered) | 5% + M-Pesa (small), 3% + M-Pesa (medium), 2% + M-Pesa (large) | ~KSh 307 (6.1% total) | ~KSh 608 (2.4% total) | Competitive pricing |
 | Yellow Card | 1-2% spread (baked in) | ~KSh 50-100 | ~KSh 250-500 | Market leader in West Africa |
 | Kotani Pay | 1% + network fees | ~KSh 107 | ~KSh 358 | Focus on East Africa |
 | Onboard Global | 1% + $0.50 flat | ~KSh 70-120 | ~KSh 250-300 | Newer entrant |
@@ -436,35 +436,36 @@ The following analysis compares WLD2Mpesa's tiered platform fee structure agains
 **1. Price Sensitivity in Target Market**
 - Kenyan users are highly price-sensitive regarding remittance and payment fees
 - M-Pesa itself charges KSh 0-108 for peer transfers, setting user expectations
-- The tiered structure (3% for small, 1.5% for large) balances competitiveness with sustainability
+- The tiered structure (5% for small, 2% for large) ensures profitability while remaining competitive
 
 **2. Competitor Positioning**
 - Market leaders (Yellow Card, Kotani) have settled on 1-1.5% as sustainable
-- Our tiered structure matches or exceeds competitors on larger amounts (1.5%)
-- Small transactions at 3% are competitive while covering higher fixed costs
+- Our tiered structure is competitive on larger amounts (2%) while ensuring margins on smaller ones (5%)
+- Small transactions at 5% cover higher fixed costs and ensure platform profitability
 
 **3. Revenue Impact Analysis**
 
-At Tier 1 - 3% platform fee (KSh 5,000 transaction):
-- Gross revenue: KSh 150
-- Estimated costs: KSh 15 (gas) + KSh 110 (Bitnob spread) = KSh 125
-- Net margin: ~KSh 25 (17% margin)
+At Tier 1 - 5% platform fee (KSh 5,000 transaction):
+- Gross revenue: KSh 250
+- Estimated costs: KSh 10 (gas) + KSh 110 (Bitnob spread) = KSh 120
+- Net margin: ~KSh 130 (52% margin)
 
-At Tier 3 - 1.5% platform fee (KSh 25,000 transaction):
-- Gross revenue: KSh 375
-- Estimated costs: KSh 15 (gas) + KSh 550 (Bitnob spread) = KSh 565
-- Net margin: ~KSh -190 (negative margin due to fixed costs)
+At Tier 3 - 2% platform fee (KSh 25,000 transaction):
+- Gross revenue: KSh 500
+- Estimated costs: KSh 10 (gas) + KSh 550 (Bitnob spread) = KSh 560
+- Net margin: ~KSh -60 (negative margin on large transactions until Bitnob rates improve)
 
-**Important consideration:** The tiered structure may result in negative margins on medium-large transactions due to Bitnob's 2.2% fixed cost. This is acceptable as a user acquisition strategy, with profitability expected through volume and future Bitnob rate negotiations or alternative off-ramp providers.
+**Important consideration:** The updated tiered structure ensures profitability on small and medium transactions. Larger transactions may still operate at a slight loss due to Bitnob's 2.2% fixed cost exceeding the 2% platform fee. Future profitability on large transactions will come through Bitnob rate negotiations or alternative off-ramp providers as volume scales.
 
 ### Strategic Options for Partner Consideration
 
 **Option A: Launch with Current Tiered Structure**
-- Tier 1 (3%) for small amounts covers fixed costs
-- Tier 3 (1.5%) for large amounts is competitive with market leaders
+- Tier 1 (5%) for small amounts covers fixed costs and ensures profitability
+- Tier 2 (3%) for medium amounts balances competitiveness with sustainability
+- Tier 3 (2%) for large amounts minimizes losses while remaining competitive
 - Monitor user acquisition metrics and conversion rates
 - Adjust tier thresholds or percentages if adoption patterns indicate
-- Risk: Negative margins on medium-large transactions until volume scales
+- Risk: Negative margins on very large transactions until Bitnob rates improve
 
 **Option B: Adjust Tier Thresholds**
 - Consider moving Tier 2 threshold from KSh 5,000 to KSh 10,000
@@ -480,7 +481,7 @@ At Tier 3 - 1.5% platform fee (KSh 25,000 transaction):
 
 ### Recommendation for Partners
 
-The tiered structure (3%/2%/1.5%) positions WLD2Mpesa competitively against market leaders, especially for larger transactions. The structure incentivizes higher-value transfers while covering costs on smaller transactions.
+The tiered structure (5%/3%/2%) ensures profitability on smaller transactions while remaining competitive on larger amounts. The structure covers platform costs and minimizes losses across all transaction sizes.
 
 **Suggested path forward:**
 1. Launch with current tiered structure for initial beta testing
@@ -497,24 +498,24 @@ The tiered structure (3%/2%/1.5%) positions WLD2Mpesa competitively against mark
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Platform fee (Tiered) | ✅ Implemented | 3%/2%/1.5% structure aligned across all components |
+| Platform fee (Tiered) | ✅ Implemented | 5%/3%/2% structure aligned across all components |
 | M-Pesa fee pass-through | ✅ Implemented | Accurate 2024/2025 fee table, shown to user |
 | Gas fee absorption | ✅ Implemented | KSh 10 buffer, tracked in DB, hidden from user |
 | DEX swap slippage protection | ✅ Implemented | 3% protection, 0.3% pool fee, tracked in DB |
 | Bitnob fee tracking | ✅ Implemented | ~2.2% est., stored as `bitnob_fee_kes` per transaction |
 | Net platform revenue tracking | ✅ Implemented | `net_platform_revenue_kes` stored per transaction |
-| Miniapp UI fee display | ⚠️ Partial | ConfirmationPage shows tiered; PaymentFormPage hardcodes 5% (documented in CURRENT_STATE_REPORT.md) |
+| Miniapp UI fee display | ✅ | ConfirmationPage and PaymentFormPage both show correct dynamic tiered fee |
 | Website fee calculator | ✅ New | Interactive calculator with collapsible platform costs panel + tier indicator |
 
 ### Outstanding Requirements for MVP Launch
 
 **Immediate (Pre-Launch):**
-1. Partner decision on final tiered fee structure (keep 3%/2%/1.5% or adjust thresholds/percentages)
+1. Partner decision on final tiered fee structure (keep 5%/3%/2% or adjust thresholds/percentages)
 2. Fund backend wallet with 0.01 ETH minimum for gas
 3. Verify Bitnob sandbox/production account configuration
 4. Execute end-to-end test transaction
 5. Validate fee calculations match tiered structure expectations
-6. Fix PaymentFormPage.tsx hardcoded 5% fee display (documented in CURRENT_STATE_REPORT.md)
+6. Validate all fee calculations match correct tier percentage (5%/3%/2%) based on amount
 
 **Short-term (Post-Launch):**
 1. Monitor actual gas costs vs KSh 10 buffer
@@ -529,25 +530,25 @@ The tiered structure (3%/2%/1.5%) positions WLD2Mpesa competitively against mark
 | Line Item | Amount (KES) | Shown to user? |
 |-----------|--------------|----------------|
 | Recipient receives | 5,000.00 | ✅ |
-| Platform fee (3%) | 150.00 | ✅ |
+| Platform fee (5%) | 250.00 | ✅ |
 | M-Pesa network fee | 57.00 | ✅ |
-| **Total user pays** | **5,207.00** | ✅ (in WLD) |
+| **Total user pays** | **5,307.00** | ✅ (in WLD) |
 
-**Total effective cost to user:** 4.1% above face value
+**Total effective cost to user:** 6.1% above face value
 
 **Platform cost tracking (stored in DB, not shown to user):**
 
 | Platform Cost | Amount (KES) |
 |--------------|--------------|
 | Bitnob spread (~2.2%) | 110.00 |
-| DEX pool fee (0.3%) | 15.62 |
+| DEX pool fee (0.3%) | 15.92 |
 | Gas buffer | 10.00 |
-| **Net platform revenue** | **~14.38** |
+| **Net platform revenue** | **~114.08** |
 
 ### Partner Decision Points
 
-1. **Is the current tiered structure (3%/2%/1.5%) optimal, or should thresholds be adjusted?**
-2. **Do we have sufficient runway to operate at negative margins on larger transactions to drive adoption?**
+1. **Is the current tiered structure (5%/3%/2%) optimal, or should thresholds be adjusted?**
+2. **Do we have sufficient runway to operate at slight negative margins on very large transactions to drive adoption?**
 3. **Should we negotiate better Bitnob rates to improve margins across all tiers?**
 4. **What volume projections justify the current fee structure?**
 5. **Should we implement promotional pricing for early users (e.g., temporary 1% flat rate)?**

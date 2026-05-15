@@ -19,14 +19,13 @@ All critical issues identified in the initial assessment have been resolved. The
 | Webhook security | ✅ FIXED | HMAC SHA-256 signature verification |
 | Bitnob balance checks | ✅ FIXED | Pre-flight balance validation before payouts |
 | Hardcoded phone fallback | ✅ FIXED | Till payments now require valid phone number |
-| Tiered fee structure | ✅ IMPLEMENTED | 3% / 2% / 1.5% based on amount |
+| Tiered fee structure | ✅ IMPLEMENTED | 5% / 3% / 2% based on amount |
 
 ### Remaining Action Items
 
 1. **Trapped WLD Recovery**: 1.3786 WLD from 3 failed transactions requires manual refund (backend wallet needs 0.01 ETH)
 2. **Sandbox Testing**: 20+ test transactions required before production
 3. **Monitoring Setup**: Optional - can be added post-launch
-4. **Frontend Fee Display Bug**: PaymentFormPage.tsx hardcodes FEE_PERCENT = 5 instead of using tiered getFeeForAmount() function
 
 **Bottom Line**: The application is READY for sandbox testing. Proceed with `SANDBOX_SETUP.md` procedures.
 
@@ -93,7 +92,7 @@ if (walletBalance < minRequiredEth) {
 |-----------|--------|-------|
 | Frontend UI | ✅ | Responsive, tiered fee display implemented |
 | MiniKit Integration | ✅ | Wallet auth, World ID, payments working |
-| Fee Calculation | ✅ | Tiered structure: 3% / 2% / 1.5% |
+| Fee Calculation | ✅ | Tiered structure: 5% / 3% / 2% |
 | Database Schema | ✅ | Proper tracking with all cost columns |
 | Rate Service | ✅ | Kraken API integration |
 | Transaction Pipeline | ✅ | Amount tolerance, RPC fallback, retry logic |
@@ -204,9 +203,9 @@ const expectedOutput = amountIn * BigInt(97) / BigInt(100);
 ### Current Fee Display
 
 **User-facing fees (shown in UI)**:
-- Platform fee: 5%
+- Service fee: 5% (KES 10–5,000), 3% (KES 5,001–20,000), 2% (KES 20,001+)
 - M-Pesa fee: Per Safaricom table
-- **Total effective**: ~6-7%
+- **Total effective**: ~6-7% (Tier 1), ~4-5% (Tier 2), ~2.5-3% (Tier 3)
 
 **Platform costs (tracked internally)**:
 - Bitnob: ~2.2%
@@ -218,11 +217,11 @@ const expectedOutput = amountIn * BigInt(97) / BigInt(100);
 
 | Provider | Fee | WLD2Mpesa Position |
 |----------|-----|-------------------|
-| WLD2Mpesa | 5% + M-Pesa | Premium |
+| WLD2Mpesa (Tiered) | 5% / 3% / 2% + M-Pesa | Premium |
 | Yellow Card | 1-2% | Competitive |
 | Kotani Pay | 1% | Aggressive |
 
-**Recommendation**: Reduce to 2% for competitive positioning
+**Recommendation**: Tiered structure balances cost coverage with competitive positioning
 
 ---
 
@@ -383,7 +382,7 @@ All trapped WLD can now be recovered after implementing gas checks and retry log
    - Validate all 4 transaction types work end-to-end
 
 3. **Verify Tiered Fee Display** (Priority: MEDIUM)
-   - Confirm miniapp shows correct fee percentage (3%/2%/1.5%)
+   - Confirm miniapp shows correct fee percentage (5%/3%/2%)
    - Verify website fee calculator reflects tiered structure
 
 ### Short-Term Actions (Next 2-4 Weeks)
@@ -458,7 +457,7 @@ All trapped WLD can now be recovered after implementing gas checks and retry log
 2. ✅ **Refund mechanism** - Gas pre-flight checks, 3-attempt retry, admin alerts
 3. ✅ **Security** - HMAC SHA-256 webhook verification with timing-safe comparison
 4. ✅ **Bitnob integration** - Balance pre-flight checks, hardcoded phone removed
-5. ✅ **Tiered fees** - 3% / 2% / 1.5% structure implemented across all components
+5. ✅ **Tiered fees** - 5% / 3% / 2% structure implemented across all components
 
 ### Current State
 
