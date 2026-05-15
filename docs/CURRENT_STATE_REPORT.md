@@ -26,6 +26,7 @@ All critical issues identified in the initial assessment have been resolved. The
 1. **Trapped WLD Recovery**: 1.3786 WLD from 3 failed transactions requires manual refund (backend wallet needs 0.01 ETH)
 2. **Sandbox Testing**: 20+ test transactions required before production
 3. **Monitoring Setup**: Optional - can be added post-launch
+4. **Frontend Fee Display Bug**: PaymentFormPage.tsx hardcodes FEE_PERCENT = 5 instead of using tiered getFeeForAmount() function
 
 **Bottom Line**: The application is READY for sandbox testing. Proceed with `SANDBOX_SETUP.md` procedures.
 

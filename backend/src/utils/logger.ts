@@ -6,7 +6,7 @@
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE' | 'REFUND' | 'RECONCILIATION' | 'SECURITY' | 'SYSTEM';
+export type LogCategory = 'PAYMENT' | 'PIPELINE' | 'BITNOB' | 'BLOCKCHAIN' | 'DEX' | 'WEBHOOK' | 'API' | 'DATABASE' | 'REFUND' | 'RECONCILIATION' | 'SECURITY' | 'SYSTEM' | 'ADMIN';
 
 interface LogEntry {
   timestamp: string;
