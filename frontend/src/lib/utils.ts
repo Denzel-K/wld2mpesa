@@ -127,7 +127,8 @@ export function calculateWldAmount(
   const effectiveFeePercent = feePercent ?? getFeeForAmount(kesAmount);
   const ourFee = parseFloat(((kesAmount * effectiveFeePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
-  const feeKes = parseFloat((ourFee + safaricomFee + gasBufferKes).toFixed(2));
+  // Gas is absorbed by platform, not charged to user (aligned with website calculator)
+  const feeKes = parseFloat((ourFee + safaricomFee).toFixed(2));
   const netKes = kesAmount + feeKes;
   const wldAmount = netKes / wldPriceKes;
   const feeWld = feeKes / wldPriceKes;

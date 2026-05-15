@@ -60,7 +60,8 @@ function calculateWldAmount(
 } {
   const platformFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
   const safaricomFee = getMpesaFees(kesAmount);
-  const feeKes = parseFloat((platformFee + safaricomFee + gasBufferKes).toFixed(2));
+  // Gas is absorbed by platform, not charged to user (aligned with website calculator)
+  const feeKes = parseFloat((platformFee + safaricomFee).toFixed(2));
   const totalKes = kesAmount + feeKes;
   const wldAmount = parseFloat((totalKes / wldPriceKes).toFixed(6)).toString();
   const feeWld = parseFloat((feeKes / wldPriceKes).toFixed(6)).toString();
