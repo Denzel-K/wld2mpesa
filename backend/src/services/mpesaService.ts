@@ -37,7 +37,7 @@ class DarajaMpesaService implements IMpesaService {
           Amount: Math.floor(kesAmount).toString(),
           PartyA: config.MPESA_B2B_SHORTCODE,
           PartyB: tillNumber,
-          Remarks: `WLD2Mpesa-${txnId}`,
+          Remarks: `WLD2Cash-${txnId}`,
           QueueTimeOutURL: `${config.BACKEND_URL}/api/mpesa/timeout`,
           ResultURL: `${config.BACKEND_URL}/api/mpesa/result`,
           AccountReference: txnId,

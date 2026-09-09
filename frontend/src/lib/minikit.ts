@@ -139,7 +139,7 @@ export async function authenticateWallet(): Promise<WalletAuthResult> {
       requestId: '0',
       expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      statement: 'Sign in to WLD2Mpesa to enable WLD-to-M-Pesa transfers.',
+      statement: 'Sign in to WLD2Cash to enable WLD-to-M-Pesa transfers.',
     });
 
     if (finalPayload.status === 'error') {
@@ -252,7 +252,7 @@ export async function payWithMiniKit(
         token_amount: tokenToDecimals(parseFloat(wldAmount), Tokens.WLD).toString(),
       },
     ],
-    description: `WLD2Mpesa payment — ref ${referenceId}`,
+    description: `WLD2Cash payment — ref ${referenceId}`,
   };
 
   const { commandPayload, finalPayload } = await MiniKit.commandsAsync.pay(payload);
@@ -271,4 +271,3 @@ export async function payWithMiniKit(
     payload: { commandPayload, finalPayload },
   };
 }
-

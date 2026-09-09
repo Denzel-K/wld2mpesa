@@ -19,7 +19,7 @@ const slides = [
         id: 'problem',
         title: 'Instant Liquidity',
         subtitle: 'Skip the queues',
-        description: 'Tired of waiting for exchange settlements? WLD2Mpesa brings instant liquidity to your World Chain assets.',
+        description: 'Tired of waiting for exchange settlements? WLD2Cash brings instant liquidity to your World Chain assets.',
         icon: <Zap className="w-10 h-10 text-yellow-400" />,
         color: 'from-yellow-500/20 to-orange-500/20',
         brand: 'M-PESA INTEGRATED'

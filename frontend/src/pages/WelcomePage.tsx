@@ -20,7 +20,7 @@ export const WelcomePage: React.FC = () => {
                     <div className="w-9 h-9 bg-[var(--accent)] rounded-lg flex items-center justify-center shadow-lg shadow-[var(--accent-glow)]">
                         <Zap className="w-5 h-5 text-white" />
                     </div>
-                    <span className="font-display font-bold text-lg tracking-tight">WLD2Mpesa</span>
+                    <span className="font-display font-bold text-lg tracking-tight">WLD2Cash</span>
                 </div>
                 <ThemeToggle />
             </div>

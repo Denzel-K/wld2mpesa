@@ -100,7 +100,7 @@ export default function SuccessPage() {
           className="w-full py-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center gap-3 text-[var(--text-primary)] font-bold uppercase tracking-widest text-[10px] hover:border-[var(--accent)] transition-all active:scale-95 mb-3 shadow-lg group"
           onClick={() => {
             navigator.share?.({
-              title: 'WLD2Mpesa Payment',
+              title: 'WLD2Cash Payment',
               text: `I paid ${formatKes(kes)} ${getRecipientLabel()} using Worldcoin!\nReceipt: ${transactionStatus?.mpesaReceiptNumber ?? 'N/A'}`,
             }).catch(() => { });
           }}

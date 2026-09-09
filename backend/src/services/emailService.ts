@@ -221,7 +221,7 @@ function getBaseTemplate(content: string, title: string): string {
         <div class="email-wrapper">
           <!-- Header -->
           <div class="email-header">
-            <h1>WLD2Mpesa</h1>
+            <h1>WLD2Cash</h1>
             <div class="tagline">Instant Worldcoin to M-Pesa Transfers</div>
           </div>
           
@@ -232,8 +232,8 @@ function getBaseTemplate(content: string, title: string): string {
           
           <!-- Footer -->
           <div class="email-footer">
-            <p>&copy; ${new Date().getFullYear()} WLD2Mpesa. All rights reserved.</p>
-            <p>Nairobi, Kenya | <a href="mailto:hello@wld2mpesa.com">hello@wld2mpesa.com</a></p>
+            <p>&copy; ${new Date().getFullYear()} WLD2Cash. All rights reserved.</p>
+            <p>Nairobi, Kenya | <a href="mailto:hello@wld2cash.com">hello@wld2cash.com</a></p>
           </div>
         </div>
       </td>
@@ -305,20 +305,20 @@ export async function sendContactConfirmation(params: {
     
     <p>While you wait, you might want to:</p>
     <p style="text-align: center; margin: 24px 0;">
-      <a href="https://wld2mpesa-website.vercel.app" class="btn">Visit Our Website</a>
+      <a href="https://wld2cash-website.vercel.app" class="btn">Visit Our Website</a>
     </p>
     
     <p style="font-size: 14px; color: #737373;">
       If you have any urgent questions, please reply to this email or contact us directly at 
-      <a href="mailto:hello@wld2mpesa.com">hello@wld2mpesa.com</a>.
+      <a href="mailto:hello@wld2cash.com">hello@wld2cash.com</a>.
     </p>
   `;
 
   return sendEmail({
     to: params.to,
-    subject: 'We received your message — WLD2Mpesa',
+    subject: 'We received your message — WLD2Cash',
     html: getBaseTemplate(content, 'Message Received'),
-    text: `Thank you for reaching out, ${params.name}!\n\nWe've received your message and will get back to you within 24 hours.\n\nInquiry Type: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nYour Message: ${params.message}\n\nVisit us at https://wld2mpesa-website.vercel.app`,
+    text: `Thank you for reaching out, ${params.name}!\n\nWe've received your message and will get back to you within 24 hours.\n\nInquiry Type: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nYour Message: ${params.message}\n\nVisit us at https://wld2cash-website.vercel.app`,
   });
 }
 
@@ -343,7 +343,7 @@ export async function sendAdminResponseNotification(params: {
     </div>
     
     <p style="text-align: center; margin: 24px 0;">
-      <a href="mailto:hello@wld2mpesa.com?subject=Re: Conversation ${params.conversationId}" class="btn">Reply to this message</a>
+      <a href="mailto:hello@wld2cash.com?subject=Re: Conversation ${params.conversationId}" class="btn">Reply to this message</a>
     </p>
     
     <p style="font-size: 14px; color: #737373;">
@@ -353,7 +353,7 @@ export async function sendAdminResponseNotification(params: {
 
   return sendEmail({
     to: params.to,
-    subject: `Response from WLD2Mpesa — ${params.adminName}`,
+    subject: `Response from WLD2Cash — ${params.adminName}`,
     html: getBaseTemplate(content, 'New Response'),
     text: `Hi ${params.name},\n\nOur team has responded to your inquiry.\n\n${params.adminName} said:\n${params.responseContent}\n\nReply to this email to continue the conversation.`,
   });
@@ -370,9 +370,9 @@ export async function sendAdminInvitation(params: {
   expiresAt: Date;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const content = `
-    <h2>You're invited to join the WLD2Mpesa team!</h2>
+      <h2>You're invited to join the WLD2Cash team!</h2>
     <p>Hi ${params.name},</p>
-    <p><strong>${params.invitedBy}</strong> has invited you to join the WLD2Mpesa admin team as a Manager.</p>
+    <p><strong>${params.invitedBy}</strong> has invited you to join the WLD2Cash admin team as a Manager.</p>
     
     <div class="divider"></div>
     
@@ -401,9 +401,9 @@ export async function sendAdminInvitation(params: {
 
   return sendEmail({
     to: params.to,
-    subject: 'Invitation to join WLD2Mpesa Admin Team',
+    subject: 'Invitation to join WLD2Cash Admin Team',
     html: getBaseTemplate(content, 'Admin Invitation'),
-    text: `Hi ${params.name},\n\n${params.invitedBy} has invited you to join the WLD2Mpesa admin team as a Manager.\n\nAccept your invitation: ${params.inviteLink}\n\nThis invitation expires on ${params.expiresAt.toLocaleDateString()}.`,
+    text: `Hi ${params.name},\n\n${params.invitedBy} has invited you to join the WLD2Cash admin team as a Manager.\n\nAccept your invitation: ${params.inviteLink}\n\nThis invitation expires on ${params.expiresAt.toLocaleDateString()}.`,
   });
 }
 
@@ -446,7 +446,7 @@ export async function sendNewMessageNotification(params: {
     </div>
     
     <p style="text-align: center; margin: 24px 0;">
-      <a href="https://wld2mpesa-website.vercel.app/admin-panel" class="btn">View in Admin Panel</a>
+      <a href="https://wld2cash-website.vercel.app/admin-panel" class="btn">View in Admin Panel</a>
     </p>
   `;
 
@@ -454,7 +454,7 @@ export async function sendNewMessageNotification(params: {
     to: params.to,
     subject: `New inquiry: ${params.contactName} — ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}`,
     html: getBaseTemplate(content, 'New Message'),
-    text: `Hi ${params.adminName},\n\nNew message from ${params.contactName} (${params.contactEmail})\n\nType: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nMessage: ${params.messagePreview}\n\nView in admin panel: https://wld2mpesa-website.vercel.app/admin-panel`,
+    text: `Hi ${params.adminName},\n\nNew message from ${params.contactName} (${params.contactEmail})\n\nType: ${inquiryTypeLabels[params.inquiryType] || params.inquiryType}\n\nMessage: ${params.messagePreview}\n\nView in admin panel: https://wld2cash-website.vercel.app/admin-panel`,
   });
 }
 

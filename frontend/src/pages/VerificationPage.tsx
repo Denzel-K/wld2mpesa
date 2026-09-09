@@ -187,7 +187,7 @@ export const VerificationPage: React.FC = () => {
                     </div>
                     <h1 className="text-2xl font-bold mb-4 tracking-tight font-display">Open in World App</h1>
                     <p className="text-[var(--text-secondary)] mb-10 leading-relaxed">
-                        WLD2Mpesa requires the secure environment of the World App for wallet authentication and transfers.
+                        WLD2Cash requires the secure environment of the World App for wallet authentication and transfers.
                     </p>
                     <button
                         onClick={() => window.location.href = 'https://worldcoin.org/download'}

@@ -117,14 +117,14 @@ export default function ResolutionPage() {
           } else if (updated.refundStatus === 'REFUND_FAILED') {
             clearInterval(refundPollRef.current!);
             setRefundPolling(false);
-            setRefundError('On-chain refund failed. Your WLD has NOT been returned. Contact support at support@wld2mpesa.app');
+            setRefundError('On-chain refund failed. Your WLD has NOT been returned. Contact support at support@wld2cash.app');
             setDetail(updated);
           }
         } catch { /* ignore poll errors */ }
       }, 4000);
     } catch (e: any) {
       setRefundLoading(false);
-      setRefundError(e?.message ?? 'Refund request failed. Please contact support at support@wld2mpesa.app');
+      setRefundError(e?.message ?? 'Refund request failed. Please contact support at support@wld2cash.app');
     }
   };
 
@@ -497,8 +497,8 @@ export default function ResolutionPage() {
                     {
                       Icon: FileText,
                       title: 'Email Support',
-                      sub: 'support@wld2mpesa.app',
-                      action: () => { window.location.href = `mailto:support@wld2mpesa.app?subject=Transaction Dispute: ${selectedTransactionId}&body=Transaction ID: ${selectedTransactionId}%0AStatus: ${detail.status}%0AAmount: KSh ${detail.kesAmount}`; },
+                      sub: 'support@wld2cash.app',
+                      action: () => { window.location.href = `mailto:support@wld2cash.app?subject=Transaction Dispute: ${selectedTransactionId}&body=Transaction ID: ${selectedTransactionId}%0AStatus: ${detail.status}%0AAmount: KSh ${detail.kesAmount}`; },
                       color: 'text-purple-400',
                       bg: 'bg-purple-500/10',
                     },

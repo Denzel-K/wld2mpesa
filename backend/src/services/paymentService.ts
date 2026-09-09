@@ -455,7 +455,7 @@ class PaymentService implements IPaymentService {
       await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
       logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
       logger.userError(transactionId, 'REFUND_FAILED',
-        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
+        'Automatic refund could not be processed. Please contact support at support@wld2cash.app',
         msg
       );
       return;
@@ -543,7 +543,7 @@ class PaymentService implements IPaymentService {
       await transactionStore.update(transactionId, { refundStatus: 'REFUND_FAILED' });
       logger.refundFailed(transactionId, walletAddress, wldAmount, msg);
       logger.userError(transactionId, 'REFUND_FAILED',
-        'Automatic refund could not be processed. Please contact support at support@wld2mpesa.app',
+        'Automatic refund could not be processed. Please contact support at support@wld2cash.app',
         msg
       );
       logger.securityEvent('ERROR: Refund permanently failed - manual intervention required', {

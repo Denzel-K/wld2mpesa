@@ -80,8 +80,8 @@ const EMAIL_PORT = optionalEnvNumber('EMAIL_PORT', 587);
 const EMAIL_SECURE = optionalEnv('EMAIL_SECURE', 'false') === 'true';
 const EMAIL_USER = optionalEnv('EMAIL_USER', '');
 const EMAIL_PASSWORD = optionalEnv('EMAIL_PASSWORD', '');
-const EMAIL_FROM_NAME = optionalEnv('EMAIL_FROM_NAME', 'WLD2Mpesa');
-const EMAIL_FROM_ADDRESS = optionalEnv('EMAIL_FROM_ADDRESS', 'noreply@wld2mpesa.com');
+const EMAIL_FROM_NAME = optionalEnv('EMAIL_FROM_NAME', 'WLD2Cash');
+const EMAIL_FROM_ADDRESS = optionalEnv('EMAIL_FROM_ADDRESS', 'noreply@wld2cash.com');
 
 // ─── JWT & Admin Authentication ────────────────────────────────────────────────
 const JWT_SECRET = optionalEnv('JWT_SECRET', '');

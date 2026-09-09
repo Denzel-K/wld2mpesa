@@ -345,7 +345,7 @@ export async function createAdminResponse(input: CreateResponseInput) {
   const emailResult = await sendAdminResponseNotification({
     to: conversation.contactEmail,
     name: conversation.contactName,
-    adminName: admin?.fullName || 'WLD2Mpesa Team',
+    adminName: admin?.fullName || 'WLD2Cash Team',
     responseContent: content,
     conversationId,
   });

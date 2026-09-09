@@ -145,7 +145,7 @@ export default function HomePage() {
           <div>
             <span className="text-white/60 text-[9px] font-black tracking-[0.3em] uppercase">Welcome back</span>
             <h1 className="text-white text-2xl font-black font-display tracking-tight mt-0.5">
-              {fullName ? fullName.split(' ')[0] : (wldUsername ? wldUsername.split(' ')[0] : 'WLD2Mpesa')}
+              {fullName ? fullName.split(' ')[0] : (wldUsername ? wldUsername.split(' ')[0] : 'WLD2Cash')}
             </h1>
             {wldUsername && (
               <div className="flex items-center gap-1 mt-1">
