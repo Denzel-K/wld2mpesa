@@ -67,9 +67,9 @@ export default function PaymentFormPage() {
   // Parse numeric KES value
   const kes = parseFloat(kesAmount.replace(/,/g, '')) || 0;
 
-  // Live conversion (uses tiered fee based on amount)
+  // Preview mirrors the server’s cost-plus defaults; checkout receives a binding server quote.
   const conversion = rate && kes > 0
-    ? calculateWldAmount(kes, rate.wldPriceKes)
+    ? calculateWldAmount(kes, rate.wldPriceKes, undefined, undefined, transactionType)
     : null;
 
   useEffect(() => { setLocalError(null); }, [kesAmount, tillNumber, step, phoneNumber, accountNumber]);
@@ -313,17 +313,17 @@ export default function PaymentFormPage() {
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">Total Fees</span>
                     <span className="text-sm font-bold text-[var(--text-primary)]">
-                      {formatCurrency((conversion?.ourFee || 0) + (conversion?.safaricomFee || 0), 'KES')}
+                      {formatCurrency(conversion?.feeKes || 0, 'KES')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2 pl-3 border-l-2 border-[var(--accent)]/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service Fee ({conversion?.feePercent ?? getFeeForAmount(kes)}%)</span>
+                      <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">Service & settlement fee</span>
                       <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.ourFee || 0, 'KES')}</span>
                     </div>
                     {(conversion?.safaricomFee || 0) > 0 && (
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">M-Pesa Network Fee</span>
+                        <span className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-tighter">M-Pesa {transactionType} rail fee</span>
                         <span className="text-[9px] font-bold text-[var(--text-primary)]">{formatCurrency(conversion?.safaricomFee || 0, 'KES')}</span>
                       </div>
                     )}

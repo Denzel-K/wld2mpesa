@@ -11,7 +11,7 @@ import { fetchTransactionDetail, initiateRefund, cancelTransaction, retryTransac
 import type { TransactionDetail } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import {
-  ArrowLeft, AlertTriangle, CheckCircle2, Clock, Loader2,
+  ArrowLeft, AlertTriangle, CheckCircle2, Loader2,
   Shield, ArrowLeftRight, Zap, Send, RotateCcw,
   MessageSquare, FileText, AlertCircle, ChevronRight, ExternalLink, X
 } from 'lucide-react';

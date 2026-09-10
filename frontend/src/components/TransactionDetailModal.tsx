@@ -239,7 +239,19 @@ export default function TransactionDetailModal({ transactionId, onClose }: Props
               <Row label="KES Amount" value={formatCurrency(detail.kesAmount, 'KES')} bold accent />
               {detail.wldAmount && <Row label="WLD Paid" value={`${parseFloat(detail.wldAmount).toFixed(6)} WLD`} />}
               {detail.feeKes != null && <Row label="Total Fees" value={formatCurrency(detail.feeKes, 'KES')} />}
+              {detail.platformFeeKes != null && <Row label="Service & settlement fee" value={formatCurrency(detail.platformFeeKes, 'KES')} />}
+              {detail.safaricomFeeKes != null && <Row label={`M-Pesa ${detail.transactionType} rail fee`} value={formatCurrency(detail.safaricomFeeKes, 'KES')} />}
               {detail.wldRate && <Row label="Rate Used" value={`1 WLD = KSh ${parseFloat(detail.wldRate).toFixed(2)}`} />}
+            </div>
+
+            {/* The quote records customer charges separately from platform reserves. */}
+            <div className="card bg-[var(--bg-secondary)] border-[var(--border-color)] p-4 space-y-2">
+              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-3">Platform cost reserves</p>
+              {detail.bitnobFeeKes != null && <Row label="Off-ramp reserve" value={formatCurrency(detail.bitnobFeeKes, 'KES')} />}
+              {detail.dexFeeKes != null && <Row label="DEX reserve" value={formatCurrency(detail.dexFeeKes, 'KES')} />}
+              {detail.gasBufferKes != null && <Row label="World Chain gas reserve" value={formatCurrency(detail.gasBufferKes, 'KES')} />}
+              {detail.netPlatformRevenueKes != null && <Row label="Protected margin" value={formatCurrency(detail.netPlatformRevenueKes, 'KES')} bold accent />}
+              <p className="pt-2 text-[9px] text-[var(--text-secondary)]">Final provider debits are reconciled after settlement; reserves are not additional customer charges.</p>
             </div>
 
             {/* Pipeline Journey */}

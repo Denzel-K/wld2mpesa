@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { usePaymentStore } from '@/stores/paymentStore';
 import { confirmPayment } from '@/lib/api';
 import { payWithMiniKit, verifyWithWorldId, PAY_ACTION_ID } from '@/lib/minikit';
-import { formatKes, formatWld, shortTxId, calculateWldAmount, getFeeForAmount } from '@/lib/utils';
+import { formatKes, formatWld, shortTxId, calculateWldAmount } from '@/lib/utils';
 import { ArrowLeft, Shield, ChevronRight, Loader2, AlertCircle, Store, Phone, CreditCard } from 'lucide-react';
 
 export default function ConfirmationPage() {
@@ -146,14 +146,14 @@ export default function ConfirmationPage() {
             { label: 'Settlement Amount', value: formatKes(kes), bold: true },
             { label: 'Current Rate', value: `1 WLD = ${rate ? formatKes(rate.wldPriceKes) : '…'}` },
             (() => {
-              const feeCalc = calculateWldAmount(kes, rate?.wldPriceKes || 1);
+              const feeCalc = calculateWldAmount(kes, rate?.wldPriceKes || 1, undefined, undefined, transactionType);
               return {
                 label: 'Total Fees',
                 value: formatKes(feeCalc.feeKes),
                 breakdown: [
-                  { label: `Platform Fee (${feeCalc.feePercent}%)`, value: formatKes(feeCalc.ourFee) },
-                  { label: 'Safaricom M-Pesa', value: formatKes(feeCalc.safaricomFee) },
-                  { label: 'World Chain Gas', value: formatKes(feeCalc.gasBuffer) },
+                  { label: 'Service & settlement', value: formatKes(feeCalc.ourFee) },
+                  { label: `M-Pesa ${transactionType} rail`, value: formatKes(feeCalc.safaricomFee) },
+                  { label: 'Platform gas reserve (included)', value: formatKes(feeCalc.gasBuffer) },
                 ]
               };
             })(),

@@ -93,17 +93,33 @@ const INVITATION_EXPIRY_HOURS = optionalEnvNumber('INVITATION_EXPIRY_HOURS', 48)
 const TRANSACTION_LOG_PATH = optionalEnv('TRANSACTION_LOG_PATH', './data/transactions.json');
 
 // ─── Fee config ───────────────────────────────────────────────────────────────
-// Tiered fee structure: 5% for 10-5K KES, 3% for 5K-20K KES, 2% for 20K+ KES
-const FEE_TIER_1_PERCENT = optionalEnvNumber('FEE_TIER_1_PERCENT', 5);  // KES 10 - 5,000
-const FEE_TIER_2_PERCENT = optionalEnvNumber('FEE_TIER_2_PERCENT', 3);  // KES 5,001 - 20,000
-const FEE_TIER_3_PERCENT = optionalEnvNumber('FEE_TIER_3_PERCENT', 2); // KES 20,001+
-const FEE_TIER_1_MAX = optionalEnvNumber('FEE_TIER_1_MAX', 5000);
-const FEE_TIER_2_MAX = optionalEnvNumber('FEE_TIER_2_MAX', 20000);
+// Progressive service fee: a KES 10 base covers fixed operations, then the
+// marginal rate declines with amount without reducing absolute platform profit.
+const FEE_TIER_1_PERCENT = optionalEnvNumber('FEE_TIER_1_PERCENT', 5);    // KES 10 - 1,000
+const FEE_TIER_2_PERCENT = optionalEnvNumber('FEE_TIER_2_PERCENT', 4);    // KES 1,001 - 5,000
+const FEE_TIER_3_PERCENT = optionalEnvNumber('FEE_TIER_3_PERCENT', 3.5);  // KES 5,001 - 20,000
+const FEE_TIER_4_PERCENT = optionalEnvNumber('FEE_TIER_4_PERCENT', 3.25); // KES 20,001+
+const SERVICE_FIXED_FEE_KES = optionalEnvNumber('SERVICE_FIXED_FEE_KES', 10);
+const FEE_TIER_1_MAX = optionalEnvNumber('FEE_TIER_1_MAX', 1000);
+const FEE_TIER_2_MAX = optionalEnvNumber('FEE_TIER_2_MAX', 5000);
+const FEE_TIER_3_MAX = optionalEnvNumber('FEE_TIER_3_MAX', 20000);
 
 const MIN_KES_AMOUNT = optionalEnvNumber('MIN_KES_AMOUNT', 10);
 const MAX_KES_AMOUNT = optionalEnvNumber('MAX_KES_AMOUNT', 150000);
 // Gas buffer: absorbs backend ETH spend for DEX swap + blockchain ops (~KSh 6-15/tx on World Chain L2)
 const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 10);
+// Cost-plus quote reserves. Set these to the contracted provider quote and
+// reconcile actual debits; pricingService guarantees MINIMUM_MARGIN_KES over them.
+const OFFRAMP_RESERVE_PERCENT = optionalEnvNumber('OFFRAMP_RESERVE_PERCENT', 2.2);
+const DEX_POOL_FEE_PERCENT = optionalEnvNumber('DEX_POOL_FEE_PERCENT', 0.3);
+const MINIMUM_MARGIN_KES = optionalEnvNumber('MINIMUM_MARGIN_KES', 10);
+const MARGIN_TIER_1_PERCENT = optionalEnvNumber('MARGIN_TIER_1_PERCENT', 2.5); // KES 10–1,000
+const MARGIN_TIER_2_PERCENT = optionalEnvNumber('MARGIN_TIER_2_PERCENT', 2.0); // KES 1,001–5,000
+const MARGIN_TIER_3_PERCENT = optionalEnvNumber('MARGIN_TIER_3_PERCENT', 1.5); // KES 5,001–20,000
+const MARGIN_TIER_4_PERCENT = optionalEnvNumber('MARGIN_TIER_4_PERCENT', 1.0); // KES 20,001+
+const MPESA_TILL_RESERVE_PERCENT = optionalEnvNumber('MPESA_TILL_RESERVE_PERCENT', 0.55);
+const MPESA_PAYBILL_RESERVE_PERCENT = optionalEnvNumber('MPESA_PAYBILL_RESERVE_PERCENT', 0.55);
+const MPESA_MERCHANT_RESERVE_CAP_KES = optionalEnvNumber('MPESA_MERCHANT_RESERVE_CAP_KES', 200);
 
 // Legacy flat fee for backward compatibility (deprecated, use tiered)
 const FEE_PERCENT = optionalEnvNumber('FEE_PERCENT', 3);
@@ -151,9 +167,22 @@ export const config = {
   FEE_TIER_1_PERCENT,
   FEE_TIER_2_PERCENT,
   FEE_TIER_3_PERCENT,
+  FEE_TIER_4_PERCENT,
+  SERVICE_FIXED_FEE_KES,
   FEE_TIER_1_MAX,
   FEE_TIER_2_MAX,
+  FEE_TIER_3_MAX,
   GAS_BUFFER_KES,
+  OFFRAMP_RESERVE_PERCENT,
+  DEX_POOL_FEE_PERCENT,
+  MINIMUM_MARGIN_KES,
+  MARGIN_TIER_1_PERCENT,
+  MARGIN_TIER_2_PERCENT,
+  MARGIN_TIER_3_PERCENT,
+  MARGIN_TIER_4_PERCENT,
+  MPESA_TILL_RESERVE_PERCENT,
+  MPESA_PAYBILL_RESERVE_PERCENT,
+  MPESA_MERCHANT_RESERVE_CAP_KES,
   MIN_KES_AMOUNT,
   MAX_KES_AMOUNT,
   WLD_CONTRACT_ADDRESS,
@@ -164,8 +193,10 @@ export const config = {
       return FEE_TIER_1_PERCENT;
     } else if (kesAmount <= FEE_TIER_2_MAX) {
       return FEE_TIER_2_PERCENT;
-    } else {
+    } else if (kesAmount <= FEE_TIER_3_MAX) {
       return FEE_TIER_3_PERCENT;
+    } else {
+      return FEE_TIER_4_PERCENT;
     }
   },
 

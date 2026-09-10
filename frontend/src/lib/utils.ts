@@ -70,32 +70,29 @@ export function convertKesTo(kesAmount: number, targetCurrency: string, usdKesRa
 }
 
 /** Get Safaricom M-Pesa transaction fees for sending money (2024/2025 table) */
-export function getMpesaFees(amount: number): number {
-  if (amount <= 100) return 0;
-  if (amount <= 500) return 7;
-  if (amount <= 1000) return 13;
-  if (amount <= 1500) return 23;
-  if (amount <= 2500) return 33;
-  if (amount <= 3500) return 53;
-  if (amount <= 5000) return 57;
-  if (amount <= 7500) return 78;
-  if (amount <= 10000) return 90;
-  if (amount <= 15000) return 100;
-  if (amount <= 20000) return 105;
-  return 108; // For amounts above 20,000 up to 250,000
+export type PaymentRail = 'send' | 'paybill' | 'pochi' | 'till';
+
+/** Mirrors the server reserve. The server quote remains binding at checkout. */
+export function getMpesaFees(amount: number, rail: PaymentRail = 'till'): number {
+  if (rail === 'send' || rail === 'pochi') {
+    if (amount <= 100) return 0;
+    if (amount <= 1500) return 5;
+    if (amount <= 5000) return 9;
+    if (amount <= 20000) return 11;
+    return 13;
+  }
+  return amount <= 200 ? 0 : Math.min(Math.round(amount * 0.55) / 100, 200);
 }
 
-/** 
- * Tiered platform fee structure — must match backend config
- * Tier 1: 5% for KES 10 - 5,000
- * Tier 2: 3% for KES 5,001 - 20,000
- * Tier 3: 2% for KES 20,001+
- */
+/** Legacy exports retained for older UI consumers; cost-plus pricing is used below. */
 export const FEE_TIER_1_PERCENT = 5;
-export const FEE_TIER_2_PERCENT = 3;
-export const FEE_TIER_3_PERCENT = 2;
-export const FEE_TIER_1_MAX = 5000;
-export const FEE_TIER_2_MAX = 20000;
+export const FEE_TIER_2_PERCENT = 4;
+export const FEE_TIER_3_PERCENT = 3.5;
+export const FEE_TIER_4_PERCENT = 3.25;
+export const SERVICE_FIXED_FEE_KES = 10;
+export const FEE_TIER_1_MAX = 1000;
+export const FEE_TIER_2_MAX = 5000;
+export const FEE_TIER_3_MAX = 20000;
 
 /** Legacy constant for backward compatibility - use getFeeForAmount() instead */
 export const PLATFORM_FEE_PERCENT = FEE_TIER_1_PERCENT;
@@ -109,25 +106,38 @@ export function getFeeForAmount(kesAmount: number): number {
     return FEE_TIER_1_PERCENT;
   } else if (kesAmount <= FEE_TIER_2_MAX) {
     return FEE_TIER_2_PERCENT;
-  } else {
+  } else if (kesAmount <= FEE_TIER_3_MAX) {
     return FEE_TIER_3_PERCENT;
+  } else {
+    return FEE_TIER_4_PERCENT;
   }
 }
 
 /** 
  * Calculate WLD amount from KES, rate, and fee
- * Uses tiered fee structure based on amount
+ * Uses cost-plus pricing that protects configured platform costs and a KES 5 margin.
  */
 export function calculateWldAmount(
   kesAmount: number,
   wldPriceKes: number,
-  feePercent?: number,
-  gasBufferKes: number = GAS_BUFFER_KES
+  _feePercent?: number,
+  gasBufferKes: number = GAS_BUFFER_KES,
+  rail: PaymentRail = 'till'
 ): { wldAmount: number; feeKes: number; safaricomFee: number; ourFee: number; feeWld: number; netKes: number; gasBuffer: number; feePercent: number } {
-  const effectiveFeePercent = feePercent ?? getFeeForAmount(kesAmount);
-  const ourFee = parseFloat(((kesAmount * effectiveFeePercent) / 100).toFixed(2));
-  const safaricomFee = getMpesaFees(kesAmount);
-  // Gas is absorbed by platform, not charged to user (aligned with website calculator)
+  const safaricomFee = getMpesaFees(kesAmount, rail);
+  const effectiveFeePercent = getFeeForAmount(kesAmount);
+  const progressiveFee = (amount: number) => {
+    let remaining = amount;
+    let fee = SERVICE_FIXED_FEE_KES;
+    const add = (limit: number, percent: number) => { const band = Math.min(remaining, limit); fee += band * percent / 100; remaining -= band; };
+    add(FEE_TIER_1_MAX, FEE_TIER_1_PERCENT);
+    add(FEE_TIER_2_MAX - FEE_TIER_1_MAX, FEE_TIER_2_PERCENT);
+    add(FEE_TIER_3_MAX - FEE_TIER_2_MAX, FEE_TIER_3_PERCENT);
+    if (remaining > 0) fee += remaining * FEE_TIER_4_PERCENT / 100;
+    return fee;
+  };
+  const sustainabilityFloor = ((kesAmount * 0.022) + gasBufferKes + 10 + (0.003 * (kesAmount + safaricomFee))) / 0.997;
+  const ourFee = parseFloat(Math.max(progressiveFee(kesAmount), sustainabilityFloor).toFixed(2));
   const feeKes = parseFloat((ourFee + safaricomFee).toFixed(2));
   const netKes = kesAmount + feeKes;
   const wldAmount = netKes / wldPriceKes;

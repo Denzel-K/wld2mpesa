@@ -19,61 +19,7 @@ import type {
   Transaction,
   TransactionStep,
 } from '../types';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getMpesaFees(amount: number): number {
-  if (amount <= 100) return 0;
-  if (amount <= 500) return 7;
-  if (amount <= 1000) return 13;
-  if (amount <= 1500) return 23;
-  if (amount <= 2500) return 33;
-  if (amount <= 3500) return 53;
-  if (amount <= 5000) return 57;
-  if (amount <= 7500) return 78;
-  if (amount <= 10000) return 90;
-  if (amount <= 15000) return 100;
-  if (amount <= 20000) return 105;
-  return 108;
-}
-
-// Bitnob effective cost: 0.2% spread + 2% KES funding network fee = ~2.2%
-const BITNOB_EFFECTIVE_FEE_PERCENT = 2.2;
-// Uniswap V3 0.3% pool fee on WLD→USDC swap
-const DEX_POOL_FEE_PERCENT = 0.3;
-
-function calculateWldAmount(
-  kesAmount: number,
-  wldPriceKes: number,
-  feePercent: number,
-  gasBufferKes: number = 0
-): {
-  wldAmount: string;
-  feeWld: string;
-  feeKes: number;
-  platformFee: number;
-  safaricomFee: number;
-  gasBuffer: number;
-  bitnobFeeKes: number;
-  dexFeeKes: number;
-  netPlatformRevenueKes: number;
-} {
-  const platformFee = parseFloat(((kesAmount * feePercent) / 100).toFixed(2));
-  const safaricomFee = getMpesaFees(kesAmount);
-  // Gas is absorbed by platform, not charged to user (aligned with website calculator)
-  const feeKes = parseFloat((platformFee + safaricomFee).toFixed(2));
-  const totalKes = kesAmount + feeKes;
-  const wldAmount = parseFloat((totalKes / wldPriceKes).toFixed(6)).toString();
-  const feeWld = parseFloat((feeKes / wldPriceKes).toFixed(6)).toString();
-
-  // Internal platform cost estimates (not charged to user, tracked for admin P&L)
-  const bitnobFeeKes = parseFloat(((kesAmount * BITNOB_EFFECTIVE_FEE_PERCENT) / 100).toFixed(2));
-  const dexFeeKes = parseFloat(((totalKes * DEX_POOL_FEE_PERCENT) / 100 / wldPriceKes * wldPriceKes).toFixed(2));
-  const netPlatformRevenueKes = parseFloat((platformFee - gasBufferKes - bitnobFeeKes - dexFeeKes).toFixed(2));
-
-  return { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer: gasBufferKes, bitnobFeeKes, dexFeeKes, netPlatformRevenueKes };
-}
-
+import { quotePayment } from './pricingService';
 
 class PaymentService implements IPaymentService {
   /**
@@ -139,7 +85,10 @@ class PaymentService implements IPaymentService {
           log(2, `✓ Rebalanced: ${swapHash.slice(0, 10)}...${swapHash.slice(-6)}`);
         } catch (swapErr) {
           const errorMsg = swapErr instanceof Error ? swapErr.message : 'Unknown error';
-          logger.warn('DEX', 'Rebalancing failed (continuing with existing liquidity)', transactionId, { error: errorMsg });
+          // Do not pay out from untracked prefunded liquidity after a failed swap.
+          // The failure path marks the transaction failed and starts the auditable refund flow.
+          logger.error('DEX', 'Rebalancing failed — payout blocked and refund required', transactionId, { error: errorMsg });
+          throw new Error(`DEX rebalancing failed; payout blocked: ${errorMsg}`);
         }
       }
 
@@ -235,13 +184,15 @@ class PaymentService implements IPaymentService {
     }
 
     const rate = await rateService.getWldKesRate();
-    const feePercent = config.getFeeForAmount(kesAmount);
-    const { wldAmount, feeWld, feeKes, platformFee, safaricomFee, gasBuffer, bitnobFeeKes, dexFeeKes, netPlatformRevenueKes } = calculateWldAmount(
-      kesAmount,
-      rate.wldPriceKes,
-      feePercent,
-      config.GAS_BUFFER_KES
-    );
+    const quote = quotePayment(kesAmount, transactionType, rate.wldPriceKes);
+    const { wldAmount, feeWld } = quote;
+    const feeKes = quote.totalUserFeeKes;
+    const platformFee = quote.userServiceFeeKes;
+    const safaricomFee = quote.userRailFeeKes;
+    const gasBuffer = quote.platformCosts.gasReserveKes;
+    const bitnobFeeKes = quote.platformCosts.offrampReserveKes;
+    const dexFeeKes = quote.platformCosts.dexReserveKes;
+    const netPlatformRevenueKes = quote.expectedNetMarginKes;
 
     const tx: Transaction = {
       id: `TXN-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`,
@@ -279,17 +230,17 @@ class PaymentService implements IPaymentService {
       wldAmount: `${wldAmount} WLD`,
       payToAddress: maskWalletAddress(config.BACKEND_WALLET_ADDRESS),
       feeBreakdown: {
-        platformFee: `KSh ${formatAmount(platformFee)} (${feePercent}%)`,
-        safaricomFee: `KSh ${formatAmount(safaricomFee)}`,
+        platformFee: `KSh ${formatAmount(platformFee)} (service & settlement)`,
+        safaricomFee: `KSh ${formatAmount(safaricomFee)} (${transactionType} rail reserve)`,
         gasBuffer: `KSh ${formatAmount(gasBuffer)} (World Chain L2 ETH gas absorption)`,
         totalFeeKes: `KSh ${formatAmount(feeKes)}`,
         totalFeeWld: `${feeWld} WLD`,
       },
       platformCosts: {
-        bitnobSpread: `KSh ${formatAmount(bitnobFeeKes)} (~${BITNOB_EFFECTIVE_FEE_PERCENT}% est.)`,
-        dexPoolFee: `KSh ${formatAmount(dexFeeKes)} (${DEX_POOL_FEE_PERCENT}% Uniswap V3)`,
+        bitnobSpread: `KSh ${formatAmount(bitnobFeeKes)} (${config.OFFRAMP_RESERVE_PERCENT}% reserve)`,
+        dexPoolFee: `KSh ${formatAmount(dexFeeKes)} (${config.DEX_POOL_FEE_PERCENT}% reserve)`,
         gasBuffer: `KSh ${formatAmount(gasBuffer)}`,
-        netRevenue: `KSh ${formatAmount(netPlatformRevenueKes)}`,
+        netRevenue: `KSh ${formatAmount(netPlatformRevenueKes)} (minimum protected margin)`,
       },
     });
 

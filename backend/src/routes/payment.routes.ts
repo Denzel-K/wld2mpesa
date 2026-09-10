@@ -12,6 +12,8 @@ import { paymentService } from '../services/paymentService';
 import { transactionStore } from '../services/transactionStore';
 import { worldChainListener } from '../services/worldChainListener';
 import { logger, maskWalletAddress } from '../utils/logger';
+import { rateService } from '../services/rateService';
+import { quotePayment } from '../services/pricingService';
 
 export const paymentRouter = Router();
 
@@ -58,6 +60,13 @@ paymentRouter.post('/initiate', asyncHandler(async (req: Request, res: Response)
   });
 
   res.json(result);
+}));
+
+/** Server-authoritative preview. Never trust a client-side fee calculation. */
+paymentRouter.post('/quote', asyncHandler(async (req: Request, res: Response) => {
+  const body = initiateSchema.pick({ transactionType: true, kesAmount: true }).parse(req.body);
+  const rate = await rateService.getWldKesRate();
+  res.json(quotePayment(body.kesAmount, body.transactionType, rate.wldPriceKes));
 }));
 
 /**
@@ -162,6 +171,12 @@ paymentRouter.get('/transaction/:transactionId', asyncHandler(async (req: Reques
     wldAmount: tx.wldAmount,
     feeWld: tx.feeWld,
     feeKes: tx.feeKes,
+    platformFeeKes: tx.platformFeeKes ?? null,
+    safaricomFeeKes: tx.safaricomFeeKes ?? null,
+    gasBufferKes: tx.gasBufferKes ?? null,
+    bitnobFeeKes: tx.bitnobFeeKes ?? null,
+    dexFeeKes: tx.dexFeeKes ?? null,
+    netPlatformRevenueKes: tx.netPlatformRevenueKes ?? null,
     wldRate: tx.wldRate,
     txHash: tx.txHash,
     offrampId: tx.offrampId,
@@ -203,7 +218,8 @@ paymentRouter.post('/:transactionId/refund', asyncHandler(async (req: Request, r
     return;
   }
 
-  const refundEligibleStatuses = ['FAILED', 'PENDING_CONFIRMATION', 'CONFIRMED', 'SWAP_COMPLETED', 'OFFRAMP_INITIATED'];
+  // Never refund after a payout was sent/settled: that risks paying twice.
+  const refundEligibleStatuses = ['FAILED', 'PENDING_CONFIRMATION', 'CONFIRMED', 'SWAP_COMPLETED'];
   if (!refundEligibleStatuses.includes(tx.status)) {
     res.status(400).json({ error: `Transaction in status ${tx.status} is not eligible for refund` });
     return;

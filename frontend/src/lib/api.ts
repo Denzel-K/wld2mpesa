@@ -87,6 +87,12 @@ export interface TransactionDetail extends TransactionStatus {
   mpesaSentAt?: string | null;
   walletAddress?: string | null;
   payToAddress?: string | null;
+  platformFeeKes?: number | null;
+  safaricomFeeKes?: number | null;
+  gasBufferKes?: number | null;
+  bitnobFeeKes?: number | null;
+  dexFeeKes?: number | null;
+  netPlatformRevenueKes?: number | null;
 }
 
 export interface User {
@@ -335,4 +341,3 @@ export class ApiError extends Error {
     this.fields = fields;
   }
 }
-
