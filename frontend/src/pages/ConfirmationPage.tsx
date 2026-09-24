@@ -153,7 +153,6 @@ export default function ConfirmationPage() {
                 breakdown: [
                   { label: 'Service & settlement', value: formatKes(feeCalc.ourFee) },
                   { label: `M-Pesa ${transactionType} rail`, value: formatKes(feeCalc.safaricomFee) },
-                  { label: 'Platform gas reserve (included)', value: formatKes(feeCalc.gasBuffer) },
                 ]
               };
             })(),

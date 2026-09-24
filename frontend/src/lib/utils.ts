@@ -98,7 +98,7 @@ export const FEE_TIER_3_MAX = 20000;
 export const PLATFORM_FEE_PERCENT = FEE_TIER_1_PERCENT;
 
 /** Gas buffer in KES absorbed into fee — covers World Chain L2 ETH gas for DEX swap */
-export const GAS_BUFFER_KES = 10;
+export const GAS_BUFFER_KES = 0;
 
 /** Get the appropriate fee percentage for a given KES amount */
 export function getFeeForAmount(kesAmount: number): number {

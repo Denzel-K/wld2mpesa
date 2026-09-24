@@ -271,9 +271,12 @@ export default function PaymentFormPage() {
               <div className="bg-[var(--accent)] p-6 text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                 <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/60 mb-1.5 relative z-10">Total to Pay</p>
-                <div className="flex items-baseline gap-2 relative z-10">
-                  <h2 className="text-3xl font-bold font-display tracking-tight">{formatWld(conversion?.wldAmount || 0)}</h2>
+                <div className="flex items-end gap-2 relative z-10">
+                  <h2 className="text-4xl font-bold font-display tracking-tight leading-none">{formatCurrency(kes, 'KES')}</h2>
                 </div>
+                <p className="mt-2 text-[10px] text-white/70 font-semibold uppercase tracking-wide relative z-10">
+                  {formatWld(conversion?.wldAmount || 0)} ≈ {formatCurrency(kes, 'KES')}
+                </p>
               </div>
 
               <div className="p-6 space-y-4 bg-[var(--card-bg)]">

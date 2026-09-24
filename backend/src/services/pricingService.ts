@@ -64,7 +64,7 @@ export function quotePayment(amount: number, rail: PaymentRail, wldRateKes: numb
   const dexReserveKes = round((amount + totalUserFeeKes) * config.DEX_POOL_FEE_PERCENT / 100);
   const offrampReserveKes = round(amount * config.OFFRAMP_RESERVE_PERCENT / 100);
   const userRailFeeKes = railFee;
-  const expectedNetMarginKes = round(userServiceFeeKes - dexReserveKes - offrampReserveKes - config.GAS_BUFFER_KES);
+  const expectedNetMarginKes = round(userServiceFeeKes - dexReserveKes - offrampReserveKes);
   const totalUserPaysKes = round(amount + totalUserFeeKes);
 
   return {
@@ -98,7 +98,6 @@ function sustainableMinimumServiceFee(amount: number, railFee: number): number {
   const dexRate = config.DEX_POOL_FEE_PERCENT / 100;
   return round((
     amount * config.OFFRAMP_RESERVE_PERCENT / 100
-    + config.GAS_BUFFER_KES
     + config.MINIMUM_MARGIN_KES
     + dexRate * (amount + railFee)
   ) / (1 - dexRate));

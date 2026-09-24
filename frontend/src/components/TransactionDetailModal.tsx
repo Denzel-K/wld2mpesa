@@ -249,7 +249,7 @@ export default function TransactionDetailModal({ transactionId, onClose }: Props
               <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-3">Platform cost reserves</p>
               {detail.bitnobFeeKes != null && <Row label="Off-ramp reserve" value={formatCurrency(detail.bitnobFeeKes, 'KES')} />}
               {detail.dexFeeKes != null && <Row label="DEX reserve" value={formatCurrency(detail.dexFeeKes, 'KES')} />}
-              {detail.gasBufferKes != null && <Row label="World Chain gas reserve" value={formatCurrency(detail.gasBufferKes, 'KES')} />}
+              {detail.gasBufferKes != null && detail.gasBufferKes > 0 && <Row label="World Chain gas reserve" value={formatCurrency(detail.gasBufferKes, 'KES')} />}
               {detail.netPlatformRevenueKes != null && <Row label="Protected margin" value={formatCurrency(detail.netPlatformRevenueKes, 'KES')} bold accent />}
               <p className="pt-2 text-[9px] text-[var(--text-secondary)]">Final provider debits are reconciled after settlement; reserves are not additional customer charges.</p>
             </div>

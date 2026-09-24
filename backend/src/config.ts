@@ -107,7 +107,8 @@ const FEE_TIER_3_MAX = optionalEnvNumber('FEE_TIER_3_MAX', 20000);
 const MIN_KES_AMOUNT = optionalEnvNumber('MIN_KES_AMOUNT', 10);
 const MAX_KES_AMOUNT = optionalEnvNumber('MAX_KES_AMOUNT', 150000);
 // Gas buffer: absorbs backend ETH spend for DEX swap + blockchain ops (~KSh 6-15/tx on World Chain L2)
-const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 10);
+// This is a platform operating cost, not a customer charge. Default to 0 in the customer-facing quote.
+const GAS_BUFFER_KES = optionalEnvNumber('GAS_BUFFER_KES', 0);
 // Cost-plus quote reserves. Set these to the contracted provider quote and
 // reconcile actual debits; pricingService guarantees MINIMUM_MARGIN_KES over them.
 const OFFRAMP_RESERVE_PERCENT = optionalEnvNumber('OFFRAMP_RESERVE_PERCENT', 2.2);
