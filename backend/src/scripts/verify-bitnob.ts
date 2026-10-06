@@ -79,13 +79,13 @@ async function verifyBitnobConnection(): Promise<void> {
         10, // 10 KES
         '254708374149', // Safaricom test number
         `TEST-${Date.now()}`,
-        'test@wld2mpesa.app'
+        'send'
       );
 
       console.log(`   ✅ Payout Created!`);
       console.log(`      ID: ${testPayout.id}`);
       console.log(`      Status: ${testPayout.status}`);
-      console.log(`      Amount: ${testPayout.amount} ${testPayout.currency}`);
+      console.log(`      Amount: ${testPayout.settlement_amount} ${testPayout.to_currency}`);
       console.log(`      Reference: ${testPayout.reference}`);
 
       // Check payout status

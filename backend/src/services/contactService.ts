@@ -293,7 +293,7 @@ export async function getConversationByEmail(email: string) {
  * Create an admin response to a conversation
  */
 export async function createAdminResponse(input: CreateResponseInput) {
-  const { conversationId, adminId, content } = await prisma.$transaction(async (tx) => {
+  const { conversation, message } = await prisma.$transaction(async (tx) => {
     // Get the conversation
     const conversation = await tx.conversation.findUnique({
       where: { id: input.conversationId },
@@ -337,7 +337,7 @@ export async function createAdminResponse(input: CreateResponseInput) {
 
   // Get admin details
   const admin = await prisma.admin.findUnique({
-    where: { id: adminId },
+    where: { id: input.adminId },
     select: { fullName: true },
   });
 
@@ -346,8 +346,8 @@ export async function createAdminResponse(input: CreateResponseInput) {
     to: conversation.contactEmail,
     name: conversation.contactName,
     adminName: admin?.fullName || 'WLD2Cash Team',
-    responseContent: content,
-    conversationId,
+    responseContent: input.content,
+    conversationId: input.conversationId,
   });
 
   // Update message with email status

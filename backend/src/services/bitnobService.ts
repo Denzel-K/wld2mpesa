@@ -1,559 +1,834 @@
 /**
- * bitnobService.ts — Bitnob API Integration Service
+ * bitnobService.ts — Bitnob Payouts API v2 Integration
  *
- * Handles all Bitnob API interactions including:
- * - Payouts to MPESA (send money, paybill, till, pochi)
- * - Wallet management
- * - Transaction status polling
- * - Webhook handling
+ * Implements the current 3-step Bitnob Payouts API:
+ *   Step 1: POST /api/payouts/quotes         — Lock a conversion quote
+ *   Step 2: POST /api/payouts/:id/initialize — Attach beneficiary details
+ *   Step 3: POST /api/payouts/:id/finalize   — Execute the payout
  *
- * API Base URLs:
- * - Sandbox: https://sandboxapi.bitnob.co/api/v1
- * - Production: https://api.bitnob.co/api/v1
+ * Authentication: HMAC-SHA256 per request
+ *   Headers: X-Auth-Client, X-Auth-Timestamp, X-Auth-Nonce, X-Auth-Signature
+ *   Signature = HMAC_SHA256(SECRET, "CLIENT_ID:TIMESTAMP:NONCE:PAYLOAD")
  *
- * Authentication: Bearer Token (API Key from Bitnob Dashboard)
+ * Base URL (both sandbox and production):
+ *   https://api.bitnob.com
+ *   Environment is determined by the API key pair used, not the URL.
  *
- * @see https://docs.bitnob.com/
+ * Kenya (KES) Corridor specifics:
+ *   - send / pochi  → mobile_money  (M-Pesa phone number, international format)
+ *   - till          → mobile_money  (buy_goods channel, till_number field)
+ *   - paybill       → mobile_money  (paybill channel, paybill_number + account_number)
+ *
+ * @see https://docs.bitnob.com/docs/payouts
+ * @see https://docs.bitnob.com/docs/payouts/corridor-specific-behavior/kenya-payout
  */
 
+import crypto from 'crypto';
 import { config } from '../config';
 import { prisma } from '../db/prisma';
-import { logger, maskPhoneNumber, formatTransactionType, formatAmount } from '../utils/logger';
+import {
+  logger,
+  maskPhoneNumber,
+  formatTransactionType,
+  formatAmount,
+} from '../utils/logger';
 import type { IOfframpService, SwapResult, SwapStatus } from '../types';
 
-// Bitnob supported countries for mobile money payouts
-export type BitnobCountry = 'Kenya' | 'Ghana' | 'Uganda' | 'Nigeria' | 'Rwanda' | 'Mali' | 'Burkina Faso' | 'Benin' | 'Cameroon' | 'Ivory Coast' | 'Senegal' | 'Togo' | 'Guinea Conakry';
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-// Mobile money networks supported by Bitnob
+const BITNOB_BASE_URL = 'https://api.bitnob.com';
+
+// Quote TTL: Bitnob locks rates for ~60 s; we cache for 50 s to be safe.
+const QUOTE_TTL_MS = 50_000;
+
+// ─── Types — Bitnob v2 Payouts API ───────────────────────────────────────────
+
+export type BitnobCountry =
+  | 'Kenya' | 'Ghana' | 'Uganda' | 'Nigeria' | 'Rwanda'
+  | 'Mali' | 'Burkina Faso' | 'Benin' | 'Cameroon' | 'Ivory Coast'
+  | 'Senegal' | 'Togo' | 'Guinea Conakry';
+
+export type BitnobCountryCode =
+  | 'KE' | 'GH' | 'UG' | 'NG' | 'RW'
+  | 'ML' | 'BF' | 'BJ' | 'CM' | 'CI'
+  | 'SN' | 'TG' | 'GN';
+
 export type MobileNetwork = 'mpesa' | 'mtn' | 'vodafone' | 'airtel' | 'orange' | 'wave';
 
-// Payout beneficiary types
-export interface BitnobBeneficiary {
-  phoneNumber: string;
-  country: BitnobCountry;
-  type: 'momo' | 'bank';
-  network?: MobileNetwork;
-  accountNumber?: string;
-  bankCode?: string;
-  accountName?: string;
-}
-
-// Payout request payload
-export interface BitnobPayoutRequest {
-  amount: number; // Amount in cents (smallest currency unit)
-  customerEmail: string;
-  reference: string; // Unique transaction reference
-  country: BitnobCountry;
-  currency: string; // 'KES', 'USD', etc.
-  beneficiary: BitnobBeneficiary;
-  notificationEmail?: string;
-}
-
-// Payout response from Bitnob
-export interface BitnobPayoutResponse {
-  id: string;
-  status: 'pending' | 'success' | 'failed' | 'reversed';
-  amount: number;
-  currency: string;
-  country: string;
-  reference: string;
-  customerEmail: string;
-  beneficiary: BitnobBeneficiary;
-  createdAt: string;
-  updatedAt: string;
-  reason?: string; // Failure reason if status is failed
-}
-
-// Exchange rate response
-export interface BitnobRateResponse {
-  rate: number;
-  sourceCurrency: string;
-  targetCurrency: string;
-  timestamp: string;
-}
-
 /**
- * BitnobService — Complete Bitnob API integration
+ * Kenya-specific payout channel.
+ * - mobile_money : send to M-Pesa number (send / pochi)
+ * - buy_goods    : pay to M-Pesa Till / Buy-Goods number
+ * - paybill      : pay to M-Pesa Paybill number + account
  */
-export class BitnobService implements IOfframpService {
-  private get baseUrl(): string {
-    return config.BITNOB_ENV === 'production'
-      ? 'https://api.bitnob.co/api/v1'
-      : 'https://sandboxapi.bitnob.co/api/v1';
-  }
+export type KenyaPayoutChannel = 'mobile_money' | 'buy_goods' | 'paybill';
 
-  private get headers(): Record<string, string> {
+/** Quote request — Step 1 */
+export interface BitnobQuoteRequest {
+  from_asset: string;           // 'USDC'
+  to_currency: string;          // 'KES'
+  settlement_amount: string;    // KES amount (string)
+  country: BitnobCountryCode;   // 'KE'
+  source: 'offchain';           // debit Bitnob wallet balance
+  reference: string;            // our txnId — idempotency key
+}
+
+/** Quote response — Step 1 */
+export interface BitnobQuoteResponse {
+  id: string;                   // quoteId used in Steps 2 & 3
+  from_asset: string;
+  to_currency: string;
+  from_amount: string;          // USDC amount to debit
+  settlement_amount: string;    // KES recipient receives
+  exchange_rate: string;        // 1 USDC = X KES
+  fee: string;                  // Bitnob fee in USDC
+  expires_at: string;           // ISO timestamp
+  reference: string;
+  status: 'pending' | 'initialized' | 'finalized' | 'success' | 'failed';
+}
+
+/** Beneficiary for Kenya mobile_money (send / pochi) — Step 2 */
+export interface KenyaMobileMoneyBeneficiary {
+  type: 'mobile_money';
+  phone_number: string;         // +254XXXXXXXXX international format
+  network: 'mpesa';
+  country: 'KE';
+  name?: string;
+}
+
+/** Beneficiary for Kenya buy_goods (Till) — Step 2 */
+export interface KenyaBuyGoodsBeneficiary {
+  type: 'mobile_money';
+  channel: 'buy_goods';
+  till_number: string;          // 5-6 digit M-Pesa Till number
+  country: 'KE';
+  name?: string;
+}
+
+/** Beneficiary for Kenya paybill — Step 2 */
+export interface KenyaPaybillBeneficiary {
+  type: 'mobile_money';
+  channel: 'paybill';
+  paybill_number: string;       // 5-7 digit Paybill number
+  account_number: string;       // Account/reference number
+  country: 'KE';
+  name?: string;
+}
+
+export type KenyaBeneficiary =
+  | KenyaMobileMoneyBeneficiary
+  | KenyaBuyGoodsBeneficiary
+  | KenyaPaybillBeneficiary;
+
+/** Initialize request — Step 2 */
+export interface BitnobInitializeRequest {
+  beneficiary: KenyaBeneficiary;
+  customer_email?: string;
+  metadata?: Record<string, string>;
+}
+
+/** Finalize request — Step 3 (empty body) */
+export interface BitnobFinalizeRequest {}
+
+/** Payout lifecycle status returned by GET /api/payouts/:id */
+export interface BitnobPayoutStatus {
+  id: string;
+  status:
+    | 'pending'
+    | 'initialized'
+    | 'finalized'
+    | 'processing'
+    | 'success'
+    | 'failed'
+    | 'reversed';
+  reference: string;
+  from_asset: string;
+  to_currency: string;
+  from_amount: string;
+  settlement_amount: string;
+  fee: string;
+  exchange_rate: string;
+  beneficiary: KenyaBeneficiary;
+  failure_reason?: string;
+  receipt_number?: string;      // M-Pesa receipt if success
+  created_at: string;
+  updated_at: string;
+}
+
+/** Options passed from the payment pipeline to initiatePayout */
+export interface PayoutOptions {
+  paybillNumber?: string;
+  accountNumber?: string;
+  tillNumber?: string;
+  pochiRecipient?: string;
+  recipientName?: string;
+}
+
+// ─── Quote cache (per txnId — prevents duplicate quotes on retry) ─────────────
+
+interface CachedQuote {
+  quoteId: string;
+  expiresAt: number; // Date.now() ms
+}
+const quoteCache = new Map<string, CachedQuote>();
+
+// ─── BitnobService ────────────────────────────────────────────────────────────
+
+export class BitnobService implements IOfframpService {
+  // ── Auth helpers ────────────────────────────────────────────────────────────
+
+  /**
+   * Generate HMAC-SHA256 request signature.
+   *
+   * Signature string: "CLIENT_ID:TIMESTAMP:NONCE:PAYLOAD"
+   * where PAYLOAD is the exact JSON body string (empty string for GET).
+   */
+  private buildAuthHeaders(payload: string): Record<string, string> {
+    const clientId = config.BITNOB_CLIENT_ID;
+    const secret   = config.BITNOB_SECRET_KEY;
+
+    if (!clientId || !secret) {
+      throw new Error(
+        'BITNOB_CLIENT_ID and BITNOB_SECRET_KEY must both be set. ' +
+        'Retrieve them from the Bitnob dashboard → Developer → API Keys.'
+      );
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonce     = crypto.randomBytes(16).toString('hex');
+    const message   = `${clientId}:${timestamp}:${nonce}:${payload}`;
+    const signature = crypto.createHmac('sha256', secret).update(message).digest('hex');
+
     return {
-      'Authorization': `Bearer ${config.BITNOB_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      'X-Auth-Client':    clientId,
+      'X-Auth-Timestamp': timestamp,
+      'X-Auth-Nonce':     nonce,
+      'X-Auth-Signature': signature,
+      'Content-Type':     'application/json',
+      'Accept':           'application/json',
     };
   }
 
-  /**
-   * Get Bitnob wallet balance
-   */
-  async getWalletBalance(): Promise<{ usdc: number; kes: number; btc: number }> {
-    try {
-      const response = await fetch(`${this.baseUrl}/wallets/balances`, {
-        method: 'GET',
-        headers: this.headers,
+  /** Shared fetch with HMAC signing and structured error handling */
+  private async bitnobFetch<T>(
+    endpoint: string,
+    method: 'GET' | 'POST',
+    body?: object,
+    reference?: string
+  ): Promise<T> {
+    const payload = body ? JSON.stringify(body) : '';
+    const headers = this.buildAuthHeaders(payload);
+    const url     = `${BITNOB_BASE_URL}${endpoint}`;
+
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: payload || undefined,
+    });
+
+    const data = await response.json() as any;
+
+    if (!response.ok) {
+      const msg =
+        data?.message ||
+        data?.error ||
+        data?.detail ||
+        `HTTP ${response.status} ${response.statusText}`;
+      logger.error('BITNOB', `API error on ${method} ${endpoint}`, reference, {
+        status: response.status,
+        message: msg,
       });
+      throw new Error(`Bitnob API Error [${response.status}]: ${msg}`);
+    }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch balance: ${response.status}`);
-      }
+    return (data.data ?? data) as T;
+  }
 
-      const data = await response.json();
-      
-      // Parse balances from response
-      const balances = data.data || data;
-      return {
-        usdc: parseFloat(balances.usdc || balances.USDC || 0),
-        kes: parseFloat(balances.kes || balances.KES || 0),
-        btc: parseFloat(balances.btc || balances.BTC || 0),
-      };
-    } catch (error) {
-      logger.error('BITNOB', 'Failed to fetch wallet balance', undefined, error);
-      // Return zeros to allow transaction attempt (fail open)
-      return { usdc: 0, kes: 0, btc: 0 };
+  // ── Phone number helpers ─────────────────────────────────────────────────────
+
+  /**
+   * Normalise a Kenyan phone number to international format (+254XXXXXXXXX).
+   * Accepts: 0712345678, 254712345678, +254712345678
+   */
+  private normaliseKenyaPhone(raw: string): string {
+    const clean = raw.replace(/\s+/g, '').replace(/^\\+/, '').replace(/^\+/, '');
+    if (clean.startsWith('254')) return `+${clean}`;
+    if (clean.startsWith('0'))   return `+254${clean.slice(1)}`;
+    // Bare 9-digit number
+    return `+254${clean}`;
+  }
+
+  /** Validate a normalised Kenyan M-Pesa phone number */
+  private validateKenyaPhone(normalised: string): void {
+    // Safaricom: +2547XXXXXXXX  | Airtel: +2541XXXXXXXX
+    if (!/^\+254[17]\d{8}$/.test(normalised)) {
+      throw new Error(
+        `Invalid Kenyan phone number "${normalised}". ` +
+        'Expected Safaricom (+2547XXXXXXXX) or Airtel (+2541XXXXXXXX).'
+      );
     }
   }
 
-  /**
-   * Check if there's sufficient balance for a payout
-   * Includes 10% buffer for fees and exchange rate fluctuations
-   */
-  async ensureSufficientBalance(kesAmount: number): Promise<boolean> {
-    try {
-      const balances = await this.getWalletBalance();
-      
-      // Estimate required USDC (assuming ~130 KES per USD, with 10% buffer)
-      const estimatedUsdNeeded = (kesAmount / 130) * 1.1;
-      
-      logger.info('BITNOB', 'Balance check', undefined, {
-        requiredUsd: estimatedUsdNeeded.toFixed(2),
-        availableUsdc: balances.usdc.toFixed(2),
-        availableKes: balances.kes.toFixed(2),
-      });
+  // ── Step 1: Create Quote ────────────────────────────────────────────────────
 
-      // Check if we have enough (USDC or KES balance)
-      if (balances.usdc >= estimatedUsdNeeded || balances.kes >= kesAmount * 1.1) {
-        return true;
+  /**
+   * Request a locked conversion quote from Bitnob.
+   * Quotes expire in ~60 s; we cache per txnId to handle retries gracefully.
+   *
+   * @param kesAmount  - Settlement amount in KES (what the recipient receives)
+   * @param reference  - Our transaction ID (used as idempotency key)
+   */
+  async createQuote(kesAmount: number, reference: string): Promise<BitnobQuoteResponse> {
+    // Return cached quote if still valid
+    const cached = quoteCache.get(reference);
+    if (cached && cached.expiresAt > Date.now()) {
+      logger.debug('BITNOB', `Using cached quote [${cached.quoteId.slice(0, 8)}...]`, reference);
+      // Re-fetch status in case it changed
+      return this.bitnobFetch<BitnobQuoteResponse>(
+        `/api/payouts/${cached.quoteId}`,
+        'GET',
+        undefined,
+        reference
+      );
+    }
+
+    const requestBody: BitnobQuoteRequest = {
+      from_asset:        'USDC',
+      to_currency:       'KES',
+      settlement_amount: kesAmount.toFixed(2),
+      country:           'KE',
+      source:            'offchain',
+      reference,
+    };
+
+    logger.bitnobOperation(reference, 'Creating payout quote', undefined, {
+      kesAmount: formatAmount(kesAmount),
+      asset:     'USDC',
+    });
+
+    const quote = await this.bitnobFetch<BitnobQuoteResponse>(
+      '/api/payouts/quotes',
+      'POST',
+      requestBody,
+      reference
+    );
+
+    // Cache it
+    quoteCache.set(reference, {
+      quoteId:   quote.id,
+      expiresAt: Date.now() + QUOTE_TTL_MS,
+    });
+
+    logger.bitnobOperation(reference, `Quote created [${quote.id.slice(0, 8)}...]`, quote.id, {
+      fromAmount:   `${quote.from_amount} USDC`,
+      toAmount:     `${quote.settlement_amount} KES`,
+      exchangeRate: `1 USDC = ${quote.exchange_rate} KES`,
+      fee:          `${quote.fee} USDC`,
+      expiresAt:    quote.expires_at,
+    });
+
+    return quote;
+  }
+
+  // ── Step 2: Initialize Payout ───────────────────────────────────────────────
+
+  /**
+   * Attach beneficiary details to a quote.
+   *
+   * Kenya corridor beneficiary rules:
+   *   send / pochi → mobile_money  (phone number, no channel field)
+   *   till         → mobile_money  (channel: buy_goods, till_number)
+   *   paybill      → mobile_money  (channel: paybill, paybill_number, account_number)
+   */
+  async initializeQuote(
+    quoteId:       string,
+    phoneNumber:   string | null,
+    payoutType:    'send' | 'pochi' | 'till' | 'paybill',
+    options:       PayoutOptions,
+    reference:     string
+  ): Promise<void> {
+    let beneficiary: KenyaBeneficiary;
+
+    switch (payoutType) {
+      case 'send':
+      case 'pochi': {
+        if (!phoneNumber) throw new Error('Phone number is required for send/pochi payouts.');
+        const normalised = this.normaliseKenyaPhone(phoneNumber);
+        this.validateKenyaPhone(normalised);
+        beneficiary = {
+          type:         'mobile_money',
+          phone_number: normalised,
+          network:      'mpesa',
+          country:      'KE',
+          ...(options.recipientName && { name: options.recipientName }),
+        } satisfies KenyaMobileMoneyBeneficiary;
+        break;
       }
 
-      logger.error('BITNOB', 'Insufficient balance for payout', undefined, {
-        requiredUsd: estimatedUsdNeeded.toFixed(2),
-        availableUsdc: balances.usdc.toFixed(2),
-        kesAmount: kesAmount.toFixed(2),
+      case 'till': {
+        const till = options.tillNumber;
+        if (!till) throw new Error('Till number is required for till payouts.');
+        if (!/^\d{5,6}$/.test(till)) {
+          throw new Error(`Invalid Till number "${till}". Must be 5 or 6 digits.`);
+        }
+        beneficiary = {
+          type:        'mobile_money',
+          channel:     'buy_goods',
+          till_number: till,
+          country:     'KE',
+          ...(options.recipientName && { name: options.recipientName }),
+        } satisfies KenyaBuyGoodsBeneficiary;
+        break;
+      }
+
+      case 'paybill': {
+        const paybill = options.paybillNumber;
+        const account = options.accountNumber;
+        if (!paybill) throw new Error('Paybill number is required for paybill payouts.');
+        if (!account) throw new Error('Account number is required for paybill payouts.');
+        if (!/^\d{5,7}$/.test(paybill)) {
+          throw new Error(`Invalid Paybill number "${paybill}". Must be 5–7 digits.`);
+        }
+        beneficiary = {
+          type:            'mobile_money',
+          channel:         'paybill',
+          paybill_number:  paybill,
+          account_number:  account,
+          country:         'KE',
+          ...(options.recipientName && { name: options.recipientName }),
+        } satisfies KenyaPaybillBeneficiary;
+        break;
+      }
+
+      default:
+        throw new Error(`Unsupported payout type: ${payoutType}`);
+    }
+
+    const requestBody: BitnobInitializeRequest = {
+      beneficiary,
+      customer_email: 'customer@wld2mpesa.app',
+      metadata: { txnId: reference, app: 'wld2mpesa' },
+    };
+
+    logger.bitnobOperation(reference, `Initializing payout [${quoteId.slice(0, 8)}...]`, quoteId, {
+      type:        payoutType,
+      beneficiary: this.describeBeneficiary(beneficiary),
+    });
+
+    await this.bitnobFetch<unknown>(
+      `/api/payouts/${quoteId}/initialize`,
+      'POST',
+      requestBody,
+      reference
+    );
+
+    logger.bitnobOperation(reference, '✓ Payout initialized', quoteId);
+  }
+
+  // ── Step 3: Finalize Payout ─────────────────────────────────────────────────
+
+  /**
+   * Finalize the payout. After this call, Bitnob begins settlement.
+   * The payout ID returned here is what we poll / receive webhooks for.
+   */
+  async finalizePayout(quoteId: string, reference: string): Promise<BitnobPayoutStatus> {
+    logger.bitnobOperation(reference, `Finalizing payout [${quoteId.slice(0, 8)}...]`, quoteId);
+
+    const result = await this.bitnobFetch<BitnobPayoutStatus>(
+      `/api/payouts/${quoteId}/finalize`,
+      'POST',
+      {},
+      reference
+    );
+
+    logger.bitnobOperation(reference, `✓ Payout finalized — status: ${result.status}`, quoteId, {
+      status:     result.status,
+      settlement: `${result.settlement_amount} KES`,
+    });
+
+    return result;
+  }
+
+  // ── Full 3-Step Orchestration ───────────────────────────────────────────────
+
+  /**
+   * Execute the complete Quote → Initialize → Finalize flow for a payout.
+   *
+   * @param kesAmount   - KES amount recipient should receive (post-fee)
+   * @param phoneNumber - Required for send/pochi; null for till/paybill
+   * @param reference   - Our transaction ID (idempotency key)
+   * @param payoutType  - 'send' | 'pochi' | 'till' | 'paybill'
+   * @param options     - tillNumber, paybillNumber, accountNumber, recipientName
+   */
+  async initiatePayout(
+    kesAmount:   number,
+    phoneNumber: string | null,
+    reference:   string,
+    payoutType:  'send' | 'pochi' | 'till' | 'paybill' = 'send',
+    options:     PayoutOptions = {}
+  ): Promise<BitnobPayoutStatus> {
+    const label = this.payoutTypeLabel(payoutType);
+
+    logger.bitnobOperation(reference, `Initiating ${label} payout`, undefined, {
+      amount:      formatAmount(kesAmount),
+      type:        payoutType,
+      environment: config.BITNOB_ENV,
+    });
+
+    // Preflight: ensure Bitnob wallet has enough USDC
+    await this.ensureSufficientBalance(kesAmount, reference);
+
+    // Step 1 — Quote
+    const quote = await this.createQuote(kesAmount, reference);
+
+    // Step 2 — Initialize
+    await this.initializeQuote(
+      quote.id,
+      phoneNumber,
+      payoutType,
+      options,
+      reference
+    );
+
+    // Step 3 — Finalize
+    const payout = await this.finalizePayout(quote.id, reference);
+
+    return payout;
+  }
+
+  // ── Status Polling ──────────────────────────────────────────────────────────
+
+  /**
+   * Fetch the current status of a payout by its ID (quoteId / payoutId).
+   *
+   * Endpoint: GET /api/payouts/:id
+   */
+  async getPayoutStatus(payoutId: string, reference?: string): Promise<BitnobPayoutStatus> {
+    logger.bitnobOperation(reference ?? 'unknown', 'Polling payout status', payoutId);
+
+    const status = await this.bitnobFetch<BitnobPayoutStatus>(
+      `/api/payouts/${payoutId}`,
+      'GET',
+      undefined,
+      reference
+    );
+
+    logger.debug('BITNOB', `Status: ${status.status}`, reference ?? 'unknown', {
+      payoutId,
+      status:     status.status,
+      settlement: `${status.settlement_amount} KES`,
+    });
+
+    return status;
+  }
+
+  // ── Balance Check ───────────────────────────────────────────────────────────
+
+  /**
+   * Fetch USDC wallet balance from Bitnob and verify it covers the payout.
+   * Uses the live exchange rate returned by the quote endpoint to avoid
+   * the previously hardcoded 130 KES/USD stub.
+   */
+  async ensureSufficientBalance(kesAmount: number, reference?: string): Promise<boolean> {
+    try {
+      const balances = await this.getWalletBalance();
+
+      // Get a live rate estimate: 1 USDC ≈ how much KES?
+      const rate = await this.getLiveUsdcKesRate();
+
+      // Add 5% buffer for rate slippage
+      const requiredUsdc = (kesAmount / rate) * 1.05;
+
+      logger.info('BITNOB', 'Balance pre-flight check', reference, {
+        requiredUsdc:   requiredUsdc.toFixed(4),
+        availableUsdc:  balances.usdc.toFixed(4),
+        rate:           `1 USDC = ${rate.toFixed(2)} KES`,
+        bufferApplied:  '5%',
       });
-      
-      return false;
-    } catch (error) {
-      logger.error('BITNOB', 'Balance check failed', undefined, error);
-      // Fail open - allow transaction to proceed and let Bitnob handle rejection if truly insufficient
+
+      if (balances.usdc >= requiredUsdc) return true;
+
+      throw new Error(
+        `Insufficient Bitnob balance. ` +
+        `Need ~${requiredUsdc.toFixed(2)} USDC, have ${balances.usdc.toFixed(2)} USDC. ` +
+        `Please top up the Bitnob wallet.`
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('Insufficient')) {
+        throw err; // Propagate balance errors
+      }
+      // Connectivity/auth errors on balance check: fail open but log loudly
+      logger.warn('BITNOB', 'Balance check failed — proceeding (fail-open)', reference, { error: err instanceof Error ? err.message : String(err) });
       return true;
     }
   }
 
+  /** Fetch all wallet balances */
+  async getWalletBalance(): Promise<{ usdc: number; kes: number; btc: number }> {
+    try {
+      const data = await this.bitnobFetch<any>('/api/wallets/balances', 'GET');
+      const balances = data.balances ?? data;
+      return {
+        usdc: parseFloat(balances.usdc ?? balances.USDC ?? 0),
+        kes:  parseFloat(balances.kes  ?? balances.KES  ?? 0),
+        btc:  parseFloat(balances.btc  ?? balances.BTC  ?? 0),
+      };
+    } catch (error) {
+      logger.error('BITNOB', 'Failed to fetch wallet balance', undefined, error);
+      return { usdc: 0, kes: 0, btc: 0 };
+    }
+  }
+
+  // ── Exchange Rate ───────────────────────────────────────────────────────────
+
   /**
-   * Initialize a mobile money payout to MPESA
-   *
-   * Endpoint: POST /wallets/payout/initialize
-   *
-   * @param kesAmount - Amount in Kenyan Shillings
-   * @param phoneNumber - Recipient phone number (format: 2547XXXXXXXX or 2541XXXXXXXX)
-   * @param reference - Unique transaction reference (our transaction ID)
-   * @param customerEmail - Customer email for notifications
-   * @param options - Additional options (paybill, till, pochi specific)
+   * Fetch live USDC → KES rate from the Bitnob rates endpoint.
+   * Falls back to a conservative 130 KES/USDC only if the API is unreachable.
    */
-  async initiatePayout(
-    kesAmount: number,
-    phoneNumber: string,
-    reference: string,
-    customerEmail: string = 'customer@wld2mpesa.app',
-    options?: {
-      paybillNumber?: string;
-      accountNumber?: string;
-      tillNumber?: string;
-      pochiRecipient?: string;
+  async getLiveUsdcKesRate(): Promise<number> {
+    try {
+      const data = await this.bitnobFetch<any>(
+        '/api/rates?from=USDC&to=KES&country=KE',
+        'GET'
+      );
+      const rate = parseFloat(data?.rate ?? data?.exchange_rate ?? 0);
+      if (rate > 0) {
+        logger.debug('BITNOB', `Live rate: 1 USDC = ${rate} KES`);
+        return rate;
+      }
+      throw new Error('Rate response missing or zero');
+    } catch {
+      logger.warn('BITNOB', 'Live rate fetch failed — using conservative fallback 128 KES/USDC');
+      return 128; // Conservative fallback (slightly below market to not over-commit)
     }
-  ): Promise<BitnobPayoutResponse> {
-    // Determine payout type for logging
-    const payoutType = options?.paybillNumber ? 'Paybill' 
-      : options?.tillNumber ? 'Till (Buy Goods)'
-      : options?.pochiRecipient ? 'Pochi la Biashara'
-      : 'Send Money';
-
-    logger.bitnobOperation(reference, `Initiating ${payoutType} payout`, undefined, {
-      amount: formatAmount(kesAmount),
-      recipient: maskPhoneNumber(phoneNumber),
-      payoutType,
-      environment: config.BITNOB_ENV,
-    });
-
-    // Clean phone number - remove + and ensure it starts with country code
-    const cleanPhone = phoneNumber.replace(/^\+/, '');
-    const formattedPhone = cleanPhone.startsWith('254') ? cleanPhone : `254${cleanPhone.replace(/^0/, '')}`;
-
-    // Validate phone number format
-    if (!/^254[17]\d{8}$/.test(formattedPhone)) {
-      throw new Error(`Invalid phone number format: ${phoneNumber}. Expected: 2547XXXXXXXX or 2541XXXXXXXX`);
-    }
-
-    // Amount in cents (Bitnob uses smallest currency unit)
-    const amountInCents = Math.round(kesAmount * 100);
-
-    // Build beneficiary based on payout type
-    let beneficiary: BitnobBeneficiary;
-
-    if (options?.paybillNumber) {
-      // Paybill payout
-      beneficiary = {
-        phoneNumber: formattedPhone,
-        country: 'Kenya',
-        type: 'momo',
-        network: 'mpesa',
-        accountNumber: options.accountNumber || '',
-      };
-    } else if (options?.tillNumber) {
-      // Till number (Buy Goods) payout
-      beneficiary = {
-        phoneNumber: formattedPhone,
-        country: 'Kenya',
-        type: 'momo',
-        network: 'mpesa',
-      };
-    } else {
-      // Regular send money or Pochi la Biashara
-      beneficiary = {
-        phoneNumber: formattedPhone,
-        country: 'Kenya',
-        type: 'momo',
-        network: 'mpesa',
-      };
-    }
-
-    const payload: BitnobPayoutRequest = {
-      amount: amountInCents,
-      customerEmail,
-      reference,
-      country: 'Kenya',
-      currency: 'KES',
-      beneficiary,
-    };
-
-    const response = await fetch(`${this.baseUrl}/wallets/payout/initialize`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json() as any;
-
-    if (!response.ok) {
-      logger.error('BITNOB', 'Payout initiation failed', reference, {
-        status: response.status,
-        error: data.message || data.error || 'Unknown error',
-      });
-      throw new Error(`Bitnob API Error: ${data.message || data.error || 'Unknown error'}`);
-    }
-
-    // Bitnob returns data in a nested structure
-    const payoutData = data.data || data;
-
-    logger.bitnobOperation(reference, `${payoutType} payout initiated`, payoutData.id, {
-      payoutId: payoutData.id,
-      status: payoutData.status,
-      amount: formatAmount(kesAmount),
-    });
-
-    return {
-      id: payoutData.id,
-      status: payoutData.status || 'pending',
-      amount: payoutData.amount / 100, // Convert cents to whole units
-      currency: payoutData.currency || 'KES',
-      country: payoutData.country || 'Kenya',
-      reference: payoutData.reference,
-      customerEmail: payoutData.customerEmail,
-      beneficiary: payoutData.beneficiary,
-      createdAt: payoutData.createdAt,
-      updatedAt: payoutData.updatedAt,
-      reason: payoutData.reason,
-    };
   }
 
   /**
-   * Check the status of a payout
-   *
-   * Endpoint: GET /wallets/payout/{id}
+   * Generic exchange rate helper (used by external callers / admin panel)
    */
-  async getPayoutStatus(payoutId: string, reference?: string): Promise<BitnobPayoutResponse> {
-    logger.bitnobOperation(reference || 'unknown', 'Checking payout status', payoutId);
-
-    const response = await fetch(`${this.baseUrl}/wallets/payout/${payoutId}`, {
-      method: 'GET',
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string };
-      const errorMsg = errorData.message || errorData.error || response.statusText;
-      logger.error('BITNOB', 'Failed to fetch payout status', reference || 'unknown', {
-        payoutId,
-        status: response.status,
-        error: errorMsg,
-      });
-      throw new Error(`Failed to fetch payout status: ${errorMsg}`);
+  async getExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
+    logger.debug('BITNOB', `Fetching rate: ${fromCurrency} → ${toCurrency}`);
+    try {
+      const data = await this.bitnobFetch<any>(
+        `/api/rates?from=${fromCurrency}&to=${toCurrency}`,
+        'GET'
+      );
+      const rate = parseFloat(data?.rate ?? data?.exchange_rate ?? 0);
+      logger.debug('BITNOB', `Rate: 1 ${fromCurrency} = ${rate} ${toCurrency}`);
+      return rate;
+    } catch (err) {
+      logger.error('BITNOB', 'Exchange rate fetch failed', undefined, err);
+      throw err;
     }
-
-    const data = await response.json() as any;
-    const payoutData = data.data || data;
-
-    logger.debug('BITNOB', `Payout status: ${payoutData.status}`, reference || 'unknown', {
-      payoutId,
-      status: payoutData.status,
-      amount: formatAmount(payoutData.amount / 100),
-    });
-
-    return {
-      id: payoutData.id,
-      status: payoutData.status || 'pending',
-      amount: payoutData.amount / 100,
-      currency: payoutData.currency || 'KES',
-      country: payoutData.country || 'Kenya',
-      reference: payoutData.reference,
-      customerEmail: payoutData.customerEmail,
-      beneficiary: payoutData.beneficiary,
-      createdAt: payoutData.createdAt,
-      updatedAt: payoutData.updatedAt,
-      reason: payoutData.reason,
-    };
   }
 
+  // ── IOfframpService implementation ─────────────────────────────────────────
+
   /**
-   * IOfframpService implementation - initiateSwap
-   * Used by the payment pipeline for WLD -> KES offramping
+   * Called by the payment pipeline: orchestrates the full payout for a txnId.
    */
   async initiateSwap(wldAmount: string, kesAmount: number, txnId: string): Promise<SwapResult> {
-    logger.pipelineStep(txnId, 2, 4, `Off-ramp: ${formatAmount(kesAmount)} → Bitnob payout`);
+    logger.pipelineStep(txnId, 3, 4, `Off-ramp: ${formatAmount(kesAmount)} KES → Bitnob`);
 
-    // Fetch the transaction to get phone number
-    const payment = await prisma.transaction.findUnique({
-      where: { id: txnId },
-    });
-
+    // Load transaction from store to determine payout type and recipient details
+    const payment = await prisma.transaction.findUnique({ where: { id: txnId } });
     if (!payment) {
-      logger.error('PAYMENT', 'Transaction not found for swap', txnId);
-      throw new Error(`Transaction ${txnId} not found`);
+      throw new Error(`Transaction ${txnId} not found in database`);
     }
 
     logger.info('PAYMENT', `Processing ${formatTransactionType(payment.transactionType)} payout`, txnId, {
-      type: payment.transactionType,
+      type:      payment.transactionType,
       kesAmount: formatAmount(kesAmount),
       wldAmount: `${wldAmount} WLD`,
     });
 
-    // Determine recipient and payout type
-    let phoneNumber: string;
-    let options: any = {};
+    // Resolve payout arguments from the stored transaction
+    const { phoneNumber, payoutType, options } = this.resolvePayoutArgs(payment);
 
-    if (payment.transactionType === 'send' || payment.transactionType === 'pochi') {
-      phoneNumber = payment.phoneNumber || '';
-    } else if (payment.transactionType === 'paybill') {
-      phoneNumber = payment.phoneNumber || '';
-      options.paybillNumber = payment.tillNumber;
-      options.accountNumber = payment.accountNumber;
-    } else if (payment.transactionType === 'till') {
-      // For till, we need the recipient's phone number (for receiving confirmation)
-      // The till number itself is passed in the reference or handled by Bitnob
-      phoneNumber = payment.phoneNumber || '';
-      options.tillNumber = payment.tillNumber;
-    } else {
-      throw new Error(`Unsupported transaction type: ${payment.transactionType}`);
-    }
-
-    if (!phoneNumber) {
-      logger.error('PAYMENT', `Phone number missing for ${payment.transactionType} payout`, txnId);
-      throw new Error(`Phone number required for ${payment.transactionType} payout`);
-    }
-
-    // Pre-flight check: Verify sufficient balance before initiating
-    const hasBalance = await this.ensureSufficientBalance(kesAmount);
-    if (!hasBalance) {
-      throw new Error('Insufficient Bitnob balance for payout. Please contact support.');
-    }
-
-    // Initiate the payout
-    logger.pipelineStep(txnId, 2, 4, `Sending ${formatTransactionType(payment.transactionType)} request to Bitnob`);
+    // Execute the full 3-step flow
     const payout = await this.initiatePayout(
       kesAmount,
       phoneNumber,
       txnId,
-      'customer@wld2mpesa.app',
+      payoutType,
       options
     );
 
-    logger.pipelineStep(txnId, 2, 4, `Bitnob payout queued [${payout.id.slice(0, 8)}...]`);
+    logger.pipelineStep(txnId, 3, 4, `✓ Payout finalized [${payout.id.slice(0, 8)}...]`);
 
     return {
-      swapId: payout.id,
-      status: this.mapBitnobStatus(payout.status),
-      estimatedKes: payout.amount,
+      swapId:       payout.id,
+      status:       this.mapStatus(payout.status),
+      estimatedKes: parseFloat(payout.settlement_amount),
     };
   }
 
   /**
-   * IOfframpService implementation - checkSwapStatus
+   * Poll status of a running payout.
    */
   async checkSwapStatus(swapId: string, reference?: string): Promise<SwapStatus> {
     try {
       const payout = await this.getPayoutStatus(swapId, reference);
-      const status = this.mapBitnobStatus(payout.status);
-      
+      const status = this.mapStatus(payout.status);
+
       if (status === 'COMPLETED') {
-        logger.pipelineStep(reference || 'unknown', 4, 4, '✓ Bitnob payout completed');
+        logger.pipelineStep(reference ?? 'unknown', 4, 4, '✓ Bitnob payout settled on M-Pesa');
       } else if (status === 'FAILED') {
-        logger.error('BITNOB', `Payout failed: ${payout.reason || 'Unknown reason'}`, reference, { payoutId: swapId });
+        logger.error('BITNOB', `Payout failed: ${payout.failure_reason ?? 'Unknown'}`, reference, {
+          payoutId: swapId,
+        });
       }
-      
+
       return status;
     } catch (err) {
-      logger.error('BITNOB', 'Failed to check payout status', reference, err);
-      return 'PENDING';
+      logger.error('BITNOB', 'Status check failed', reference, err);
+      return 'PENDING'; // Assume still in-flight on transient error
+    }
+  }
+
+  // ── Validation Helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Validate a phone number for a given country.
+   * Returns normalized number and detected network.
+   */
+  async validatePhoneNumber(
+    phoneNumber: string,
+    country: BitnobCountry
+  ): Promise<{ valid: boolean; network?: string; formattedNumber?: string }> {
+    const patterns: Record<BitnobCountry, { pattern: RegExp; prefix: string }> = {
+      Kenya:           { pattern: /^\+254[17]\d{8}$/, prefix: '254' },
+      Ghana:           { pattern: /^\+233[235]\d{8}$/, prefix: '233' },
+      Uganda:          { pattern: /^\+256[79]\d{8}$/, prefix: '256' },
+      Nigeria:         { pattern: /^\+234[789]\d{9}$/, prefix: '234' },
+      Rwanda:          { pattern: /^\+250[78]\d{8}$/, prefix: '250' },
+      Mali:            { pattern: /^\+223[4678]\d{7}$/, prefix: '223' },
+      'Burkina Faso':  { pattern: /^\+226[567]\d{7}$/, prefix: '226' },
+      Benin:           { pattern: /^\+229[4569]\d{7}$/, prefix: '229' },
+      Cameroon:        { pattern: /^\+237[6789]\d{7}$/, prefix: '237' },
+      'Ivory Coast':   { pattern: /^\+225[45789]\d{7}$/, prefix: '225' },
+      Senegal:         { pattern: /^\+221[76]\d{7}$/, prefix: '221' },
+      Togo:            { pattern: /^\+228[79]\d{7}$/, prefix: '228' },
+      'Guinea Conakry': { pattern: /^\+224[6]\d{7}$/, prefix: '224' },
+    };
+
+    const { pattern, prefix } = patterns[country] ?? {};
+    if (!pattern) return { valid: false };
+
+    let normalised = phoneNumber.replace(/\s+/g, '').replace(/^\+/, '');
+    if (!normalised.startsWith(prefix)) {
+      normalised = prefix + normalised.replace(/^0/, '');
+    }
+    normalised = '+' + normalised;
+
+    const valid = pattern.test(normalised);
+    return { valid, formattedNumber: normalised };
+  }
+
+  /** Fetch list of supported payout countries */
+  async getSupportedCountries(): Promise<string[]> {
+    try {
+      const data = await this.bitnobFetch<any>('/api/payouts/supported-countries', 'GET');
+      return (data.countries ?? data) as string[];
+    } catch (err) {
+      logger.error('BITNOB', 'Failed to fetch supported countries', undefined, err);
+      return [];
+    }
+  }
+
+  // ── Private Utilities ───────────────────────────────────────────────────────
+
+  /**
+   * Extract phone number, payout type, and options from a stored transaction.
+   */
+  private resolvePayoutArgs(payment: any): {
+    phoneNumber: string | null;
+    payoutType: 'send' | 'pochi' | 'till' | 'paybill';
+    options: PayoutOptions;
+  } {
+    const type = payment.transactionType as 'send' | 'pochi' | 'till' | 'paybill';
+
+    switch (type) {
+      case 'send':
+      case 'pochi':
+        if (!payment.phoneNumber) {
+          throw new Error(`Phone number missing for ${type} payout [${payment.id}]`);
+        }
+        return {
+          phoneNumber: payment.phoneNumber,
+          payoutType:  type,
+          options:     {},
+        };
+
+      case 'till':
+        if (!payment.tillNumber) {
+          throw new Error(`Till number missing for till payout [${payment.id}]`);
+        }
+        return {
+          phoneNumber: null,
+          payoutType:  'till',
+          options:     { tillNumber: payment.tillNumber },
+        };
+
+      case 'paybill':
+        if (!payment.tillNumber) {
+          throw new Error(`Paybill number missing for paybill payout [${payment.id}]`);
+        }
+        if (!payment.accountNumber) {
+          throw new Error(`Account number missing for paybill payout [${payment.id}]`);
+        }
+        return {
+          phoneNumber: null,
+          payoutType:  'paybill',
+          options:     {
+            paybillNumber: payment.tillNumber,
+            accountNumber: payment.accountNumber,
+          },
+        };
+
+      default:
+        throw new Error(`Unsupported transaction type: ${type}`);
     }
   }
 
   /**
-   * Map Bitnob status to our SwapStatus
+   * Map Bitnob v2 status strings to our internal SwapStatus.
+   *
+   * Bitnob v2 lifecycle:
+   *   pending → initialized → finalized → processing → success | failed | reversed
    */
-  private mapBitnobStatus(bitnobStatus: string): SwapStatus {
-    const status = bitnobStatus.toLowerCase();
-    if (status === 'success' || status === 'completed' || status === 'successful') return 'COMPLETED';
-    if (status === 'failed' || status === 'rejected' || status === 'reversed') return 'FAILED';
+  private mapStatus(bitnobStatus: string): SwapStatus {
+    const s = bitnobStatus.toLowerCase();
+    if (s === 'success' || s === 'completed' || s === 'successful') return 'COMPLETED';
+    if (s === 'failed'  || s === 'rejected'  || s === 'reversed')  return 'FAILED';
+    // pending, initialized, finalized, processing → still in-flight
     return 'PENDING';
   }
 
-  /**
-   * Get supported countries for payouts
-   */
-  async getSupportedCountries(): Promise<BitnobCountry[]> {
-    const response = await fetch(`${this.baseUrl}/wallets/payout/countries`, {
-      method: 'GET',
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch supported countries');
-    }
-
-    const data = await response.json() as any;
-    return (data.data || data.countries || []) as BitnobCountry[];
+  /** Human-readable label for logging */
+  private payoutTypeLabel(type: string): string {
+    const map: Record<string, string> = {
+      send:    'Send Money',
+      pochi:   'Pochi la Biashara',
+      till:    'Buy Goods (Till)',
+      paybill: 'Paybill',
+    };
+    return map[type] ?? type;
   }
 
-  /**
-   * Get exchange rate from USD to target currency
-   * Useful for calculating WLD -> KES via USD intermediate
-   */
-  async getExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
-    logger.debug('BITNOB', `Fetching exchange rate: ${fromCurrency} → ${toCurrency}`);
-    
-    const response = await fetch(
-      `${this.baseUrl}/rates/exchange?from=${fromCurrency}&to=${toCurrency}`,
-      {
-        method: 'GET',
-        headers: this.headers,
-      }
-    );
-
-    if (!response.ok) {
-      logger.error('BITNOB', 'Failed to fetch exchange rate', undefined, {
-        from: fromCurrency,
-        to: toCurrency,
-        status: response.status,
-      });
-      throw new Error(`Failed to fetch exchange rate: ${response.statusText}`);
-    }
-
-    const data = await response.json() as any;
-    const rate = data.data?.rate || data.rate || 0;
-    
-    logger.debug('BITNOB', `Exchange rate: 1 ${fromCurrency} = ${rate} ${toCurrency}`);
-    return rate;
-  }
-
-  /**
-   * Validate a phone number for mobile money
-   */
-  async validatePhoneNumber(phoneNumber: string, country: BitnobCountry): Promise<{
-    valid: boolean;
-    network?: MobileNetwork;
-    formattedNumber?: string;
-  }> {
-    // Bitnob doesn't have a direct validation endpoint
-    // We'll do basic validation here
-    const clean = phoneNumber.replace(/^\+/, '');
-
-    // Country-specific validation
-    const patterns: Record<BitnobCountry, RegExp> = {
-      'Kenya': /^254[17]\d{8}$/,
-      'Ghana': /^233[235]\d{8}$/,
-      'Uganda': /^256[79]\d{8}$/,
-      'Nigeria': /^234[789]\d{9}$/,
-      'Rwanda': /^250[78]\d{8}$/,
-      'Mali': /^223[4678]\d{7}$/,
-      'Burkina Faso': /^226[567]\d{7}$/,
-      'Benin': /^229[4569]\d{7}$/,
-      'Cameroon': /^237[6789]\d{7}$/,
-      'Ivory Coast': /^225[45789]\d{7}$/,
-      'Senegal': /^221[76]\d{7}$/,
-      'Togo': /^228[79]\d{7}$/,
-      'Guinea Conakry': /^224[6]\d{7}$/,
-    };
-
-    const pattern = patterns[country];
-    if (!pattern) {
-      return { valid: false };
-    }
-
-    const formatted = clean.startsWith(country === 'Kenya' ? '254' : '')
-      ? clean
-      : this.addCountryCode(clean, country);
-
-    return {
-      valid: pattern.test(formatted),
-      formattedNumber: formatted,
-    };
-  }
-
-  private addCountryCode(phone: string, country: BitnobCountry): string {
-    const codes: Record<BitnobCountry, string> = {
-      'Kenya': '254',
-      'Ghana': '233',
-      'Uganda': '256',
-      'Nigeria': '234',
-      'Rwanda': '250',
-      'Mali': '223',
-      'Burkina Faso': '226',
-      'Benin': '229',
-      'Cameroon': '237',
-      'Ivory Coast': '225',
-      'Senegal': '221',
-      'Togo': '228',
-      'Guinea Conakry': '224',
-    };
-
-    const code = codes[country];
-    // Remove leading 0 if present
-    const clean = phone.replace(/^0/, '');
-    return `${code}${clean}`;
+  /** Safe redacted description of a beneficiary for logs */
+  private describeBeneficiary(b: KenyaBeneficiary): string {
+    if ('phone_number' in b) return `M-Pesa ${maskPhoneNumber(b.phone_number)}`;
+    if ('till_number' in b)  return `Till ${b.till_number}`;
+    if ('paybill_number' in b) return `Paybill ${b.paybill_number} / Acct ${b.account_number?.slice(0, 3)}...`;
+    return 'Unknown';
   }
 }
 
-// Export singleton instance
+// ─── Exports ──────────────────────────────────────────────────────────────────
+
 export const bitnobService = new BitnobService();
 
-// Factory function for creating new instances (useful for testing)
 export function createBitnobService(): BitnobService {
   return new BitnobService();
 }

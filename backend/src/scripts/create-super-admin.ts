@@ -12,7 +12,6 @@
 import readline from 'readline';
 import { prisma } from '../db/prisma';
 import { createAdmin, findAdminByEmail } from '../services/adminService';
-import { hashPassword, comparePassword } from '../utils/jwt';
 
 const rl = readline.createInterface({
   input: process.stdin,

@@ -83,6 +83,8 @@ class PaymentService implements IPaymentService {
           swapHash = await swapService.swapWldForUsdc(tx.wldAmount);
           logger.dexOperation(transactionId, 'Swap completed', tx.wldAmount, 'WLD', swapHash);
           log(2, `✓ Rebalanced: ${swapHash.slice(0, 10)}...${swapHash.slice(-6)}`);
+          // Record swap completion so a retry can skip this step
+          await transactionStore.update(transactionId, { status: 'SWAP_COMPLETED' });
         } catch (swapErr) {
           const errorMsg = swapErr instanceof Error ? swapErr.message : 'Unknown error';
           // Do not pay out from untracked prefunded liquidity after a failed swap.
@@ -92,35 +94,23 @@ class PaymentService implements IPaymentService {
         }
       }
 
-      // Step 3: Off-ramp / Payout
-      // Route based on transaction type:
-      // - paybill: Use Daraja (direct M-Pesa integration)
-      // - send, till, pochi: Use Bitnob off-ramp
+      // Step 3: Off-ramp / Payout via Bitnob (all transaction types)
+      // All four types — send, pochi, till, paybill — are now routed through
+      // the Bitnob 3-step Payouts API with the correct Kenya corridor beneficiary.
       let payoutId: string = tx.offrampId ?? '';
       if (PAST_OFFRAMP.includes(tx.status) && tx.offrampId) {
         log(3, `↩ Skipping off-ramp initiation — already initiated: ${tx.offrampId.slice(0, 8)}...`);
         payoutId = tx.offrampId;
-      } else if (tx.transactionType === 'paybill') {
-        // Paybill via Daraja (STK Push - but for our flow we actually need B2B or different approach)
-        // For now, route through Bitnob for Paybill as well until full Daraja integration complete
-        // TODO: Implement full Daraja B2B/B2C for Paybill
-        log(3, `Initiating Paybill via Bitnob (Daraja integration pending)...`);
-        const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
-        payoutId = payout.swapId;
-        await transactionStore.update(transactionId, {
-          status: 'OFFRAMP_INITIATED',
-          offrampId: payoutId
-        });
-        log(3, `✓ Bitnob payout queued [${payoutId.slice(0, 8)}...]`);
       } else {
-        log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob...`);
+        log(3, `Initiating ${formatTransactionType(tx.transactionType)} via Bitnob (Quote → Initialize → Finalize)...`);
         const payout = await offrampService.initiateSwap(tx.wldAmount, tx.kesAmount, transactionId);
         payoutId = payout.swapId;
         await transactionStore.update(transactionId, {
           status: 'OFFRAMP_INITIATED',
-          offrampId: payoutId
+          offrampId: payoutId,
+          offrampAt: new Date().toISOString(),
         });
-        log(3, `✓ Bitnob payout queued [${payoutId.slice(0, 8)}...]`);
+        log(3, `✓ Bitnob payout finalized [${payoutId.slice(0, 8)}...]`);
       }
 
       // Step 4: Finalize
@@ -149,13 +139,17 @@ class PaymentService implements IPaymentService {
       log(4, '✓ SETTLED - Funds sent to recipient');
       logger.pipelineDivider(transactionId, 'END');
       logger.info('PAYMENT', 'Transaction completed successfully', transactionId, {
-        kesAmount: formatAmount(tx.kesAmount),
-        swapHash: swapHash ? `${swapHash.slice(0, 10)}...${swapHash.slice(-6)}` : 'skipped',
-        destination: tx.transactionType === 'send' || tx.transactionType === 'pochi'
-          ? maskPhoneNumber(tx.phoneNumber)
-          : tx.transactionType === 'paybill'
-          ? `Paybill ${tx.tillNumber}`
-          : `Till ${tx.tillNumber}`,
+        kesAmount:   formatAmount(tx.kesAmount),
+        swapHash:    swapHash ? `${swapHash.slice(0, 10)}...${swapHash.slice(-6)}` : 'skipped',
+        destination: (() => {
+          switch (tx.transactionType) {
+            case 'send':    return maskPhoneNumber(tx.phoneNumber ?? '');
+            case 'pochi':   return `Pochi ${maskPhoneNumber(tx.phoneNumber ?? '')}`;
+            case 'paybill': return `Paybill ${tx.tillNumber} / Acct ${tx.accountNumber?.slice(0, 3)}...`;
+            case 'till':    return `Till ${tx.tillNumber}`;
+            default:        return tx.transactionType;
+          }
+        })(),
       });
 
     } catch (err) {

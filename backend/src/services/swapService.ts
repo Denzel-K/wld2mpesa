@@ -6,7 +6,7 @@
 
 import { ethers } from 'ethers';
 import { config } from '../config';
-import { logger, maskWalletAddress, formatAmount } from '../utils/logger';
+import { logger } from '../utils/logger';
 
 // Minimal ABIs
 const ERC20_ABI = [

@@ -6,7 +6,6 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { createContactMessage, getConversations, getConversationById, createAdminResponse, assignConversation, updateConversationStatus, markMessageAsRead, getContactStats } from '../services/contactService';
 import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
-import { sendNewMessageNotification } from '../services/emailService';
 
 const router = Router();
 

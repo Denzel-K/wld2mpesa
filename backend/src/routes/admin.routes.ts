@@ -6,8 +6,6 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { comparePassword, generateAdminToken } from '../utils/jwt';
 import { findAdminByEmail, findAdminById, updateLastLogin, getAllAdmins, updateAdminStatus, getAdminStats, createInvitation, findInvitationByToken, acceptInvitation, getAllInvitations, cancelInvitation } from '../services/adminService';
-import { transactionStore } from '../services/transactionStore';
-import { userStore } from '../services/userStore';
 import { prisma } from '../db/prisma';
 import { requireAuth, requireSuperAdmin, requireAdmin } from '../middleware/authMiddleware';
 import { logger, maskWalletAddress } from '../utils/logger';

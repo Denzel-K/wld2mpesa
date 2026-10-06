@@ -36,7 +36,7 @@ export const bitnobRouter = Router();
  */
 function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
   if (!signature || !secret) {
-    logger.warn('BITNOB_WEBHOOK', 'Missing signature or secret for verification');
+    logger.warn('BITNOB', 'Missing signature or secret for verification');
     return false;
   }
 
@@ -56,7 +56,7 @@ function verifyWebhookSignature(payload: string, signature: string, secret: stri
 
     return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
   } catch (error) {
-    logger.error('BITNOB_WEBHOOK', 'Signature verification error', undefined, error);
+    logger.error('BITNOB', 'Signature verification error', undefined, error);
     return false;
   }
 }
@@ -85,7 +85,7 @@ bitnobRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    logger.info('BITNOB_WEBHOOK', 'Received valid webhook', undefined, { 
+    logger.info('BITNOB', 'Received valid webhook', undefined, { 
       event: req.body.event || req.body.type,
       signature: `${signature.slice(0, 10)}...`,
     });
@@ -101,12 +101,17 @@ bitnobRouter.post('/', async (req: Request, res: Response) => {
     const eventData = payload.data || payload;
 
     switch (eventType) {
+      // v2 Payouts API event names
       case 'payout.initiated':
       case 'payout.pending':
+      case 'payout.initialized':
+      case 'payout.finalized':
+      case 'payout.processing':
         await handlePayoutPending(eventData);
         break;
 
       case 'payout.success':
+      case 'payout.succeeded':
       case 'payout.completed':
         await handlePayoutSuccess(eventData);
         break;
@@ -121,7 +126,7 @@ bitnobRouter.post('/', async (req: Request, res: Response) => {
         break;
 
       default:
-        console.log(`[Bitnob Webhook] Unknown event type: ${eventType}`);
+        logger.warn('BITNOB', `Unhandled event type: ${eventType}`);
     }
   } catch (err) {
     console.error('[Bitnob Webhook] Error processing webhook:', err);
@@ -156,11 +161,16 @@ async function handlePayoutSuccess(data: any): Promise<void> {
 
   console.log(`[Bitnob Webhook] Payout successful for transaction: ${reference}`);
 
-  // Get receipt number from Bitnob if available
-  const receiptNumber = data.receiptNumber || data.mpesaReceiptNumber || data.transactionId;
+  // Get M-Pesa receipt from v2 API response (field: receipt_number)
+  const receiptNumber =
+    data.receipt_number ||
+    data.receiptNumber ||
+    data.mpesaReceiptNumber ||
+    data.transactionId;
 
   // Mark transaction as settled
-  await paymentService.markSettled(reference, receiptNumber || 'BITNOB-' + Date.now());
+  await paymentService.markSettled(reference, receiptNumber || `BITNOB-${Date.now()}`);
+  logger.info('BITNOB', `Transaction settled`, reference, { receipt: receiptNumber });
 }
 
 async function handlePayoutFailed(data: any): Promise<void> {
@@ -216,9 +226,9 @@ bitnobRouter.get('/status/:transactionId', async (req: Request, res: Response) =
       offrampId: tx.offrampId,
       status,
       bitnobStatus: payout.status,
-      amount: payout.amount,
-      currency: payout.currency,
-      reason: payout.reason,
+      amount: payout.settlement_amount,
+      currency: payout.to_currency,
+      reason: payout.failure_reason,
     });
   } catch (err) {
     console.error('[Bitnob Router] Status check failed:', err);
@@ -233,7 +243,7 @@ bitnobRouter.get('/status/:transactionId', async (req: Request, res: Response) =
  *
  * Test Bitnob API connectivity (development only)
  */
-bitnobRouter.post('/test', async (req: Request, res: Response) => {
+bitnobRouter.post('/test', async (_req: Request, res: Response) => {
   if (config.IS_PRODUCTION) {
     res.status(403).json({ error: 'Test endpoint not available in production' });
     return;
@@ -241,24 +251,23 @@ bitnobRouter.post('/test', async (req: Request, res: Response) => {
 
   try {
     // Test exchange rate fetch
-    const rate = await bitnobService.getExchangeRate('USD', 'KES');
+    const rate = await bitnobService.getExchangeRate('USDC', 'KES');
 
     res.json({
-      success: true,
+      success:     true,
       environment: config.BITNOB_ENV,
-      baseUrl: config.BITNOB_ENV === 'production'
-        ? 'https://api.bitnob.co/api/v1'
-        : 'https://sandboxapi.bitnob.co/api/v1',
-      usdToKesRate: rate,
-      message: 'Bitnob API connection successful',
+      baseUrl:     'https://api.bitnob.com',
+      usdcToKesRate: rate,
+      message:     'Bitnob API v2 connection successful',
+      note:        'Authentication uses HMAC-SHA256 (X-Auth-Client / X-Auth-Signature)',
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[Bitnob Router] Test failed:', err);
+    logger.error('BITNOB', 'API connectivity test failed', undefined, err);
     res.status(500).json({
       success: false,
-      error: msg,
-      hint: 'Check BITNOB_API_KEY is set correctly in .env',
+      error:   msg,
+      hint:    'Check BITNOB_CLIENT_ID and BITNOB_SECRET_KEY are set correctly in .env',
     });
   }
 });

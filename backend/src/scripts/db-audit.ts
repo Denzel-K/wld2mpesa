@@ -30,9 +30,6 @@ const c = {
   bgYellow: '\x1b[43m',
 };
 
-function tag(color: string, label: string): string {
-  return `${color}${c.bold}[${label}]${c.reset}`;
-}
 
 function fmt(date: Date | null | undefined): string {
   if (!date) return c.dim + 'N/A' + c.reset;

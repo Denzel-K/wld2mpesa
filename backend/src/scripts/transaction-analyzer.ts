@@ -130,10 +130,6 @@ type RootCause =
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-function fmt(date: Date | null | undefined): string {
-  if (!date) return c.dim + 'N/A' + c.reset;
-  return new Date(date).toLocaleString('en-KE', { hour12: false });
-}
 
 function shortId(id: string): string {
   return id.length > 20 ? `${id.slice(0, 16)}…` : id;
@@ -144,9 +140,6 @@ function wld(n: string | number): string {
   return isNaN(val) ? '0.0000' : val.toFixed(4);
 }
 
-function tag(color: string, label: string): string {
-  return `${color}${c.bold}[${label}]${c.reset}`;
-}
 
 // ─── Root Cause Analysis Engine ───────────────────────────────────────────────
 
@@ -586,7 +579,6 @@ async function printStuckReport(analyses: StuckAnalysis[]) {
   }
 
   const critical = analyses.filter((a) => a.durationMinutes > 60);
-  const warning = analyses.filter((a) => a.durationMinutes <= 60);
 
   if (critical.length > 0) {
     console.log(`${c.bgRed}${c.bold} ⚠ CRITICAL: ${critical.length} transaction(s) stuck >1 hour ${c.reset}\n`);
