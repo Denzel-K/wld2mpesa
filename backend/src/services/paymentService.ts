@@ -254,8 +254,18 @@ class PaymentService implements IPaymentService {
     const tx = await transactionStore.get(transactionId);
 
     if (!tx) throw new Error(`Transaction not found: ${transactionId}`);
+
+    // Idempotency guard: if already confirmed (or further), return current status
+    // without spawning a duplicate pipeline. This handles network retries gracefully.
     if (tx.status !== 'INITIATED') {
-      throw new Error(`Transaction ${transactionId} is in state ${tx.status} — cannot confirm`);
+      logger.info('PAYMENT', `Confirm called on already-confirmed transaction (idempotent)`, transactionId, {
+        currentStatus: tx.status,
+      });
+      return {
+        transactionId,
+        status: tx.status,
+        estimatedSettlementMinutes: 3,
+      };
     }
 
     await transactionStore.update(transactionId, {
@@ -316,7 +326,7 @@ class PaymentService implements IPaymentService {
         done: ['OFFRAMP_INITIATED', 'MPESA_SENT', 'SETTLED'].includes(tx.status),
       },
       {
-        step: 'MPESA_SENT',
+        step: 'PAYOUT_SENT',
         timestamp: tx.mpesaSentAt ?? tx.offrampAt ?? tx.createdAt,
         done: ['MPESA_SENT', 'SETTLED'].includes(tx.status),
       },

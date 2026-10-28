@@ -222,15 +222,16 @@ export const config = {
 } as const;
 
 // Warn about missing environment variables (will cause runtime failures)
+// NOTE: M-Pesa / Daraja keys are NOT required — Bitnob handles all disbursements
+// (send money, Pochi la Biashara, Till / Buy Goods, Paybill).
 const requiredEnvVars = [
   'DATABASE_URL',
   'REDIS_URL',
   'BITNOB_CLIENT_ID',
   'BITNOB_SECRET_KEY',
-  'BACKEND_WALLET_ADDRESS',
   'BITNOB_API_KEY',
-  'MPESA_CONSUMER_KEY',
-  'MPESA_CONSUMER_SECRET',
+  'BACKEND_WALLET_ADDRESS',
+  'ADMIN_PRIVATE_KEY',
 ];
 
 const missing = requiredEnvVars.filter((key) => !process.env[key]);

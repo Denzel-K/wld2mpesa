@@ -27,6 +27,19 @@ export class SwapService {
     if (!config.ADMIN_PRIVATE_KEY) {
       throw new Error('ADMIN_PRIVATE_KEY missing from environment');
     }
+
+    // Guard: an Ethereum address (40 hex chars) was mistakenly set instead of a private key (64 hex chars).
+    // Ethereum addresses start with 0x followed by 40 hex chars.
+    // Private keys are 32 bytes = 64 hex chars (with or without 0x prefix).
+    const rawKey = config.ADMIN_PRIVATE_KEY.replace(/^0x/, '');
+    if (rawKey.length === 40 && /^[0-9a-fA-F]+$/.test(rawKey)) {
+      throw new Error(
+        'ADMIN_PRIVATE_KEY appears to be a wallet ADDRESS (40 hex chars), not a private key (64 hex chars). ' +
+        'Set ADMIN_PRIVATE_KEY to the actual private key of the escrow wallet. ' +
+        'In World App: Settings → Wallet → Export Private Key.'
+      );
+    }
+
     this.wallet = new ethers.Wallet(config.ADMIN_PRIVATE_KEY, this.provider);
   }
 
