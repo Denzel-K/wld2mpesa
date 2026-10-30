@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { usePaymentStore } from '../stores/paymentStore';
-import { isInsideWorldApp, authenticateWallet, verifyWithWorldId, checkBackend, LOGIN_ACTION_ID } from '../lib/minikit';
+import { isInsideWorldApp, authenticateWallet, verifyWithWorldId, checkBackend, LOGIN_ACTION_ID, reportFrontendIssue } from '../lib/minikit';
 import * as api from '../lib/api';
 import {
     ShieldCheck,
@@ -129,9 +129,11 @@ export const VerificationPage: React.FC = () => {
         const proof = await verifyWithWorldId(LOGIN_ACTION_ID, walletAddress, rpContext);
 
         if (!proof) {
-            setError('World ID verification was cancelled or failed. Please try again.');
+            const friendlyMessage = 'World ID verification was interrupted. Please try again in a moment.';
+            reportFrontendIssue('World ID verification failed', { action: LOGIN_ACTION_ID, signal: walletAddress });
+            setError(friendlyMessage);
             setStep('error');
-            inProgressRef.current = false; // Allow retry — user will get a fresh proof from World App
+            inProgressRef.current = false;
             return;
         }
 
@@ -165,9 +167,11 @@ export const VerificationPage: React.FC = () => {
                 }
             }, 800);
         } catch (err: any) {
-            setError(err.message || 'Account sync failed. Please try again.');
+            const detail = err?.message || 'Unknown sync error';
+            reportFrontendIssue('Account sync failed', { detail, walletAddress });
+            setError('We couldn’t complete your secure account setup. Please try again in a moment.');
             setStep('error');
-            inProgressRef.current = false; // Allow retry — user will get a fresh proof from World App
+            inProgressRef.current = false;
         }
     };
 
@@ -295,9 +299,8 @@ export const VerificationPage: React.FC = () => {
             {backendOk === false && (
                 <div className="w-full max-w-sm mx-auto mb-4 z-10">
                     <div className="bg-red-500/10 border border-red-500/25 text-red-500 p-4 rounded-2xl text-xs text-left">
-                        <p className="font-black mb-1">⚠️ Backend Unreachable</p>
-                        <p className="font-mono opacity-70">{backendError}</p>
-                        <p className="opacity-50 mt-1">Ensure VITE_BACKEND_URL=/api in .env.local and restart the frontend container.</p>
+                        <p className="font-black mb-1">⚠️ Service temporarily unavailable</p>
+                        <p className="opacity-80 leading-relaxed">{backendError ?? 'We’re having trouble reaching our secure service. Please check your connection and try again in a moment.'}</p>
                     </div>
                 </div>
             )}

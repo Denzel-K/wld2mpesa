@@ -72,9 +72,11 @@ export default function App() {
         setRate(rate);
         addSimLog('info', `Rate fetched: 1 WLD = KSh ${rate.wldPriceKes.toFixed(2)}`);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to fetch rate';
-        setRateError(msg);
-        addSimLog('error', `Rate fetch failed: ${msg}`);
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        const userMessage = 'We couldn’t refresh the latest rate right now. Please try again in a moment.';
+        console.error('[App] Rate fetch failed:', err);
+        addSimLog('error', `Rate fetch failed: ${message}`);
+        setRateError(userMessage);
       } finally {
         setRateLoading(false);
       }

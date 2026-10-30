@@ -17,20 +17,71 @@ const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || '/api';
 
 export { APP_ID, RP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL };
 
+export function reportFrontendIssue(context: string, details?: Record<string, unknown> | unknown) {
+  const payload = sanitizeForLog(details ?? {});
+  console.error(`[Frontend] ${context}:`, payload);
+
+  const message = context;
+  logToServer('error', message, typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : { value: payload });
+}
+
 /**
  * Log an error to the backend so it surfaces in Docker logs.
  * Browser-side console.error is invisible in Docker — this is the workaround.
  */
 async function logToServer(level: 'info' | 'warn' | 'error', message: string, context?: object) {
+  const payload = {
+    level,
+    message,
+    context: sanitizeForLog(context ?? {}),
+    baseUrl: sanitizeForLog(BASE_URL),
+    timestamp: new Date().toISOString(),
+  };
+
   try {
     await fetch(`${BASE_URL}/debug/log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ level, message, context }),
+      body: JSON.stringify(payload),
     });
-  } catch {
-    // Ignore — if the backend is unreachable, we can't log anyway
+  } catch (error) {
+    console.error('[Frontend log relay failed]', {
+      message,
+      baseUrl: BASE_URL,
+      error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error),
+      payload,
+    });
   }
+}
+
+function sanitizeForLog(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const redactedQuery = value.replace(/([?&](?:token|secret|key|signature|proof|authorization|cookie|session)=)([^&\s]+)/gi, '$1[REDACTED]');
+    return redactedQuery.replace(/(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1[REDACTED]');
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForLog);
+  }
+
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      const lower = key.toLowerCase();
+      if (['secret', 'token', 'password', 'authorization', 'cookie', 'session', 'privatekey', 'private_key', 'proof', 'signature', 'api_key', 'apiKey'].some(part => lower.includes(part))) {
+        out[key] = '[REDACTED]';
+        continue;
+      }
+      if ((lower.includes('address') || lower.includes('phone')) && typeof entry === 'string') {
+        out[key] = entry.length > 8 ? `${entry.slice(0, 4)}…${entry.slice(-4)}` : '[REDACTED]';
+        continue;
+      }
+      out[key] = sanitizeForLog(entry);
+    }
+    return out;
+  }
+
+  return value;
 }
 
 // Workaround for broken/missing exports in @worldcoin/minikit-js@1.11.0 types
@@ -76,13 +127,20 @@ export function initMiniKit(): void {
  * Test if the backend is reachable via the Vite proxy.
  * Useful for diagnosing network issues before attempting walletAuth.
  */
-export async function checkBackend(): Promise<{ ok: boolean; error?: string }> {
+export async function checkBackend(): Promise<{ ok: boolean; error?: string; details?: string }> {
   try {
     const res = await fetch(`${BASE_URL}/health`, { method: 'GET' });
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    if (!res.ok) {
+      const errorMessage = `HTTP ${res.status}`;
+      logToServer('warn', 'Backend health check failed', { url: `${BASE_URL}/health`, status: res.status, statusText: res.statusText });
+      return { ok: false, error: 'The service is temporarily unavailable. Please try again in a moment.', details: errorMessage };
+    }
     return { ok: true };
   } catch (err: any) {
-    return { ok: false, error: err.message || 'Network error' };
+    const detail = err?.message || 'Network error';
+    logToServer('error', 'Backend connection failed', { url: `${BASE_URL}/health`, error: detail, baseUrl: BASE_URL });
+    console.error('[Frontend] Backend health check failed:', { url: `${BASE_URL}/health`, error: detail, baseUrl: BASE_URL });
+    return { ok: false, error: 'The service is temporarily unavailable. Please try again in a moment.', details: detail };
   }
 }
 
