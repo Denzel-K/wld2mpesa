@@ -6,7 +6,20 @@
  */
 
 // @ts-ignore
-const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL ?? '/api';
+const normalizeApiBaseUrl = (value: string): string => {
+  const base = (value || '/api').trim().replace(/\/+$/, '');
+  if (!base) return '/api';
+  if (base === '/api') return '/api';
+  if (base.endsWith('/api')) return base;
+  if (base.startsWith('http://') || base.startsWith('https://')) {
+    return `${base}/api`;
+  }
+  return `${base}/api`;
+};
+
+export const BASE_URL = normalizeApiBaseUrl((import.meta as any).env?.VITE_BACKEND_URL ?? '/api');
+
+export { normalizeApiBaseUrl };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

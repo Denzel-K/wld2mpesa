@@ -13,9 +13,18 @@ const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID || 'app_ac9f43a974959b0
 const RP_ID = (import.meta as any).env?.VITE_WLD_RP_ID || APP_ID;
 const LOGIN_ACTION_ID = (import.meta as any).env?.VITE_WLD_LOGIN_ACTION_ID || 'wld2mpesa-login';
 const PAY_ACTION_ID = (import.meta as any).env?.VITE_WLD_PAY_ACTION_ID || 'wld2mpesa-pay';
-const BASE_URL = (import.meta as any).env?.VITE_BACKEND_URL || '/api';
 
-export { APP_ID, RP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL };
+const normalizeApiBaseUrl = (value: string): string => {
+  const base = (value || '/api').trim().replace(/\/+$/, '');
+  if (!base) return '/api';
+  if (base === '/api') return '/api';
+  if (base.endsWith('/api')) return base;
+  return `${base}/api`;
+};
+
+const BASE_URL = normalizeApiBaseUrl((import.meta as any).env?.VITE_BACKEND_URL ?? '/api');
+
+export { APP_ID, RP_ID, LOGIN_ACTION_ID, PAY_ACTION_ID, BASE_URL, normalizeApiBaseUrl };
 
 export function reportFrontendIssue(context: string, details?: Record<string, unknown> | unknown) {
   const payload = sanitizeForLog(details ?? {});
