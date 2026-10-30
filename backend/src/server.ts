@@ -53,9 +53,10 @@ app.use(rateLimit({
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 // CORS_ORIGIN env var — set to comma-separated origins in production.
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:3000', 'https://developer.worldcoin.org', '*'];
+const corsOrigin = (process.env.CORS_ORIGIN ?? 'http://localhost:3000,https://developer.worldcoin.org,*')
+  .split(',')
+  .map(origin => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
 app.use(cors({
   origin: corsOrigin,
