@@ -5,8 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/src/server.js",
+    "build": "npx prisma generate && npx prisma migrate deploy && tsc",
+    "start": "npx prisma migrate deploy && node dist/src/server.js",
     "type-check": "tsc --noEmit",
     "db:audit": "tsx src/scripts/db-audit.ts",
     "db:fix-refunds": "tsx src/scripts/db-audit.ts --fix-fake",

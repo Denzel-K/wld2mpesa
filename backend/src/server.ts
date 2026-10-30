@@ -29,6 +29,7 @@ import { adminRouter } from './routes/admin.routes';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { cloudflareMiddleware } from './middleware/cloudflareMiddleware';
+import { prisma } from './db/prisma';
 
 const app = express();
 
@@ -121,20 +122,45 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+// ─── Database ─────────────────────────────────────────────────────────────────
+
+async function ensureDatabaseSchema(): Promise<void> {
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM public.users LIMIT 1`;
+  } catch (error: any) {
+    const msg = error?.message ?? String(error);
+    console.error('[DB] Schema check failed. Prisma tables may be missing. Run: npx prisma migrate deploy', {
+      message: msg,
+      code: error?.code,
+      meta: error?.meta,
+    });
+    throw new Error('Database schema not initialized. Please run Prisma migrations before starting the app.');
+  }
+}
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(config.PORT, () => {
-  console.log(`\n🚀 WLD2Mpesa backend running on http://localhost:${config.PORT}`);
-  console.log(`   Health: http://localhost:${config.PORT}/api/health`);
-  console.log(`   Rates:  http://localhost:${config.PORT}/api/rates/wld-kes`);
-  console.log(`   Mode:   ${config.IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}\n`);
+async function startServer(): Promise<void> {
+  await ensureDatabaseSchema();
 
-  logger.startupBanner(
-    config.IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT',
-    !!config.ADMIN_PRIVATE_KEY,
-    !!(config.BITNOB_CLIENT_ID && config.BITNOB_SECRET_KEY && config.BITNOB_API_KEY),
-    !!(config.MPESA_CONSUMER_KEY && config.MPESA_CONSUMER_SECRET)
-  );
+  app.listen(config.PORT, () => {
+    console.log(`\n🚀 WLD2Mpesa backend running on http://localhost:${config.PORT}`);
+    console.log(`   Health: http://localhost:${config.PORT}/api/health`);
+    console.log(`   Rates:  http://localhost:${config.PORT}/api/rates/wld-kes`);
+    console.log(`   Mode:   ${config.IS_PRODUCTION ? '🔴 PRODUCTION' : '🟡 DEVELOPMENT'}\n`);
+
+    logger.startupBanner(
+      config.IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT',
+      !!config.ADMIN_PRIVATE_KEY,
+      !!(config.BITNOB_CLIENT_ID && config.BITNOB_SECRET_KEY && config.BITNOB_API_KEY),
+      !!(config.MPESA_CONSUMER_KEY && config.MPESA_CONSUMER_SECRET)
+    );
+  });
+}
+
+void startServer().catch((error) => {
+  console.error('[DB] Startup aborted because the database schema is not ready:', error);
+  process.exit(1);
 });
 
 export { app };
