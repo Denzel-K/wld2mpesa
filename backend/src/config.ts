@@ -29,19 +29,17 @@ const WORLD_CHAIN_RPC_URL = optionalEnv(
 );
 
 // ─── World Chain wallet ───────────────────────────────────────────────────────
-// TODO: PRODUCTION - Replace with real World Chain wallet address
-const BACKEND_WALLET_ADDRESS = optionalEnv(
-  'BACKEND_WALLET_ADDRESS',
-  '0xSIMULATED_BACKEND_WALLET_ADDRESS'
-);
+// No fallback — must be set in .env / Render env vars.
+const BACKEND_WALLET_ADDRESS = optionalEnv('BACKEND_WALLET_ADDRESS', '');
 
 // ─── World App ────────────────────────────────────────────────────────────────
-// TODO: PRODUCTION - Set real values from World Developer Portal
-const WLD_APP_ID = optionalEnv('WLD_APP_ID', 'app_ac9f43a974959b04b11b081c3740f932');
-const WLD_RP_ID = optionalEnv('WLD_RP_ID', 'rp_c205808e8673f770'); // Defaults to App ID in 4.0 if not specified
-const WLD_SIGNING_KEY = optionalEnv('WLD_SIGNING_KEY', ''); // REQUIRED for World ID 4.0
-const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', 'wld2mpesa-login');
-const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', 'wld2mpesa-pay');
+// No fallbacks — credentials must come from .env files only.
+// Set these in backend/.env (dev) or Render env vars (production).
+const WLD_APP_ID = optionalEnv('WLD_APP_ID', '');
+const WLD_RP_ID = optionalEnv('WLD_RP_ID', '');
+const WLD_SIGNING_KEY = optionalEnv('WLD_SIGNING_KEY', '');
+const WLD_LOGIN_ACTION_ID = optionalEnv('WLD_LOGIN_ACTION_ID', '');
+const WLD_PAY_ACTION_ID = optionalEnv('WLD_PAY_ACTION_ID', '');
 
 // ─── Off-ramp: Bitnob ─────────────────────────────────────────────────────────
 // Sign up at https://bitnob.com/ → Developer → API Keys
@@ -221,23 +219,29 @@ export const config = {
   INVITATION_EXPIRY_HOURS,
 } as const;
 
-// Warn about missing environment variables (will cause runtime failures)
-// NOTE: M-Pesa / Daraja keys are NOT required — Bitnob handles all disbursements
-// (send money, Pochi la Biashara, Till / Buy Goods, Paybill).
+// ─── Required environment variable check ─────────────────────────────────────
+// These vars have no hardcoded fallbacks. Missing any will cause runtime failures.
+// Set them in backend/.env for local dev or in Render's environment variables for production.
+// NOTE: M-Pesa / Daraja keys are NOT required — Bitnob handles all disbursements.
 const requiredEnvVars = [
   'DATABASE_URL',
-  'REDIS_URL',
   'BITNOB_CLIENT_ID',
   'BITNOB_SECRET_KEY',
   'BITNOB_API_KEY',
   'BACKEND_WALLET_ADDRESS',
   'ADMIN_PRIVATE_KEY',
+  // World ID — must match the Developer Portal app exactly
+  'WLD_APP_ID',
+  'WLD_RP_ID',
+  'WLD_SIGNING_KEY',
+  'WLD_LOGIN_ACTION_ID',
+  'WLD_PAY_ACTION_ID',
 ];
 
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.warn(`\n⚠️  Missing env vars: ${missing.join(', ')}`);
-  console.warn('   Affected services will fail at runtime. Set these in backend/.env to enable them.\n');
+  console.warn('   Set these in backend/.env (local) or Render env vars (production).\n');
 } else {
   console.log('✅ All required environment variables present');
 }

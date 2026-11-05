@@ -56,15 +56,24 @@ app.use(rateLimit({
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 // CORS_ORIGIN env var — set to comma-separated origins in production.
-const corsOrigin = (process.env.CORS_ORIGIN ?? 'http://localhost:3000,https://developer.worldcoin.org,*')
+// A bare "*" in the list means "allow all origins" (cors array mode does
+// literal matching, so "*" must be converted to origin: true).
+const corsOriginRaw = (process.env.CORS_ORIGIN ?? 'http://localhost:3000,https://developer.worldcoin.org,*')
   .split(',')
-  .map(origin => origin.trim().replace(/\/+$/, ''))
+  .map(o => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
+const corsOriginSetting: boolean | string | string[] = corsOriginRaw.includes('*')
+  ? true                                           // allow all origins
+  : corsOriginRaw.length === 1
+    ? corsOriginRaw[0]
+    : corsOriginRaw;
+
 app.use(cors({
-  origin: corsOrigin,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  origin: corsOriginSetting,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
 }));
 
 app.use(express.json({ limit: '1mb' }));

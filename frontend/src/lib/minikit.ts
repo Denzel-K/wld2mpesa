@@ -9,10 +9,29 @@
 
 import { MiniKit, tokenToDecimals, VerificationLevel } from '@worldcoin/minikit-js';
 
-const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID || 'app_ac9f43a974959b04b11b081c3740f932';
-const RP_ID = (import.meta as any).env?.VITE_WLD_RP_ID || APP_ID;
-const LOGIN_ACTION_ID = (import.meta as any).env?.VITE_WLD_LOGIN_ACTION_ID || 'wld2mpesa-login';
-const PAY_ACTION_ID = (import.meta as any).env?.VITE_WLD_PAY_ACTION_ID || 'wld2mpesa-pay';
+// Credentials come exclusively from VITE_ environment variables.
+// Set them in frontend/.env.local (dev) or Vercel environment variables (production).
+// No hardcoded fallbacks — a missing var will be caught by the guard below.
+const APP_ID = (import.meta as any).env?.VITE_WLD_APP_ID as string | undefined;
+const RP_ID = (import.meta as any).env?.VITE_WLD_RP_ID as string | undefined;
+const LOGIN_ACTION_ID = (import.meta as any).env?.VITE_WLD_LOGIN_ACTION_ID as string | undefined;
+const PAY_ACTION_ID = (import.meta as any).env?.VITE_WLD_PAY_ACTION_ID as string | undefined;
+
+// Guard: warn loudly at startup if any required credential is missing
+const _missingFrontendVars = [
+  ['VITE_WLD_APP_ID', APP_ID],
+  ['VITE_WLD_RP_ID', RP_ID],
+  ['VITE_WLD_LOGIN_ACTION_ID', LOGIN_ACTION_ID],
+  ['VITE_WLD_PAY_ACTION_ID', PAY_ACTION_ID],
+  ['VITE_BACKEND_URL', (import.meta as any).env?.VITE_BACKEND_URL],
+].filter(([, v]) => !v).map(([k]) => k);
+
+if (_missingFrontendVars.length > 0) {
+  console.error(
+    `[Config] Missing required environment variables: ${_missingFrontendVars.join(', ')}. ` +
+    'Set them in frontend/.env.local (local dev) or Vercel environment variables (production).'
+  );
+}
 
 const normalizeApiBaseUrl = (value: string): string => {
   const base = (value || '/api').trim().replace(/\/+$/, '');
