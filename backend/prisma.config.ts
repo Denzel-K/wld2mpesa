@@ -7,9 +7,9 @@ export default defineConfig({
         path: 'prisma/migrations',
     },
     datasource: {
-        url: env('DATABASE_URL'),
-        // DIRECT_URL is required for Neon: prisma migrate deploy must bypass
-        // the connection pooler and connect directly to the database.
-        directUrl: env('DIRECT_URL'),
+        // DIRECT_URL = non-pooled Neon connection string.
+        // Required for `prisma migrate deploy` — connection poolers block DDL.
+        // Runtime queries use DATABASE_URL (pooled) via the pg Pool in src/db/prisma.ts.
+        url: env('DIRECT_URL'),
     },
 });
