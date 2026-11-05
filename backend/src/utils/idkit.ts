@@ -1,5 +1,4 @@
-// @ts-ignore
-import { signRequest } from '@worldcoin/idkit/signing';
+import { signRequest } from '@worldcoin/idkit-server';
 import { config } from '../config';
 
 /**
