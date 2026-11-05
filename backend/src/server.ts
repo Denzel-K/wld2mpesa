@@ -8,9 +8,11 @@
  */
 
 import dns from 'node:dns';
-// Force Node to use external DNS servers, bypassing the problematic 
+// Force Node to use external DNS servers, bypassing the problematic
 // Alpine/musl libc resolver that often fails with 127.0.0.53 stubs.
 dns.setServers(['8.8.8.8', '1.1.1.1']);
+
+import { execSync } from 'node:child_process';
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -124,17 +126,40 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // ─── Database ─────────────────────────────────────────────────────────────────
 
+/**
+ * Run `prisma migrate deploy` synchronously so pending migrations are applied
+ * before any schema checks. Safe to call on every startup — it is a no-op when
+ * the database is already up-to-date.
+ */
+function runMigrations(): void {
+  try {
+    console.log('[DB] Running prisma migrate deploy…');
+    execSync('npx prisma migrate deploy', {
+      stdio: 'inherit',
+      env: { ...process.env },
+    });
+    console.log('[DB] Migrations applied ✓');
+  } catch (err: any) {
+    // Log but don't throw — the schema check below will surface any real issue.
+    console.error('[DB] prisma migrate deploy failed:', err?.message ?? err);
+  }
+}
+
 async function ensureDatabaseSchema(): Promise<void> {
+  // 1. Apply any pending migrations first (auto-deploy on every startup).
+  runMigrations();
+
+  // 2. Verify the core table exists.
   try {
     await prisma.$queryRaw`SELECT 1 FROM public.users LIMIT 1`;
   } catch (error: any) {
     const msg = error?.message ?? String(error);
-    console.error('[DB] Schema check failed. Prisma tables may be missing. Run: npx prisma migrate deploy', {
+    console.error('[DB] Schema check failed after migration attempt. Verify DATABASE_URL is correct and the Neon DB is reachable.', {
       message: msg,
       code: error?.code,
       meta: error?.meta,
     });
-    throw new Error('Database schema not initialized. Please run Prisma migrations before starting the app.');
+    throw new Error('Database schema not initialized. Prisma migrations may have failed — check the logs above.');
   }
 }
 

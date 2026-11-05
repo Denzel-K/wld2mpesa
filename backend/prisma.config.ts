@@ -8,5 +8,8 @@ export default defineConfig({
     },
     datasource: {
         url: env('DATABASE_URL'),
+        // DIRECT_URL is required for Neon: prisma migrate deploy must bypass
+        // the connection pooler and connect directly to the database.
+        directUrl: env('DIRECT_URL'),
     },
 });
